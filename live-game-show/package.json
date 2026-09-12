@@ -19,7 +19,9 @@
     "android:release": "npm run build && npx cap sync android && cd android && ./gradlew assembleRelease",
     "android:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
     "android:sync-billing": "npm run build && npx cap sync android",
-    "postinstall": "echo \"[zatona] Run npx cap sync android after install on device machine\""
+    "postinstall": "echo \"[zatona] Run npx cap sync android after install on device machine\"",
+    "start": "serve -s dist -l ${PORT:-3000}",
+    "railway:build": "npm ci && npm run build"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
@@ -43,7 +45,8 @@
     "zustand": "^5.0.0",
     "@capacitor/splash-screen": "^6.0.2",
     "@capacitor/preferences": "^6.0.2",
-    "@capgo/native-purchases": "^6.0.0"
+    "@capgo/native-purchases": "^6.0.0",
+    "serve": "^14.2.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",
@@ -57,5 +60,8 @@
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vite-plugin-pwa": "^0.20.5"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
