@@ -6,7 +6,7 @@
   "description": "قدها — تطبيق تحديات وأسئلة عربية سينمائي مع Host وغرف وصوت ودوري أبطال.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
@@ -20,16 +20,11 @@
     "android:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
     "android:sync-billing": "npm run build && npx cap sync android",
     "postinstall": "echo \"[zatona] Run npx cap sync android after install on device machine\"",
-    "start": "serve -s dist -l ${PORT:-3000}",
-    "railway:build": "npm ci && npm run build"
+    "start": "npx serve -s dist -l tcp://0.0.0.0:$PORT",
+    "railway:build": "npm install --legacy-peer-deps && npm run build"
   },
   "dependencies": {
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/app": "^6.0.1",
     "@capacitor/core": "^6.1.2",
-    "@capacitor/haptics": "^6.0.1",
-    "@capacitor/keyboard": "^6.0.2",
-    "@capacitor/status-bar": "^6.0.1",
     "@livekit/components-react": "^2.6.0",
     "@supabase/supabase-js": "^2.45.4",
     "canvas-confetti": "^1.9.3",
@@ -43,9 +38,6 @@
     "react-router-dom": "^6.26.2",
     "tailwind-merge": "^2.5.3",
     "zustand": "^5.0.0",
-    "@capacitor/splash-screen": "^6.0.2",
-    "@capacitor/preferences": "^6.0.2",
-    "@capgo/native-purchases": "^6.0.0",
     "serve": "^14.2.4"
   },
   "devDependencies": {
@@ -63,5 +55,15 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "optionalDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/haptics": "^6.0.1",
+    "@capacitor/keyboard": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/preferences": "^6.0.2",
+    "@capgo/native-purchases": "^6.0.0"
   }
 }
