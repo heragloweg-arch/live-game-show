@@ -1,0 +1,11 @@
+#!/bin/sh
+# Gradle start script placeholder — after `npx cap sync android` / Android Studio open,
+# the official wrapper jar is installed. Prefer: npm run android:debug on a machine with SDK.
+DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -f "$DIR/gradle/wrapper/gradle-wrapper.jar" ]; then
+  echo "gradle-wrapper.jar missing. Run on a dev machine:"
+  echo "  cd live-game-show && npm i && npm run build && npx cap sync android"
+  echo "  Then open Android Studio or: cd android && gradle wrapper"
+  exit 1
+fi
+exec java -jar "$DIR/gradle/wrapper/gradle-wrapper.jar" "$@"

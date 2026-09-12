@@ -1,0 +1,48 @@
+[project]
+id = "zatona"
+
+[api]
+enabled = true
+port = 54321
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+
+[functions.match]
+verify_jwt = true
+
+[functions.answer]
+verify_jwt = true
+
+[functions.scoring]
+verify_jwt = false
+
+[functions.matchmaking]
+verify_jwt = true
+
+[functions.voice]
+verify_jwt = true
+
+[functions.economy]
+verify_jwt = true
+
+[functions.room]
+verify_jwt = true
+
+[functions.daily]
+verify_jwt = true
+
+
+[functions.tournament]
+verify_jwt = true
+
+[functions.subscription]
+verify_jwt = true

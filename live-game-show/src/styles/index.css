@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 34 197 94;
+    --color-gold: 234 179 8;
+    --color-surface: 11 15 26;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html {
+    @apply h-full;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply h-full bg-surface-900 text-white font-arabic;
+    overscroll-behavior: none;
+  }
+
+  #root {
+    @apply h-full min-h-screen;
+  }
+
+  /* Custom scrollbar for dark theme */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(34, 197, 94, 0.3);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 197, 94, 0.5);
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl bg-zatona-500 px-6 py-3.5
+           font-display font-bold text-surface-900 shadow-glow
+           transition-all duration-200 active:scale-[0.97]
+           hover:bg-zatona-400 hover:shadow-glow-lg
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .btn-secondary {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl
+           border border-zatona-500/40 bg-surface-800/80 px-6 py-3.5
+           font-display font-semibold text-zatona-400
+           transition-all duration-200 active:scale-[0.97]
+           hover:bg-surface-700 hover:border-zatona-400;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5
+           font-medium text-white/70 transition-colors
+           hover:bg-white/5 hover:text-white;
+  }
+
+  .card {
+    @apply rounded-3xl border border-white/5 bg-surface-800/60 backdrop-blur-md shadow-card;
+  }
+
+  .card-glow {
+    @apply card relative overflow-hidden;
+  }
+
+  .card-glow::before {
+    content: '';
+    @apply absolute inset-0 bg-radial-glow pointer-events-none opacity-60;
+  }
+
+  .input-field {
+    @apply w-full rounded-2xl border border-white/10 bg-surface-800 px-4 py-3.5
+           text-white placeholder:text-white/40
+           focus:border-zatona-500 focus:outline-none focus:ring-2 focus:ring-zatona-500/30
+           transition-all duration-200;
+  }
+
+  .safe-top {
+    padding-top: var(--safe-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-l from-zatona-400 via-zatona-300 to-gold-400 bg-clip-text text-transparent;
+  }
+}
+
+@layer utilities {
+  .rtl-flip {
+    transform: scaleX(-1);
+  }
+}
+
+/* ─── Polish extras ─── */
+@layer utilities {
+  .glass {
+    @apply border border-white/5 bg-surface-800/50 backdrop-blur-xl;
+  }
+  .text-shadow-glow {
+    text-shadow: 0 0 24px rgba(34, 197, 94, 0.45);
+  }
+  .animate-shimmer {
+    background-size: 200% 100%;
+    animation: shimmer 2.5s linear infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
