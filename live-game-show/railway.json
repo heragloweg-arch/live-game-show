@@ -1,8 +1,7 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "nixpacksVersion": "1.30.0",
+    "builder": "RAILPACK",
     "buildCommand": "npm install --legacy-peer-deps && npm run build"
   },
   "deploy": {
