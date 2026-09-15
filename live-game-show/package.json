@@ -2,7 +2,6 @@
   "name": "qaddaha",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "description": "قدها — Soft-Launch Candidate (Arabic live challenge game)",
   "scripts": {
     "dev": "vite",
