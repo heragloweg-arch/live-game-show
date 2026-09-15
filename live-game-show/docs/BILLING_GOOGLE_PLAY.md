@@ -1,4 +1,4 @@
-# Google Play Billing — زتونة (إنتاج)
+# Google Play Billing — قدها (إنتاج)
 
 ## الحزمة
 `@capgo/native-purchases` في package.json

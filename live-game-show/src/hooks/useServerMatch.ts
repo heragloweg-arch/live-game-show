@@ -15,7 +15,7 @@ import {
   type MatchReward,
 } from '../services/api/matchApi';
 import { applyMatchRewards } from '../services/economy/matchSettlement';
-import { track } from '../analytics/events';
+import { track } from '../services/analytics/events';
 import {
   saveActiveMatch,
   clearActiveMatch,
@@ -46,6 +46,7 @@ export function useServerMatch() {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [reconnecting, setReconnecting] = useState(false);
+  const [answer, setAnswer] = useState('');
   const stopRealtimeRef = useRef<(() => void) | null>(null);
   const localTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -64,7 +65,8 @@ export function useServerMatch() {
       matchId,
       onState: (state) => {
         setMatch(state);
-        if (state.status === 'ROUND_ACTIVE') setPhase('playing');
+        if (state.status === 'ROUND_ACTIVE') setAnswer('');
+      setPhase('playing');
         if (state.status === 'ROUND_RESULT' || state.status === 'ANSWER_SUBMITTED') {
           // keep playing until we explicitly show result after submit
         }
@@ -101,7 +103,8 @@ export function useServerMatch() {
         try {
           const started = await apiStartRound(state.matchId);
           setMatch(started);
-          setPhase('playing');
+          setAnswer('');
+      setPhase('playing');
           startLocalCountdown();
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e));
@@ -127,10 +130,12 @@ export function useServerMatch() {
         setPhase('vs');
         const started = await apiStartRound(matchId);
         setMatch(started);
-        setPhase('playing');
+        setAnswer('');
+      setPhase('playing');
         startLocalCountdown();
       } else if (state.status === 'ROUND_ACTIVE') {
-        setPhase('playing');
+        setAnswer('');
+      setPhase('playing');
         startLocalCountdown();
       } else if (
         state.status === 'MATCH_FINISHED' ||
@@ -138,7 +143,8 @@ export function useServerMatch() {
       ) {
         setPhase('finished');
       } else {
-        setPhase('playing');
+        setAnswer('');
+      setPhase('playing');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -216,6 +222,7 @@ export function useServerMatch() {
 
       const started = await apiStartRound(current.matchId);
       setMatch(started);
+      setAnswer('');
       setPhase('playing');
       startLocalCountdown();
     } catch (e) {
@@ -270,7 +277,8 @@ export function useServerMatch() {
         saveActiveMatch(state.matchId, state.mode);
         attachRealtime(state.matchId);
         if (state.status === 'ROUND_ACTIVE') {
-          setPhase('playing');
+          setAnswer('');
+      setPhase('playing');
           startLocalCountdown();
         } else if (state.status === 'VS' || state.status === 'ROUND_STARTING') {
           setPhase('vs');
@@ -286,6 +294,8 @@ export function useServerMatch() {
   useEffect(() => () => clearTimers(), []);
 
   return {
+    answer,
+    setAnswer,
     match,
     phase,
     error,

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
   entry_coins     INT NOT NULL DEFAULT 0,
   prize_pool      INT NOT NULL DEFAULT 0,
   rounds_total    INT NOT NULL DEFAULT 5,
-  difficulty      public.difficulty NOT NULL DEFAULT 'normal',
+  difficulty      public.difficulty_level NOT NULL DEFAULT 'normal',
   starts_at       TIMESTAMPTZ,
   ends_at         TIMESTAMPTZ,
   created_by      UUID REFERENCES public.profiles(id),
@@ -147,7 +147,7 @@ VALUES
   ('free', 'مجاني', 'اللعب الأساسي', 0, 0, NULL, '{"ads": true, "daily": true}'::jsonb),
   ('plus_monthly', 'قدها بلس شهري', 'بدون إعلانات · مكافآت يومية مضاعفة · إطار بلس', 14990000, 30, 'qaddaha_plus_monthly', '{"ads": false, "daily_multiplier": 2, "frame": "plus", "host_priority": false}'::jsonb),
   ('plus_yearly', 'قدها بلس سنوي', 'نفس بلس مع توفير سنوي', 149900000, 365, 'qaddaha_plus_yearly', '{"ads": false, "daily_multiplier": 2, "frame": "plus", "host_priority": false}'::jsonb),
-  ('host_pro', 'مضيف برو', 'أدوات استضافة متقدمة · أولوية غرف', 24990000, 30, 'zatona_host_pro', '{"ads": false, "daily_multiplier": 2, "frame": "host", "host_priority": true, "show_tools": true}'::jsonb)
+  ('host_pro', 'مضيف برو', 'أدوات استضافة متقدمة · أولوية غرف', 24990000, 30, 'qaddaha_host_pro', '{"ads": false, "daily_multiplier": 2, "frame": "host", "host_priority": true, "show_tools": true}'::jsonb)
 ON CONFLICT (plan) DO UPDATE SET
   title = EXCLUDED.title,
   description = EXCLUDED.description,

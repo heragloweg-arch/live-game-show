@@ -20,7 +20,7 @@ import { remainingMs } from '../utils/time';
  */
 export function useSoloMatch() {
   const user = useAuthStore((s) => s.user);
-  const { match, setMatch, clearMatch, applyDelta } = useMatchStore();
+  const { match, setMatch, clearMatch } = useMatchStore();
   const [phase, setPhase] = useState<'idle' | 'vs' | 'playing' | 'round_result' | 'finished'>('idle');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const aiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

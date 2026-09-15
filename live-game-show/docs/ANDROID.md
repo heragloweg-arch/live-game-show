@@ -1,4 +1,4 @@
-# زتونة — Capacitor Android Build Guide
+# قدها — Capacitor Android Build Guide
 
 ## المتطلبات
 - Node 20+

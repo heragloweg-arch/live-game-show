@@ -9,6 +9,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { verifySubscriptionPurchase } from '../_shared/googlePlay.ts';
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -128,20 +129,70 @@ serve(async (req) => {
         { onConflict: 'provider,purchase_token' }
       );
 
-      /**
-       * PRODUCTION NOTE:
-       * Call Google Play Android Publisher API:
-       * purchases.subscriptions.get(packageName, subscriptionId, token)
-       * Validate paymentState / expiryTimeMillis before activate.
-       * Set GOOGLE_PLAY_SERVICE_ACCOUNT_JSON in secrets.
-       */
-      const googleApiKey = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
-      if (googleApiKey) {
-        // Placeholder for real verification — do not activate blindly in prod without API
-        console.log('[subscription] GOOGLE_PLAY_PACKAGE_NAME set — wire full verify here');
+      const allowUnverified = Deno.env.get('ALLOW_UNVERIFIED_PLAY_PURCHASES') === 'true';
+      const hasGoogleCreds = !!(
+        Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') &&
+        Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')
+      );
+
+      if (hasGoogleCreds) {
+        const verified = await verifySubscriptionPurchase(productId, purchaseToken);
+        if (!verified.ok) {
+          await supabase.from('purchase_receipts').upsert({
+            user_id: user.id,
+            product_id: productId,
+            purchase_token: purchaseToken,
+            order_id: orderId,
+            provider: 'google_play',
+            status: 'rejected',
+            verified_at: new Date().toISOString(),
+          }, { onConflict: 'provider,purchase_token' });
+          return json({ error: verified.error || 'Play verification failed', code: 'PLAY_VERIFY_FAILED' }, 402);
+        }
+        // Prefer Play expiry when present
+        const result = await activatePlan(
+          supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
+          verified.expiryTimeMillis ? new Date(Number(verified.expiryTimeMillis)) : undefined
+        );
+        return result;
       }
 
-      return await activatePlan(supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play');
+      if (allowUnverified) {
+        console.warn('[subscription] ALLOW_UNVERIFIED_PLAY_PURCHASES — staging only');
+        return await activatePlan(supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play_unverified');
+      }
+
+      return json({
+        error: 'Google Play verification not configured. Set GOOGLE_PLAY_PACKAGE_NAME + GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.',
+        code: 'PLAY_VERIFY_REQUIRED',
+      }, 503);
+    }
+
+    if (action === 'restore') {
+      // Client sends latest purchase tokens after store restore
+      const items = Array.isArray(body.purchases) ? body.purchases : [];
+      const restored = [];
+      for (const item of items) {
+        const productId = String(item.productId || '');
+        const purchaseToken = String(item.purchaseToken || '');
+        if (!productId || !purchaseToken) continue;
+        const { data: catalogItem } = await supabase
+          .from('subscription_catalog')
+          .select('*')
+          .eq('google_product_id', productId)
+          .maybeSingle();
+        if (!catalogItem) continue;
+        if (Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')) {
+          const verified = await verifySubscriptionPurchase(productId, purchaseToken);
+          if (!verified.ok) continue;
+          await activatePlan(
+            supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
+            verified.expiryTimeMillis ? new Date(Number(verified.expiryTimeMillis)) : undefined
+          );
+          restored.push(catalogItem.plan);
+        }
+      }
+      return json({ ok: true, restored });
     }
 
     if (action === 'activate_dev') {
@@ -183,11 +234,12 @@ async function activatePlan(
   plan: string,
   productId: string,
   token: string,
-  provider: string
+  provider: string,
+  expiresOverride?: Date
 ) {
   const days = PLAN_DAYS[plan] ?? 30;
   const starts = new Date();
-  const expires = new Date(starts.getTime() + days * 86400000);
+  const expires = expiresOverride ?? new Date(starts.getTime() + days * 86400000);
 
   // End previous active
   await supabase

@@ -8,10 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'robots.txt', 'apple-touch-icon.png', 'icons/icon-192.png'],
       manifest: {
-        name: 'زتونة — عالم التحديات',
-        short_name: 'زتونة',
+        name: 'قدها — عالم التحديات',
+        short_name: 'قدها — تحديات وأسئلة',
         description: 'تحديات أسئلة متنوعة وسرعة وثقافة ودين وجغرافيا وتاريخ وعلوم ورياضة وفن وطبخ. نافس، اكسب، كن البطل.',
         theme_color: '#0B0F1A',
         background_color: '#0B0F1A',
@@ -21,32 +21,15 @@ export default defineConfig({
         dir: 'rtl',
         start_url: '/',
         icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 }
-            }
-          }
-        ]
+        runtimeCaching: []
       }
     })
   ],

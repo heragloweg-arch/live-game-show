@@ -4,9 +4,9 @@
 
 @layer base {
   :root {
-    --color-primary: 34 197 94;
-    --color-gold: 234 179 8;
-    --color-surface: 11 15 26;
+    --color-primary: 167 139 250;
+    --color-gold: 250 204 21;
+    --color-surface: 8 10 20;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
@@ -14,59 +14,66 @@
   html {
     @apply h-full;
     -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply h-full bg-surface-900 text-white font-arabic;
+    @apply h-full bg-surface-900 text-white font-arabic antialiased;
     overscroll-behavior: none;
+    background-image:
+      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(124, 58, 237, 0.18), transparent 50%),
+      radial-gradient(ellipse 80% 50% at 100% 50%, rgba(34, 197, 94, 0.06), transparent 40%),
+      radial-gradient(ellipse 60% 40% at 0% 80%, rgba(234, 179, 8, 0.05), transparent 40%);
+    background-attachment: fixed;
   }
 
   #root {
     @apply h-full min-h-screen;
   }
 
-  /* Custom scrollbar for dark theme */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(34, 197, 94, 0.3);
+    background: rgba(167, 139, 250, 0.35);
     border-radius: 9999px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(34, 197, 94, 0.5);
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl bg-zatona-500 px-6 py-3.5
-           font-display font-bold text-surface-900 shadow-glow
+    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl
+           bg-gradient-to-l from-violet-500 to-fuchsia-500 px-6 py-3.5
+           font-display font-bold text-white shadow-[0_0_24px_rgba(139,92,246,0.35)]
            transition-all duration-200 active:scale-[0.97]
-           hover:bg-zatona-400 hover:shadow-glow-lg
-           disabled:opacity-50 disabled:pointer-events-none;
+           hover:brightness-110 hover:shadow-[0_0_36px_rgba(139,92,246,0.5)]
+           disabled:opacity-45 disabled:pointer-events-none;
   }
 
   .btn-secondary {
     @apply relative inline-flex items-center justify-center gap-2 rounded-2xl
-           border border-zatona-500/40 bg-surface-800/80 px-6 py-3.5
-           font-display font-semibold text-zatona-400
+           border border-white/15 bg-white/5 px-6 py-3.5
+           font-display font-semibold text-white/90 backdrop-blur-sm
            transition-all duration-200 active:scale-[0.97]
-           hover:bg-surface-700 hover:border-zatona-400;
+           hover:bg-white/10 hover:border-white/25;
   }
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5
-           font-medium text-white/70 transition-colors
+           font-medium text-white/60 transition-colors
            hover:bg-white/5 hover:text-white;
   }
 
+  .btn-gold {
+    @apply relative inline-flex items-center justify-center gap-2 rounded-2xl
+           bg-gradient-to-l from-amber-400 to-yellow-300 px-6 py-3.5
+           font-display font-bold text-surface-900
+           shadow-[0_0_24px_rgba(250,204,21,0.3)]
+           transition-all duration-200 active:scale-[0.97];
+  }
+
   .card {
-    @apply rounded-3xl border border-white/5 bg-surface-800/60 backdrop-blur-md shadow-card;
+    @apply rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl
+           shadow-[0_8px_32px_rgba(0,0,0,0.35)];
   }
 
   .card-glow {
@@ -75,50 +82,94 @@
 
   .card-glow::before {
     content: '';
-    @apply absolute inset-0 bg-radial-glow pointer-events-none opacity-60;
+    @apply pointer-events-none absolute -inset-px rounded-3xl opacity-70;
+    background: linear-gradient(135deg, rgba(167,139,250,0.25), transparent 40%, rgba(250,204,21,0.12));
   }
 
-  .input-field {
-    @apply w-full rounded-2xl border border-white/10 bg-surface-800 px-4 py-3.5
-           text-white placeholder:text-white/40
-           focus:border-zatona-500 focus:outline-none focus:ring-2 focus:ring-zatona-500/30
-           transition-all duration-200;
+  .glass {
+    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-2xl;
   }
 
-  .safe-top {
-    padding-top: var(--safe-top);
-  }
-
-  .safe-bottom {
-    padding-bottom: var(--safe-bottom);
+  .screen-pad {
+    @apply px-5 pb-[calc(1.5rem+var(--safe-bottom))] pt-[calc(1rem+var(--safe-top))];
   }
 
   .text-gradient {
-    @apply bg-gradient-to-l from-zatona-400 via-zatona-300 to-gold-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-l from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-l from-amber-200 to-yellow-400 bg-clip-text text-transparent;
+  }
+
+  .ambient-orb {
+    @apply pointer-events-none absolute rounded-full blur-3xl;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5
+           px-2.5 py-1 text-[11px] font-semibold text-white/70;
+  }
+
+  .chip-live {
+    @apply chip border-red-500/30 bg-red-500/15 text-red-300;
+  }
+
+  .input-field {
+    @apply w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3.5
+           text-white placeholder:text-white/30 outline-none
+           transition focus:border-violet-400/50 focus:ring-2 focus:ring-violet-500/20;
+  }
+
+  .section-title {
+    @apply font-display text-lg font-bold tracking-tight text-white;
   }
 }
 
 @layer utilities {
-  .rtl-flip {
-    transform: scaleX(-1);
+  .safe-pb {
+    padding-bottom: calc(1rem + var(--safe-bottom));
+  }
+  .safe-pt {
+    padding-top: calc(0.5rem + var(--safe-top));
   }
 }
 
-/* ─── Polish extras ─── */
-@layer utilities {
-  .glass {
-    @apply border border-white/5 bg-surface-800/50 backdrop-blur-xl;
-  }
-  .text-shadow-glow {
-    text-shadow: 0 0 24px rgba(34, 197, 94, 0.45);
-  }
-  .animate-shimmer {
-    background-size: 200% 100%;
-    animation: shimmer 2.5s linear infinite;
-  }
+
+/* Light theme */
+html.theme-light body {
+  @apply bg-slate-50 text-slate-900;
+  background-image:
+    radial-gradient(ellipse 100% 60% at 50% -10%, rgba(124, 58, 237, 0.12), transparent 50%);
+}
+html.theme-light .card {
+  @apply border-slate-200/80 bg-white/80 text-slate-900 shadow-md;
+}
+html.theme-light .btn-ghost {
+  @apply text-slate-600 hover:bg-slate-200/60 hover:text-slate-900;
+}
+html.theme-light .input-field {
+  @apply border-slate-200 bg-white text-slate-900 placeholder:text-slate-400;
 }
 
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+
+/* qaddaha-polish V1.2 */
+.text-gradient {
+  background: linear-gradient(120deg, #c4b5fd 0%, #f0abfc 40%, #fcd34d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.card-glow {
+  @apply relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-xl backdrop-blur-md;
+}
+.card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at 30% 20%, rgba(139, 92, 246, 0.25), transparent 50%);
+  pointer-events: none;
+}
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-violet-600 to-fuchsia-600 px-5 py-3 font-bold text-white shadow-lg shadow-violet-900/30 transition active:scale-[0.98] disabled:opacity-50;
 }

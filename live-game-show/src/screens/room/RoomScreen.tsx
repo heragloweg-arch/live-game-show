@@ -12,6 +12,7 @@ import {
 } from '../../services/livekit/voiceApi';
 import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
 import { RoomChallengePanel } from '../../components/room/RoomChallengePanel';
+import { startRoomRealtime } from '../../services/realtime/roomRealtime';
 
 export function RoomScreen() {
   const { roomId } = useParams();
@@ -39,14 +40,36 @@ export function RoomScreen() {
 
   useEffect(() => {
     if (phase !== 'inside' || !room) return;
-    const t = setInterval(async () => {
+    const refresh = async () => {
       try {
         const list = await listParticipants(room.id);
         setMembers(list);
       } catch { /* ignore */ }
-    }, 4000);
-    return () => clearInterval(t);
-  }, [phase, room]);
+    };
+    void refresh();
+    const stop = startRoomRealtime(room.id, {
+      onRoomUpdate: (row) => {
+        setRoom((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: (row.status as RoomInfo['status']) ?? prev.status,
+                title: (row.title as string) || prev.title,
+                code: (row.code as string) || prev.code,
+              }
+            : prev
+        );
+      },
+      onParticipantChange: () => void refresh(),
+      onRoundChange: () => void refresh(),
+    });
+    // Soft fallback poll every 15s if realtime lags
+    const fallback = setInterval(() => void refresh(), 15000);
+    return () => {
+      stop();
+      clearInterval(fallback);
+    };
+  }, [phase, room?.id]);
 
   async function handleJoinById(id: string) {
     setPhase('connecting');

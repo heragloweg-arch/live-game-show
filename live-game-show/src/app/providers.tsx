@@ -1,3 +1,4 @@
+import { initTheme } from '../store/themeStore';
 import { ReactNode, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useConfigStore } from '../store/configStore';
@@ -16,6 +17,7 @@ export function AppProviders({ children }: Props) {
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
 
   useEffect(() => {
+    initTheme();
     bootstrapAuth();
     fetchConfig();
   }, [bootstrapAuth, fetchConfig]);

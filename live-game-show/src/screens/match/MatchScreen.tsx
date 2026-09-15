@@ -10,13 +10,27 @@ import { useWalletStore } from '../../store/walletStore';
 import { useAuthStore } from '../../store/authStore';
 import type { Difficulty } from '../../types';
 import { cn } from '../../utils/cn';
+import { TeamMatchBoard } from '../../components/match/TeamMatchBoard';
 import { FLAGS } from '../../config/flags';
 import { formatCountdown } from '../../utils/time';
+import { LetterPoolBoard } from '../../components/game/LetterPoolBoard';
+import { showAd } from '../../services/ads/adMob';
+import { track } from '../../services/analytics/events';
 
 function isServerMatchId(id: string | undefined): boolean {
   if (!id) return false;
   // UUID v4 shape from server
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
+async function shareMatchResult(text: string) {
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'قدها', text, url: window.location.origin });
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+  } catch { /* user cancel */ }
 }
 
 export function MatchScreen() {
@@ -71,22 +85,33 @@ export function MatchScreen() {
   }, [match?.lastAnswerResult]);
 
   // Grant wallet reward when match finishes (server path)
+  
+  // Post-match interstitial (policy-capped, never during round)
   useEffect(() => {
+    if (phase !== 'finished' || !match) return;
+    track('match_finish', { matchId: match.matchId ?? match.id, mode: match.mode });
+    const t = window.setTimeout(() => {
+      void showAd('post_match_interstitial');
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [phase, match?.matchId, match?.id]);
+
+useEffect(() => {
     if (phase === 'finished' && match && useServer) {
       const won = match.winnerId === match.player?.id;
-      grantMatchReward(match.matchId, won)
+      grantMatchReward(match.matchId)
         .then((w) => {
           useWalletStore.getState().setWallet(w);
           void refreshProfile();
         })
         .catch(() => {
           // optimistic local credit if API fails
-          creditLocal(won ? 50 : 15);
+          // rewards only from server settlement
         });
     }
     if (phase === 'finished' && match && !useServer) {
       const won = match.winnerId === match.player?.id;
-      creditLocal(won ? 50 : 15);
+      // rewards only from server settlement
     }
   }, [phase, match?.matchId]);
 
@@ -153,6 +178,15 @@ export function MatchScreen() {
         </div>
       )}
 
+      {match?.mode === 'team' ? (
+        <TeamMatchBoard
+          scoreA={Number((match as any).teamScoreA ?? 0)}
+          scoreB={Number((match as any).teamScoreB ?? 0)}
+          teamSize={(match as any).teamSize}
+          membersA={((match as any).participants ?? []).filter((x: any) => x.side === 'team_a' || x.side === 'player')}
+          membersB={((match as any).participants ?? []).filter((x: any) => x.side === 'team_b' || x.side === 'opponent')}
+        />
+      ) : (
       <div className="flex items-center justify-around px-6 py-5">
         <PlayerBadge
           name={match?.player?.username ?? 'أنت'}
@@ -167,6 +201,7 @@ export function MatchScreen() {
           side="opponent"
         />
       </div>
+      )}
 
       <div className="flex flex-1 flex-col items-center justify-center px-5 pb-8">
         <AnimatePresence mode="wait">
@@ -179,8 +214,14 @@ export function MatchScreen() {
               className="text-center"
             >
               <p className="mb-2 text-sm text-white/50">استعد</p>
-              <h2 className="font-display text-4xl font-black text-gradient">VS</h2>
-              <p className="mt-3 text-white/60">{match?.opponent?.username}</p>
+              <h2 className="font-display text-4xl font-black text-gradient">
+                {match?.mode === 'team' ? 'معركة الفرق' : 'VS'}
+              </h2>
+              <p className="mt-3 text-white/60">
+                {match?.mode === 'team'
+                  ? `${(match as any).teamSize || ''} ضد ${(match as any).teamSize || ''}`
+                  : match?.opponent?.username}
+              </p>
             </motion.div>
           )}
 
@@ -193,7 +234,7 @@ export function MatchScreen() {
               className="card w-full max-w-md p-6"
             >
               <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-zatona-400">
-                {match.round.challenge?.type === 'speed' && 'سرعة ⚡'}
+                {match.round.challenge?.type === 'speed' && 'قدها؟ ⚡ سرعة'}
                 {match.round.challenge?.type === 'words' && 'كلمات'}
                 {match.round.challenge?.type === 'knowledge' && 'معرفة'}
                 {match.round.challenge?.type === 'mystery' && 'غامض ❓'}
@@ -211,6 +252,20 @@ export function MatchScreen() {
                     <span>الوقت</span>
                     <span className={cn(remaining < 4000 && 'text-red-400 font-bold')}>
                       {formatCountdown(remaining)}
+          
+          {match?.round?.challenge?.letterPool && match.round.challenge.letterPool.length > 0 && phase !== 'finished' && (
+            <div className="mb-4">
+              <LetterPoolBoard
+                letters={match.round.challenge.letterPool}
+                disabled={phase !== 'playing' && phase !== 'active'}
+                onChange={(v) => {
+                  // setAnswer if exists
+                  if (typeof (active as any).setAnswer === 'function') (active as any).setAnswer(v);
+                }}
+              />
+            </div>
+          )}
+
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -253,8 +308,8 @@ export function MatchScreen() {
                   ) : (
                     <input
                       type="text"
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
+                      value={(active as any).answer ?? answer}
+                      onChange={(e) => { setAnswer(e.target.value); (active as any).setAnswer?.(e.target.value); }}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                       placeholder="اكتب إجابتك هنا..."
                       className="input-field text-center text-lg"
@@ -265,7 +320,7 @@ export function MatchScreen() {
                   <button
                     onClick={handleSubmit}
                     disabled={
-                      match.round.challenge?.choices ? !selectedChoice : !answer.trim()
+                      match.round.challenge?.choices ? !selectedChoice : !((active as any).answer ?? answer).trim()
                     }
                     className="btn-primary mt-4 w-full"
                   >
@@ -323,7 +378,23 @@ export function MatchScreen() {
                   : 'خسارة'}
               </h2>
               <p className="mb-2 text-white/60">
-                {match.player?.score ?? 0} — {match.opponent?.score ?? 0}
+                {phase === 'finished' && (
+                <button
+                  type="button"
+                  className="btn-secondary mt-4 w-full text-sm"
+                  onClick={() => {
+                    const a = match.mode === 'team' ? (match as any).teamScoreA : match.player?.score;
+                    const b = match.mode === 'team' ? (match as any).teamScoreB : match.opponent?.score;
+                    track('share_result', { matchId: match.matchId ?? match.id });
+                    void shareMatchResult(`🔥 قدها؟ نتيجتي ${a} — ${b}\nتحداك تكسر رقمي 👇 ${window.location.origin}`);
+                  }}
+                >
+                  شارك نتيجتك — قدها؟
+                </button>
+              )}
+              {match.mode === 'team'
+                  ? `${(match as any).teamScoreA ?? 0} — ${(match as any).teamScoreB ?? 0}`
+                  : `${match.player?.score ?? 0} — ${match.opponent?.score ?? 0}`}
               </p>
               <div className="mb-6 space-y-1 text-sm">
                 <p className="text-gold-400">
@@ -361,7 +432,7 @@ export function MatchScreen() {
                   onClick={() => active.reset()}
                   className="btn-secondary w-full text-center"
                 >
-                  العودة للرئيسية
+                  الرئيسية
                 </Link>
               </div>
             </motion.div>

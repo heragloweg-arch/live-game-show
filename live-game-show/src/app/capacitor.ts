@@ -5,6 +5,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { initBilling } from '../services/billing/playBilling';
+import { initAds } from '../services/ads/adMob';
 
 export function isNative(): boolean {
   return Capacitor.isNativePlatform();
@@ -19,6 +20,7 @@ export async function initNativeShell(): Promise<void> {
 
   try {
     await initBilling();
+    try { await initAds(); } catch { /* ads optional */ }
   } catch {
     /* billing optional until Play products configured */
   }

@@ -2,7 +2,7 @@
  * Match reconnect helpers — persist active match for resume after refresh/network blip.
  */
 
-const KEY = 'zatona:activeMatch';
+const KEY = 'qaddaha:activeMatch';
 const TERMINAL = new Set([
   'MATCH_FINISHED',
   'FINAL_RESULT',

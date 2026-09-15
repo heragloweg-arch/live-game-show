@@ -85,3 +85,10 @@ export function formatPrice(micros: number, currency = 'SAR') {
     return `${value} ${currency}`;
   }
 }
+
+export async function restorePurchases(purchases: { productId: string; purchaseToken: string }[]) {
+  return invoke<{ ok: boolean; restored: string[] }>({
+    action: 'restore',
+    purchases,
+  });
+}

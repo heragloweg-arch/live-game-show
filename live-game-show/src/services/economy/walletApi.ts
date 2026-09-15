@@ -71,10 +71,9 @@ export async function claimDailyBonus(): Promise<Wallet> {
   return invokeEconomy<Wallet>({ action: 'daily_bonus' });
 }
 
-export async function grantMatchReward(matchId: string, won: boolean): Promise<Wallet> {
+export async function grantMatchReward(matchId: string, _won?: boolean): Promise<Wallet> {
   return invokeEconomy<Wallet>({
     action: 'match_reward',
     matchId,
-    won,
-  });
+      });
 }

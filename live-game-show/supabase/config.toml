@@ -46,3 +46,9 @@ verify_jwt = true
 
 [functions.subscription]
 verify_jwt = true
+
+[functions.couple]
+verify_jwt = true
+
+[functions.metrics]
+verify_jwt = true

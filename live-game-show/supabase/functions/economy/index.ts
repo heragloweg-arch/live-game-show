@@ -98,8 +98,28 @@ serve(async (req) => {
     }
 
     if (action === 'match_reward') {
-      const { matchId, won } = body;
+      const { matchId } = body;
       if (!matchId) return json({ error: 'matchId required' }, 400);
+
+      // Participant + server winner only
+      const { data: matchRow } = await supabase
+        .from('matches')
+        .select('id, winner_id, status')
+        .eq('id', matchId)
+        .single();
+      if (!matchRow) return json({ error: 'Match not found' }, 404);
+      const { data: part } = await supabase
+        .from('match_participants')
+        .select('user_id')
+        .eq('match_id', matchId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!part) return json({ error: 'Not a participant' }, 403);
+      if (!['MATCH_FINISHED', 'FINAL_RESULT'].includes(matchRow.status)) {
+        return json({ error: 'Match not finished' }, 409);
+      }
+      const won = matchRow.winner_id === user.id;
+      const draw = matchRow.winner_id == null;
 
       // Prevent double reward
       const { data: existing } = await supabase
@@ -121,7 +141,7 @@ serve(async (req) => {
         });
       }
 
-      const amount = won ? WIN_COINS : LOSS_COINS;
+      const amount = draw ? 25 : won ? WIN_COINS : LOSS_COINS;
       const { data: balance } = await supabase.rpc('credit_coins', {
         p_user_id: user.id,
         p_amount: amount,
@@ -138,7 +158,51 @@ serve(async (req) => {
       });
     }
 
-    return json({ error: 'Unknown action' }, 400);
+    
+    if (action === 'ad_reward_claim') {
+      const requestId = String(body.requestId || '');
+      const placement = String(body.placement || 'rewarded_extra_coins');
+      if (!requestId) return json({ error: 'requestId required' }, 400);
+
+      const { data: existing } = await supabase
+        .from('ad_reward_claims')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('request_id', requestId)
+        .maybeSingle();
+      if (existing) {
+        const { data: prof } = await supabase.from('profiles').select('coins').eq('id', user.id).single();
+        return json({ coins: prof?.coins ?? 0, already: true });
+      }
+
+      // Daily cap 12 claims
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const { count } = await supabase
+        .from('ad_reward_claims')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', dayStart.toISOString());
+      if ((count ?? 0) >= 12) return json({ error: 'Daily ad reward limit', code: 'CAPPED' }, 429);
+
+      const coins = 20;
+      const { data: balance, error } = await supabase.rpc('credit_coins', {
+        p_user_id: user.id,
+        p_amount: coins,
+        p_type: 'ad_reward',
+        p_reference: requestId,
+      });
+      if (error) return json({ error: error.message }, 500);
+      await supabase.from('ad_reward_claims').insert({
+        user_id: user.id,
+        placement,
+        request_id: requestId,
+        coins_awarded: coins,
+      });
+      return json({ coins: balance ?? coins, awarded: coins });
+    }
+
+return json({ error: 'Unknown action' }, 400);
   } catch (err) {
     console.error('[economy]', err);
     return json({ error: String(err) }, 500);

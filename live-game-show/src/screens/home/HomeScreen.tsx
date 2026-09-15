@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Zap, Users, Crown, Trophy, User, Swords, Coins, Flame } from 'lucide-react';
+import { Zap, Users, Crown, Trophy, User, Swords, Coins, Flame, Heart, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { claimDailyBonus } from '../../services/economy/walletApi';
 import { cn } from '../../utils/cn';
+import { useThemeStore } from '../../store/themeStore';
+import { ScreenShell } from '../../components/layout/ScreenShell';
 import { loadActiveMatch } from '../../services/realtime/reconnect';
 
 const container = {
@@ -18,6 +20,8 @@ const item = {
 };
 
 export function HomeScreen() {
+  const toggleTheme = useThemeStore((s) => s.toggle);
+  const themeMode = useThemeStore((s) => s.mode);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { wallet, loadWallet, setWallet } = useWalletStore();
@@ -36,7 +40,7 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="relative min-h-screen px-5 pb-10 pt-6">
+    <div className="relative min-h-0 px-5 pb-10 pt-6">
       
       {(() => {
         const active = loadActiveMatch();
@@ -134,8 +138,29 @@ export function HomeScreen() {
       </motion.div>
 
       <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-2 gap-3">
-        <FeatureCard to="/host" icon={<Crown className="h-6 w-6 text-gold-400" />} title="استضف تحدي" subtitle="Host Panel" glow="gold" />
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/35">ابدأ من هنا</p>
+      <div className="mb-6 grid gap-3">
+        <Link to="/play" className="card-glow flex items-center gap-4 p-5">
+          <Zap className="h-8 w-8 text-amber-300" />
+          <div className="flex-1 text-right">
+            <p className="font-display text-lg font-black text-white">قدها؟ — ابدأ التحدي</p>
+            <p className="text-xs text-white/45">Solo أو 1 ضد 1 · سرعة ومنافسة</p>
+          </div>
+        </Link>
+        <Link to="/daily" className="card flex items-center gap-4 p-4">
+          <Flame className="h-6 w-6 text-orange-400" />
+          <div className="flex-1 text-right">
+            <p className="font-bold">تحدي اليوم</p>
+            <p className="text-xs text-white/40">سلسلة يومية + مكافآت</p>
+          </div>
+        </Link>
+      </div>
+      <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/35">المزيد</p>
+      <FeatureCard to="/host" icon={<Crown className="h-6 w-6 text-gold-400" />} title="استضف تحدي" subtitle="Host Panel" glow="gold" />
         <FeatureCard to="/play" icon={<Zap className="h-6 w-6 text-zatona-400" />} title="لعب سريع" subtitle="1v1 أو Solo" />
+        <FeatureCard to="/team" icon={<Users className="h-6 w-6 text-sky-400" />} title="معارك الفرق" subtitle="حتى 15 ضد 15" />
+        <FeatureCard to="/creator" icon={<Sparkles className="h-6 w-6 text-fuchsia-400" />} title="المبدع" subtitle="صمّم أسئلة قدها" />
+        <FeatureCard to="/couple" icon={<Heart className="h-6 w-6 text-pink-400" />} title="الثنائي" subtitle="العب مع شريكك" />
         <FeatureCard to="/tournament" icon={<Trophy className="h-6 w-6 text-gold-400" />} title="دوري الأبطال" subtitle="تنافس على اللقب" glow="gold" />
         <FeatureCard to="/subscription" icon={<Crown className="h-6 w-6 text-gold-400" />} title="الاشتراكات" subtitle="بلس ومضيف برو" />
         <FeatureCard to="/leaderboard" icon={<Trophy className="h-6 w-6 text-neon-cyan" />} title="المتصدرين" subtitle="الترتيب العالمي" />
@@ -164,7 +189,7 @@ function FeatureCard({
       <Link
         to={to}
         className={cn(
-          'card flex flex-col items-start gap-3 p-4 transition-all active:scale-[0.98]',
+          'card card-glow flex flex-col items-start gap-3 p-4 transition-all active:scale-[0.98] hover:border-white/20',
           glow === 'gold' && 'border-gold-500/20 shadow-glow-gold'
         )}
       >

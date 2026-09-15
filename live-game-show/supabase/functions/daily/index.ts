@@ -5,6 +5,17 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+
+/** Game day in MENA (Asia/Riyadh) — not raw UTC */
+function gameDayMena(d = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Riyadh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { normalizeArabic } from '../_shared/arabic.ts';
 import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
@@ -17,7 +28,7 @@ function json(data: unknown, status = 200) {
 }
 
 function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10);
+  return gameDayMena();
 }
 
 function yesterdayOf(dateStr: string): string {
@@ -122,17 +133,6 @@ serve(async (req) => {
         .single();
       if (!daily) return json({ error: 'No daily challenge' }, 404);
 
-      const { data: existing } = await supabase
-        .from('daily_completions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('challenge_date', day)
-        .maybeSingle();
-      if (existing) {
-        return json({ alreadyCompleted: true, completion: existing, streak: await getStreakRow(supabase, user.id) });
-      }
-
-      // Validate
       const normalized = normalizeArabic(answer);
       let correct = false;
       const { data: accepted } = await supabase
@@ -169,59 +169,68 @@ serve(async (req) => {
         config: DEFAULT_SCORING,
       });
 
+      const { data: atomic, error: atomicErr } = await supabase.rpc('complete_daily_atomic', {
+        p_user_id: user.id,
+        p_day: day,
+        p_challenge_id: daily.challenge_id,
+        p_outcome: correct ? 'correct' : 'wrong',
+        p_points: score.total,
+        p_bonus_coins: correct ? (daily.bonus_coins ?? 40) : 0,
+        p_bonus_xp: correct ? (daily.bonus_xp ?? 35) : 0,
+      });
+
+      if (!atomicErr && atomic?.ok) {
+        return json({
+          ok: true,
+          correct,
+          points: score.total,
+          alreadyCompleted: !!atomic.already,
+          coins: atomic.coins,
+          awarded: atomic.awarded,
+          streak: { current: atomic.streak },
+          multiplier: atomic.multiplier ?? 1,
+        });
+      }
+
+      // Fallback if RPC missing
+      console.warn('[daily] atomic fallback', atomicErr?.message);
+      const { data: existing } = await supabase
+        .from('daily_completions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('challenge_date', day)
+        .maybeSingle();
+      if (existing) {
+        return json({ alreadyCompleted: true, completion: existing, streak: await getStreakRow(supabase, user.id) });
+      }
       await supabase.from('daily_completions').insert({
         user_id: user.id,
         challenge_date: day,
         outcome: correct ? 'correct' : 'wrong',
         points: score.total,
       });
-
-      // Streak update (any completion counts for daily presence)
       const streak = await updateStreak(supabase, user.id, day);
-
-      // Rewards if correct
       let coinGain = 0;
-      let xpGain = 0;
       if (correct) {
-        coinGain = daily.bonus_coins ?? 40;
-        xpGain = daily.bonus_xp ?? 35;
+        const { data: prof } = await supabase.from('profiles').select('subscription_plan, subscription_expires_at').eq('id', user.id).single();
+        let mult = 1;
+        if (prof?.subscription_plan && ['plus_monthly','plus_yearly','host_pro'].includes(prof.subscription_plan)) {
+          const exp = prof.subscription_expires_at ? new Date(prof.subscription_expires_at) : null;
+          if (!exp || exp.getTime() > Date.now()) mult = 2;
+        }
+        coinGain = (daily.bonus_coins ?? 40) * mult;
         await supabase.rpc('credit_coins', {
           p_user_id: user.id,
           p_amount: coinGain,
           p_type: 'daily_challenge',
           p_reference: day,
         });
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('xp, level, xp_to_next')
-          .eq('id', user.id)
-          .single();
-        if (prof) {
-          let newXp = (prof.xp ?? 0) + xpGain;
-          let level = prof.level ?? 1;
-          let xpToNext = prof.xp_to_next ?? 100;
-          while (newXp >= xpToNext) {
-            newXp -= xpToNext;
-            level += 1;
-            xpToNext = Math.round(xpToNext * 1.25);
-          }
-          await supabase
-            .from('profiles')
-            .update({ xp: newXp, level, xp_to_next: xpToNext })
-            .eq('id', user.id);
-          await supabase.from('xp_events').insert({
-            user_id: user.id,
-            source: 'daily_challenge',
-            amount: xpGain,
-          });
-        }
       }
-
       return json({
+        ok: true,
         correct,
         points: score.total,
         coinGain,
-        xpGain,
         streak,
       });
     }

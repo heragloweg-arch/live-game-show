@@ -9,7 +9,7 @@ import {
   type CatalogItem,
   type PlanId,
 } from '../../services/billing/subscriptionApi';
-import { purchasePlan } from '../../services/billing/playBilling';
+import { purchasePlan, restorePlanPurchases } from '../../services/billing/playBilling';
 import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../utils/cn';
 
@@ -158,8 +158,29 @@ export function SubscriptionScreen() {
         </div>
       )}
 
+      <button
+        type="button"
+        disabled={!!busy}
+        onClick={async () => {
+          setBusy('restore');
+          setMessage(null);
+          try {
+            const r = await restorePlanPurchases();
+            setMessage(r.message ?? (r.ok ? 'تمت الاستعادة' : 'فشلت الاستعادة'));
+            if (r.ok) await load();
+          } catch (e) {
+            setMessage(e instanceof Error ? e.message : String(e));
+          } finally {
+            setBusy(null);
+          }
+        }}
+        className="btn-secondary mt-4 w-full text-sm"
+      >
+        استعادة المشتريات من Google Play
+      </button>
+
       <p className="mt-6 text-center text-[11px] leading-5 text-white/30">
-        الدفع عبر Google Play. الاشتراك لا يشتري إجابات ولا نقاط فوز. يمكن إلغاء التجديد من المتجر.
+        الدفع عبر Google Play. الاشتراك لا يشتري إجابات ولا نقاط فوز. لإلغاء التجديد: إدارة الاشتراك من Google Play (Play Store → المدفوعات) — الإلغاء داخل التطبيق يوقف المزايا محلياً فقط.
       </p>
     </div>
   );

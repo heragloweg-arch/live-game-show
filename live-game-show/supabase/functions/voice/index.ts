@@ -115,12 +115,12 @@ serve(async (req) => {
       await supabase.from('profiles').insert({
         id: user.id,
         username: 'player_' + user.id.slice(0, 8),
-        display_name: 'لاعب زتونة',
+        display_name: 'لاعب قدها',
       });
       profile = {
         id: user.id,
         username: 'player_' + user.id.slice(0, 8),
-        display_name: 'لاعب زتونة',
+        display_name: 'لاعب قدها',
         avatar_url: null,
       };
     }
@@ -134,7 +134,7 @@ serve(async (req) => {
 
     // ── create_room ──────────────────────────────────────
     if (action === 'create_room') {
-      const title = (body.title as string)?.trim() || 'تحدي زتونة المباشر';
+      const title = (body.title as string)?.trim() || 'تحدي قدها المباشر';
       const code = roomCode();
 
       const { data: room, error } = await supabase
@@ -270,7 +270,7 @@ serve(async (req) => {
       }
 
       const isHost = room.host_id === user.id || membership?.is_host === true;
-      const canPublish = body.canPublish !== undefined ? !!body.canPublish : isHost;
+  const canPublish = isHost; // client cannot escalate publish rights
 
       const identity = user.id;
       const name = profile?.display_name || profile?.username || 'player';

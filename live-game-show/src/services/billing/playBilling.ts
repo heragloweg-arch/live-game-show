@@ -156,3 +156,28 @@ export async function confirmNativePurchase(
 }
 
 export { PRODUCT_BY_PLAN, PLAN_BY_PRODUCT };
+
+/** Restore subscriptions from Play Store and verify on server */
+export async function restorePlanPurchases(): Promise<PurchaseResult> {
+  if (!Capacitor.isNativePlatform()) {
+    return { ok: false, message: 'الاستعادة من Google Play على أندرويد فقط' };
+  }
+  const NP = await loadNativePurchases();
+  if (!NP?.restorePurchases && !NP?.getPurchases) {
+    return { ok: false, message: 'إضافة المشتريات غير متاحة' };
+  }
+  try {
+    const list = NP.restorePurchases
+      ? await NP.restorePurchases()
+      : await NP.getPurchases();
+    const purchases = (list?.purchases || list || []).map((x: any) => ({
+      productId: x.productIdentifier || x.productId,
+      purchaseToken: x.purchaseToken || x.transactionReceipt || x.token,
+    })).filter((x: any) => x.productId && x.purchaseToken);
+    const { restorePurchases } = await import('./subscriptionApi');
+    const res = await restorePurchases(purchases);
+    return { ok: true, message: `تمت استعادة ${res.restored?.length ?? 0} اشتراك` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}

@@ -1,14 +1,6 @@
 /**
- * Realtime Contract + Smart Polling against the server.
- *
- * Protocol:
- * - Client holds lastSequence
- * - Polls GET match state (via matchApi.getMatch) at controlled interval
- * - Server returns full state with sequence + serverNow
- * - Client applies only if sequence > lastSequence
- * - Backoff on errors: 1s → 2s → 4s → 8s (cap)
- * - Stop when status ∈ terminal states
- * - Server timestamps are the only time authority
+ * Realtime Contract + Smart Polling (single request per tick).
+ * Fetcher returns full MatchState; no second getMatch on delta.
  */
 
 import { SmartPoller } from '../api/smartPolling';
@@ -29,9 +21,6 @@ export interface MatchRealtimeOptions {
   maxIntervalMs?: number;
 }
 
-/**
- * Convert full MatchState into a MatchDelta for the poller.
- */
 function stateToDelta(state: MatchState): MatchDelta {
   return {
     matchId: state.matchId,
@@ -46,52 +35,41 @@ function stateToDelta(state: MatchState): MatchDelta {
     winnerId: state.winnerId,
     serverNow: state.serverNow,
     deltaType: 'full',
-  };
+    /** full state attached once — consumer should use onState path */
+    _full: state,
+  } as MatchDelta & { _full?: MatchState };
 }
 
-/**
- * Start server-backed smart polling for a match.
- * Returns a stop function.
- */
 export function startMatchRealtime(opts: MatchRealtimeOptions): () => void {
+  const lastFull = { current: null as MatchState | null };
+
   const poller = new SmartPoller({
     matchId: opts.matchId,
     intervalMs: opts.intervalMs ?? 1000,
     maxIntervalMs: opts.maxIntervalMs ?? 8000,
     stopOnStatuses: [...TERMINAL_STATUSES],
-    fetcher: async (matchId, _lastSeq) => {
+    fetcher: async (matchId) => {
       const state = await getMatch(matchId);
+      lastFull.current = state;
       return stateToDelta(state);
     },
     onDelta: (delta) => {
-      // Re-fetch full state to keep client shape consistent
-      getMatch(opts.matchId)
-        .then((state) => {
-          if (state.sequence >= delta.sequence) {
-            opts.onState(state);
-          }
-        })
-        .catch((e) => opts.onError?.(e instanceof Error ? e : new Error(String(e))));
+      const full =
+        (delta as MatchDelta & { _full?: MatchState })._full ?? lastFull.current;
+      if (full && full.sequence >= delta.sequence) {
+        opts.onState(full);
+      }
     },
     onError: (err) => opts.onError?.(err),
   });
 
   poller.start(0);
-
   return () => poller.stop();
 }
 
-/**
- * Realtime Contract — documented event shapes the server may emit
- * (via polling delta or future Realtime channel for rooms).
- */
-export type ServerMatchEvent =
-  | { type: 'MATCH_FOUND'; match: MatchState }
-  | { type: 'MATCH_STARTED'; matchId: string; serverNow: string }
-  | { type: 'ROUND_STARTED'; matchId: string; round: MatchState['round']; sequence: number }
-  | { type: 'ANSWER_RESULT'; matchId: string; result: NonNullable<MatchState['lastAnswerResult']>; sequence: number }
-  | { type: 'ROUND_RESULT'; matchId: string; result: NonNullable<MatchState['lastRoundResult']>; sequence: number }
-  | { type: 'NEXT_ROUND'; matchId: string; currentRound: number; sequence: number }
-  | { type: 'MATCH_FINISHED'; matchId: string; winnerId: string | null; sequence: number }
-  | { type: 'RECONNECT_STATE'; match: MatchState }
-  | { type: 'ERROR'; code: string; message: string };
+export const MatchRealtimeContract = {
+  transport: 'HTTP Smart Polling (single getMatch per tick)',
+  roomsTransport: 'Supabase Realtime Channels',
+  sequenceAuthority: 'server',
+  timeAuthority: 'serverNow / server_start_at / server_end_at',
+} as const;

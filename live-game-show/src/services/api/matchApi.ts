@@ -147,3 +147,23 @@ export async function cancelMatchmaking(): Promise<MatchmakingStatus> {
 export async function getMatchmakingStatus(): Promise<MatchmakingStatus> {
   return invoke<MatchmakingStatus>('matchmaking', { action: 'status' });
 }
+
+export async function createCoupleMatch(difficulty: Difficulty = 'normal'): Promise<{ match: MatchState; coupleId?: string }> {
+  return invoke('match', {
+    action: 'create_couple',
+    difficulty,
+  });
+}
+
+export async function createMatchInvite(difficulty: Difficulty = 'normal') {
+  return invoke<{ token: string; invite: any; sharePath: string }>('match', {
+    action: 'create_invite',
+    difficulty,
+  });
+}
+export async function acceptMatchInvite(token: string) {
+  return invoke<{ match: MatchState }>('match', {
+    action: 'accept_invite',
+    token,
+  });
+}

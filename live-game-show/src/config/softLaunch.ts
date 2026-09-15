@@ -12,10 +12,12 @@ export const SOFT_LAUNCH = {
     hostShow: true,
     dailyChallenge: true,
     matchmaking: true,
-    ads: false, // enable after retention baseline
+    ads: import.meta.env.VITE_ADS_ENABLED === 'true',
     billing: true,
     tournaments: true,
-    couples: false,
+    couples: true,
+    teams: true,
+    creator: true,
   },
   /** Minimum quality gates before paid growth */
   qualityGates: {
@@ -23,7 +25,7 @@ export const SOFT_LAUNCH = {
     minCrashFreeSessionRate: 0.99,
     targetD1Retention: 0.25,
   },
-  supportEmail: 'support@zatona.app',
+  supportEmail: 'support@qaddaha.app',
   privacyUrl: '/legal/privacy',
   termsUrl: '/legal/terms',
 } as const;

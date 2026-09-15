@@ -19,6 +19,12 @@ import { MetricsScreen } from './screens/home/MetricsScreen';
 import { TournamentListScreen } from './screens/tournament/TournamentListScreen';
 import { TournamentDetailScreen } from './screens/tournament/TournamentDetailScreen';
 import { SubscriptionScreen } from './screens/home/SubscriptionScreen';
+import { CoupleScreen } from './screens/couple/CoupleScreen';
+import { TeamScreen } from './screens/team/TeamScreen';
+import { CreatorScreen } from './screens/creator/CreatorScreen';
+import { CreatorAdminScreen } from './screens/creator/CreatorAdminScreen';
+import { InviteAcceptScreen } from './screens/play/InviteAcceptScreen';
+import { InviteCreateScreen } from './screens/play/InviteCreateScreen';
 
 export default function App() {
   return (
@@ -36,7 +42,13 @@ export default function App() {
             <Route path="/tournament" element={<TournamentListScreen />} />
             <Route path="/tournament/:tournamentId" element={<TournamentDetailScreen />} />
             <Route path="/subscription" element={<SubscriptionScreen />} />
+            <Route path="/couple" element={<CoupleScreen />} />
+            <Route path="/team" element={<TeamScreen />} />
+            <Route path="/creator" element={<CreatorScreen />} />
+            <Route path="/creator/admin" element={<CreatorAdminScreen />} />
             <Route path="/play" element={<PlayScreen />} />
+            <Route path="/play/invite/create" element={<InviteCreateScreen />} />
+            <Route path="/play/invite/:token" element={<InviteAcceptScreen />} />
             <Route path="/play/difficulty" element={<DifficultyScreen />} />
             <Route path="/play/matchmaking" element={<MatchmakingScreen />} />
             <Route path="/match/:matchId" element={<MatchScreen />} />

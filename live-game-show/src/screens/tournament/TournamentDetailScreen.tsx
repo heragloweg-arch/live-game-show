@@ -7,10 +7,14 @@ import {
   leaveTournament,
   getMyEntry,
   generateBracket,
+  finalizeTournament,
+  distributePrizes,
+  createNextTournament,
 } from '../../services/api/tournamentApi';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { cn } from '../../utils/cn';
+import { ScreenShell } from '../../components/layout/ScreenShell';
 import { track } from '../../services/analytics/events';
 
 export function TournamentDetailScreen() {
@@ -86,7 +90,7 @@ export function TournamentDetailScreen() {
   const standings = data?.entries ?? [];
 
   return (
-    <div className="min-h-screen px-5 pb-12 pt-6">
+    <ScreenShell>
       <header className="mb-6 flex items-center gap-3">
         <Link to="/tournament" className="btn-ghost -mr-2 p-2">
           <ArrowRight className="h-5 w-5" />
@@ -180,6 +184,43 @@ export function TournamentDetailScreen() {
         )}
       </div>
 
+      
+      {(t?.status === 'completed' || t?.status === 'active') && (
+        <div className="card mb-5 space-y-2 p-4">
+          <p className="text-sm font-semibold text-amber-300">إدارة ما بعد النهائي</p>
+          <button type="button" disabled={busy} className="btn-secondary w-full py-2.5 text-sm"
+            onClick={async () => {
+              if (!tournamentId) return;
+              setBusy(true); setError(null);
+              try { await finalizeTournament(tournamentId); await load(); }
+              catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              finally { setBusy(false); }
+            }}>تتويج البطل (Finalize)</button>
+          <button type="button" disabled={busy} className="btn-primary w-full py-2.5 text-sm"
+            onClick={async () => {
+              if (!tournamentId) return;
+              setBusy(true); setError(null);
+              try { await distributePrizes(tournamentId); await load(); }
+              catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              finally { setBusy(false); }
+            }}>توزيع الجوائز على المحافظ</button>
+          <button type="button" disabled={busy} className="btn-secondary w-full py-2.5 text-sm"
+            onClick={async () => {
+              if (!tournamentId) return;
+              setBusy(true); setError(null);
+              try {
+                const r = await createNextTournament(tournamentId);
+                if (r.tournament?.id) window.location.href = `/tournament/${r.tournament.id}`;
+                else await load();
+              } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+              finally { setBusy(false); }
+            }}>إنشاء الموسم التالي</button>
+          {t?.champion_id && (
+            <p className="text-center text-xs text-white/45">البطل: {String(t.champion_id).slice(0, 8)}…</p>
+          )}
+        </div>
+      )}
+
       <h2 className="mb-3 font-display text-lg font-bold">الترتيب</h2>
       <div className="space-y-2">
         {standings.map((e: any, i: number) => (
@@ -210,6 +251,6 @@ export function TournamentDetailScreen() {
           <p className="py-8 text-center text-sm text-white/35">كن أول المنضمين</p>
         )}
       </div>
-    </div>
+    </ScreenShell>
   );
 }

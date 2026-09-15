@@ -2,48 +2,51 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
-import { track } from '../../services/analytics/events';
+import { trackAppOpen } from '../../services/analytics/events';
 
 export function SplashScreen() {
+  const { sessionLoading, isAuthenticated, signInAnonymously } = useAuthStore();
   const navigate = useNavigate();
-  const { sessionLoading, isAuthenticated, signInAnonymously, user } = useAuthStore();
 
   useEffect(() => {
-    track('app_open');
+    trackAppOpen();
+  }, []);
+
+  useEffect(() => {
+    if (sessionLoading) return;
+
     let cancelled = false;
-
-    async function boot() {
-      await new Promise((r) => setTimeout(r, 2400));
-      if (cancelled) return;
-
-      if (!isAuthenticated) {
-        try {
+    (async () => {
+      try {
+        if (!isAuthenticated) {
           await signInAnonymously();
-        } catch {
-          console.warn('Anonymous sign-in skipped');
         }
+        // Read fresh state after signup — do not use stale `user` closure
+        const u = useAuthStore.getState().user as any;
+        const needsOnboarding = !u || u.onboardingDone === false || u.onboarding_done === false;
+        if (!cancelled) {
+          navigate(needsOnboarding ? '/onboarding' : '/home', { replace: true });
+        }
+      } catch {
+        if (!cancelled) navigate('/home', { replace: true });
       }
-      const needsOnboarding = user && user.onboardingDone === false;
-      navigate(needsOnboarding ? '/onboarding' : '/home', { replace: true });
-    }
+    })();
 
-    if (!sessionLoading) void boot();
     return () => {
       cancelled = true;
     };
-  }, [sessionLoading, isAuthenticated, navigate, signInAnonymously, user]);
+  }, [sessionLoading, isAuthenticated, navigate, signInAnonymously]);
 
   return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden bg-surface-900">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.25)_0%,transparent_55%)]" />
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-surface-950">
       <motion.div
-        className="absolute h-[420px] w-[420px] rounded-full bg-violet-600/20 blur-3xl"
-        animate={{ scale: [1, 1.15, 1], opacity: [0.35, 0.65, 0.35] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-violet-600/25 blur-3xl"
+        animate={{ opacity: [0.4, 0.7, 0.4], scale: [1, 1.08, 1] }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
-        className="absolute h-[280px] w-[280px] rounded-full bg-gold-500/15 blur-3xl"
-        animate={{ scale: [1.1, 0.95, 1.1], opacity: [0.25, 0.5, 0.25] }}
+        className="pointer-events-none absolute -right-16 bottom-20 h-64 w-64 rounded-full bg-amber-500/15 blur-3xl"
+        animate={{ opacity: [0.3, 0.55, 0.3] }}
         transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
       />
 

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Trophy, Users, Coins, Loader2 } from 'lucide-react';
 import { listTournaments, type Tournament } from '../../services/api/tournamentApi';
 import { cn } from '../../utils/cn';
+import { ScreenShell } from '../../components/layout/ScreenShell';
 
 export function TournamentListScreen() {
   const navigate = useNavigate();
@@ -19,13 +20,13 @@ export function TournamentListScreen() {
   }, []);
 
   return (
-    <div className="min-h-screen px-5 pb-12 pt-6">
+    <ScreenShell>
       <header className="mb-6 flex items-center gap-3">
         <Link to="/home" className="btn-ghost -mr-2 p-2">
           <ArrowRight className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="font-display text-2xl font-bold">دوري الأبطال</h1>
+          <h1 className="font-display text-2xl font-black text-gradient-gold">دوري الأبطال</h1>
           <p className="text-xs text-white/45">تنافس على اللقب والجوائز</p>
         </div>
       </header>
@@ -85,6 +86,6 @@ export function TournamentListScreen() {
           <p className="py-12 text-center text-sm text-white/40">لا توجد بطولات مفتوحة حالياً</p>
         )}
       </div>
-    </div>
+    </ScreenShell>
   );
 }

@@ -17,6 +17,8 @@ import {
   type ShowStage,
 } from '../../components/host/HostShowDirector';
 import { track } from '../../services/analytics/events';
+import { startRoomRealtime } from '../../services/realtime/roomRealtime';
+import { isHostProActive } from '../../services/billing/entitlements';
 
 type HostPhase = 'setup' | 'lobby' | 'live' | 'ended';
 
@@ -42,12 +44,28 @@ export function HostScreen() {
   }, [room]);
 
   useEffect(() => {
-    if (phase === 'lobby' || phase === 'live') {
-      refreshMembers();
-      const t = setInterval(refreshMembers, 4000);
-      return () => clearInterval(t);
+    if ((phase === 'lobby' || phase === 'live') && room) {
+      void refreshMembers();
+      const stop = startRoomRealtime(room.id, {
+        onParticipantChange: () => void refreshMembers(),
+        onRoomUpdate: (row) => {
+          setRoom((prev) =>
+            prev
+              ? { ...prev, status: (row.status as any) ?? prev.status }
+              : prev
+          );
+        },
+      });
+      const fallback = setInterval(() => void refreshMembers(), 15000);
+      return () => {
+        stop();
+        clearInterval(fallback);
+      };
     }
-  }, [phase, refreshMembers]);
+  }, [phase, room?.id, refreshMembers]);
+
+  const hostPro = isHostProActive();
+  // Soft gate: warn in UI; hard gate when server REQUIRE_HOST_PRO=true
 
   const handleCreate = async () => {
     setBusy(true);

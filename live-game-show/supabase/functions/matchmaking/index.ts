@@ -39,7 +39,7 @@ serve(async (req) => {
       await supabase.from('profiles').insert({
         id: user.id,
         username: 'player_' + user.id.slice(0, 8),
-        display_name: 'لاعب زتونة',
+        display_name: 'لاعب قدها',
       });
     }
 
@@ -84,15 +84,26 @@ async function joinQueue(supabase: any, user: any, difficulty: string, region: s
     .order('enqueued_at', { ascending: true })
     .limit(5);
 
-  if (candidates && candidates.length > 0) {
-    // Pick best match (closest skill or first)
-    const opponent = candidates[0];
+  // Atomic claim with row lock (SKIP LOCKED) — prevents double-match race
+  const { data: claimed, error: claimErr } = await supabase.rpc('claim_matchmaking_opponent', {
+    p_user_id: user.id,
+    p_region: region,
+    p_difficulty: difficulty,
+  });
 
-    // Remove both from queue
+  if (claimErr) {
+    console.error('[matchmaking] claim', claimErr);
+    // fallback to non-atomic path only if RPC missing
+  } else if (claimed) {
+    const match = await create1v1(supabase, user.id, claimed);
+    return json({ status: 'matched', match });
+  }
+
+  if (!claimErr && candidates && candidates.length > 0) {
+    // Should not reach if RPC works; kept as soft fallback
+    const opponent = candidates[0];
     await supabase.from('matchmaking_queue').delete().eq('user_id', user.id);
     await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
-
-    // Create 1v1 match by calling internal logic
     const match = await create1v1(supabase, user.id, opponent.user_id);
     return json({ status: 'matched', match });
   }
@@ -152,7 +163,7 @@ async function create1v1(supabase: any, userId1: string, userId2: string) {
   const challenges: any[] = [];
   for (let i = 0; i < TOTAL; i++) {
     const t = SEQUENCE[i] === 'mystery' ? null : SEQUENCE[i];
-    let q = supabase.from('challenges').select('id').eq('active', true);
+    let q = supabase.from('challenges').select('id').eq('active', true).eq('qa_status', 'approved');
     if (t) q = q.eq('type', t);
     const { data } = await q.limit(20);
     if (data?.length) challenges.push(data[Math.floor(Math.random() * data.length)]);

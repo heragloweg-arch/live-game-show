@@ -85,3 +85,23 @@ export async function reportTournamentResult(tournamentMatchId: string, winnerId
     winnerId,
   });
 }
+
+export async function finalizeTournament(tournamentId: string) {
+  return invoke<{ ok: boolean; championId?: string; runnerUpId?: string }>({
+    action: 'finalize',
+    tournamentId,
+  });
+}
+export async function distributePrizes(tournamentId: string) {
+  return invoke<{ ok: boolean; paid?: any[]; already?: boolean }>({
+    action: 'distribute_prizes',
+    tournamentId,
+  });
+}
+export async function createNextTournament(tournamentId: string, title?: string) {
+  return invoke<{ ok: boolean; tournament: any }>({
+    action: 'create_next',
+    tournamentId,
+    title,
+  });
+}

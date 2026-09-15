@@ -30,10 +30,22 @@ export function PlayScreen() {
           primary
         />
         <ModeCard
+          icon={<Users className="h-7 w-7 text-amber-300" />}
+          title="ادعُ صديقاً"
+          description="أنشئ رابط دعوة 1 ضد 1 وشاركه"
+          onClick={() => navigate('/play/invite/create')}
+        />
+        <ModeCard
           icon={<Users className="h-7 w-7 text-neon-purple" />}
           title="غرف التحدي"
           description="انضم بكود الغرفة أو من دعوة المضيف"
           onClick={() => navigate('/room/join')}
+        />
+        <ModeCard
+          icon={<Users className="h-7 w-7 text-sky-400" />}
+          title="معارك الفرق"
+          description="1v1 حتى 15v15 · مجموع نقاط الفريق"
+          onClick={() => navigate('/team')}
         />
         <ModeCard
           icon={<Crown className="h-7 w-7 text-gold-400" />}
