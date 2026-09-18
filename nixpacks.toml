@@ -1,9 +1,6 @@
-# Railway / Nixpacks — Node only (npm comes with Node; do NOT list "npm" as nixPkg)
+# لا تضع nodejs_22 — غير معرّف في nixpkgs الخاص بـ Railway حالياً
 [variables]
-NIXPACKS_NODE_VERSION = "22"
-
-[phases.setup]
-nixPkgs = ["nodejs_22"]
+NIXPACKS_NODE_VERSION = "20"
 
 [phases.install]
 cmds = ["npm install --legacy-peer-deps"]
