@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.github
+android
+supabase
+docs
+*.md
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage
+.vscode
+.idea
+*.log
+.nixpacks

@@ -1,12 +1,4 @@
-# لا تضع nodejs_22 — غير معرّف في nixpkgs الخاص بـ Railway حالياً
+# Not used when builder = DOCKERFILE
+providers = ["node"]
 [variables]
 NIXPACKS_NODE_VERSION = "20"
-
-[phases.install]
-cmds = ["npm install --legacy-peer-deps"]
-
-[phases.build]
-cmds = ["npm run build"]
-
-[start]
-cmd = "npx --yes serve -s dist -l tcp://0.0.0.0:$PORT"
