@@ -1,5 +1,15 @@
+# Railway / Nixpacks — Node only (npm comes with Node; do NOT list "npm" as nixPkg)
 [variables]
-NIXPACKS_NODE_VERSION = "20"
+NIXPACKS_NODE_VERSION = "22"
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm"]
+nixPkgs = ["nodejs_22"]
+
+[phases.install]
+cmds = ["npm install --legacy-peer-deps"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npx --yes serve -s dist -l tcp://0.0.0.0:$PORT"
