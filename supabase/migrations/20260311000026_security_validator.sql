@@ -8,7 +8,7 @@ ALTER TABLE public.challenges
 -- Speed letter challenges → open_speed or hybrid
 UPDATE public.challenges
 SET validation_mode = 'hybrid'
-WHERE type = 'speed' AND (subtype ILIKE '%letter%' OR prompt ~ 'يبدأ|تبدأ|حروف|بحرف|تنتهي');
+WHERE type = 'speed' AND (subtype::text ILIKE '%letter%' OR prompt ~ 'يبدأ|تبدأ|حروف|بحرف|تنتهي');
 
 UPDATE public.challenges
 SET validation_mode = 'exact'
