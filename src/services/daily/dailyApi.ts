@@ -5,8 +5,11 @@ const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
   : '';
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
+
   const res = await fetch(`${FUNCTIONS_URL}/daily`, {
     method: 'POST',
     headers: {
@@ -16,8 +19,17 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Daily API failed');
+
+  let data: any = null;
+  const text = await res.text();
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(
+      res.ok ? 'Daily API returned non-JSON' : `Daily API failed (${res.status})`
+    );
+  }
+  if (!res.ok) throw new Error(data?.error ?? `Daily API failed (${res.status})`);
   return data as T;
 }
 
@@ -29,9 +41,13 @@ export interface DailyState {
   challenge: {
     id: string;
     type: string;
+    subtype?: string;
     prompt: string;
     difficulty: string;
     timeLimitMs: number;
+    letterPool?: string[];
+    /** عدد الكلمات المطلوب استخراجها من الحروف */
+    targetWordCount?: number;
     choices?: { id: string; label: string }[];
   };
   streak: {
@@ -45,6 +61,7 @@ export async function getTodayDaily(): Promise<DailyState> {
   return invoke<DailyState>({ action: 'get_today' });
 }
 
+/** إجابة واحدة أو عدة كلمات مفصولة بـ | */
 export async function submitDailyAnswer(answer: string, responseTimeMs?: number) {
   return invoke<{
     correct: boolean;
@@ -53,6 +70,8 @@ export async function submitDailyAnswer(answer: string, responseTimeMs?: number)
     xpGain: number;
     streak: DailyState['streak'];
     alreadyCompleted?: boolean;
+    matchedWords?: string[];
+    needed?: number;
   }>({ action: 'submit', answer, responseTimeMs });
 }
 
@@ -63,3 +82,4 @@ export async function getStreak() {
 export async function completeOnboarding() {
   return invoke<{ ok: boolean }>({ action: 'complete_onboarding' });
 }
+

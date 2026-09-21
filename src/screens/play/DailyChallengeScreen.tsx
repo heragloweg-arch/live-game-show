@@ -9,6 +9,7 @@ import {
   type DailyState,
 } from '../../services/daily/dailyApi';
 import { useAuthStore } from '../../store/authStore';
+import { LetterPoolBoard } from '../../components/game/LetterPoolBoard';
 import { cn } from '../../utils/cn';
 
 export function DailyChallengeScreen() {
@@ -18,13 +19,17 @@ export function DailyChallengeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
+  const [builtWord, setBuiltWord] = useState('');
+  const [words, setWords] = useState<string[]>([]);
   const [result, setResult] = useState<{
     correct: boolean;
     coinGain: number;
     xpGain: number;
+    matchedWords?: string[];
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [startedAt] = useState(() => Date.now());
+  const [letterKey, setLetterKey] = useState(0);
 
   useEffect(() => {
     getTodayDaily()
@@ -33,19 +38,66 @@ export function DailyChallengeScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  const targetCount = state?.challenge.targetWordCount ?? 3;
+  const hasLetterPool = !!(state?.challenge.letterPool && state.challenge.letterPool.length > 0);
+
+  const addWord = () => {
+    const w = builtWord.trim();
+    if (!w) return;
+    if (words.includes(w)) {
+      setError('هذه الكلمة مضافة مسبقاً');
+      return;
+    }
+    if (words.length >= targetCount) return;
+    setWords((prev) => [...prev, w]);
+    setBuiltWord('');
+    setLetterKey((k) => k + 1);
+    setError(null);
+  };
+
+  const removeWord = (idx: number) => {
+    setWords((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const submit = async () => {
     if (!state) return;
-    const value = state.challenge.choices ? selected ?? '' : answer.trim();
+    let value = '';
+    if (hasLetterPool) {
+      if (words.length < targetCount) {
+        setError(`يلزم ${targetCount} كلمات — لديك ${words.length}`);
+        return;
+      }
+      value = words.join('|');
+    } else if (state.challenge.choices) {
+      value = selected ?? '';
+    } else {
+      value = answer.trim();
+    }
     if (!value) return;
+
     setSubmitting(true);
+    setError(null);
     try {
       const res = await submitDailyAnswer(value, Date.now() - startedAt);
       if (res.alreadyCompleted) {
         setState((s) => (s ? { ...s, completed: true } : s));
         return;
       }
-      setResult({ correct: res.correct, coinGain: res.coinGain, xpGain: res.xpGain });
-      setState((s) => (s ? { ...s, completed: true, streak: res.streak } : s));
+      setResult({
+        correct: res.correct,
+        coinGain: res.coinGain ?? 0,
+        xpGain: res.xpGain ?? 0,
+        matchedWords: res.matchedWords,
+      });
+      setState((s) =>
+        s
+          ? {
+              ...s,
+              completed: true,
+              streak: (res.streak as DailyState['streak']) ?? s.streak,
+            }
+          : s
+      );
       if (res.correct) {
         confetti({
           particleCount: 80,
@@ -116,9 +168,7 @@ export function DailyChallengeScreen() {
           <Trophy className="h-5 w-5 text-gold-400" />
           <div>
             <p className="text-[11px] text-white/40">أطول سلسلة</p>
-            <p className="text-sm font-bold text-white">
-              {state?.streak?.longest_streak ?? 0} يوم
-            </p>
+            <p className="text-sm font-bold text-white">{state?.streak?.longest_streak ?? 0} يوم</p>
           </div>
         </div>
       </div>
@@ -134,7 +184,9 @@ export function DailyChallengeScreen() {
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-orange-500 via-zatona-500 to-gold-400" />
             <div className="mb-3 flex items-center justify-center gap-2 text-xs font-semibold text-orange-400/90">
               <Sparkles className="h-3.5 w-3.5" />
-              {state.challenge.type} · {state.challenge.difficulty}
+              {hasLetterPool
+                ? `استخرج ${targetCount} كلمات من الحروف`
+                : `${state.challenge.type} · ${state.challenge.difficulty}`}
             </div>
             <h2 className="mb-6 text-center font-display text-xl font-bold leading-relaxed text-white">
               {state.challenge.prompt}
@@ -146,19 +198,24 @@ export function DailyChallengeScreen() {
                   <>
                     <p
                       className={cn(
-                        'font-display text-2xl font-black',
-                        result.correct ? 'text-zatona-400' : 'text-red-400'
+                        'font-display text-2xl font-bold',
+                        result.correct ? 'text-emerald-400' : 'text-red-400'
                       )}
                     >
-                      {result.correct ? 'أحسنت! 🔥' : 'حظاً أوفر غداً'}
+                      {result.correct ? 'أحسنت!' : 'للأسف…'}
                     </p>
                     {result.correct && (
                       <p className="mt-2 text-sm text-white/55">
                         +{result.coinGain} عملة · +{result.xpGain} XP
                       </p>
                     )}
+                    {result.matchedWords && result.matchedWords.length > 0 && (
+                      <p className="mt-2 text-sm text-white/60">
+                        كلماتك: {result.matchedWords.join(' · ')}
+                      </p>
+                    )}
                     <p className="mt-3 text-sm text-orange-400">
-                      سلسلتك الآن: {state.streak.current_streak} يوم متتالي
+                      سلسلتك الآن: {state.streak?.current_streak ?? 0} يوم متتالي
                     </p>
                   </>
                 ) : (
@@ -168,42 +225,94 @@ export function DailyChallengeScreen() {
                   العودة للرئيسية
                 </Link>
               </div>
-            ) : (
+            ) : hasLetterPool ? (
               <>
-                {state.challenge.choices ? (
-                  <div className="grid gap-2">
-                    {state.challenge.choices.map((c) => (
-                      <motion.button
-                        key={c.id}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setSelected(c.id)}
-                        className={cn(
-                          'rounded-xl border px-4 py-3.5 text-right text-sm transition-all',
-                          selected === c.id
-                            ? 'border-orange-500/60 bg-orange-500/15 text-white shadow-[0_0_20px_rgba(249,115,22,0.15)]'
-                            : 'border-white/10 bg-white/5 text-white/80 hover:bg-white/10'
-                        )}
-                      >
-                        {c.label}
-                      </motion.button>
-                    ))}
-                  </div>
-                ) : (
-                  <input
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && void submit()}
-                    className="input-field text-center text-lg"
-                    placeholder="إجابتك هنا..."
-                    dir="rtl"
-                    autoFocus
-                  />
-                )}
+                <p className="mb-3 text-center text-sm text-white/50">
+                  كوّن كلمة ثم اضغط «أضف كلمة» — المطلوب {targetCount}
+                </p>
+                <div className="mb-4 flex flex-wrap justify-center gap-2">
+                  {Array.from({ length: targetCount }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => words[i] && removeWord(i)}
+                      className={cn(
+                        'min-w-[4.5rem] rounded-xl border px-3 py-2 text-sm font-bold',
+                        words[i]
+                          ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                          : 'border-white/10 bg-white/5 text-white/30'
+                      )}
+                    >
+                      {words[i] ?? `كلمة ${i + 1}`}
+                    </button>
+                  ))}
+                </div>
+                <LetterPoolBoard
+                  key={letterKey}
+                  letters={state.challenge.letterPool!}
+                  onChange={setBuiltWord}
+                  disabled={words.length >= targetCount}
+                />
+                <div className="mt-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={addWord}
+                    disabled={!builtWord.trim() || words.length >= targetCount}
+                    className="btn-secondary flex-1 py-3"
+                  >
+                    أضف كلمة
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void submit()}
+                    disabled={submitting || words.length < targetCount}
+                    className="btn-primary flex-1 py-3"
+                  >
+                    {submitting ? 'جاري التحقق...' : 'إرسال'}
+                  </button>
+                </div>
+              </>
+            ) : state.challenge.choices?.length ? (
+              <>
+                <div className="grid gap-2">
+                  {state.challenge.choices.map((c) => (
+                    <motion.button
+                      key={c.id}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelected(c.id)}
+                      className={cn(
+                        'rounded-xl border px-4 py-3.5 text-right text-sm transition-all',
+                        selected === c.id
+                          ? 'border-orange-500/60 bg-orange-500/15 text-white'
+                          : 'border-white/10 bg-white/5 text-white/80'
+                      )}
+                    >
+                      {c.label}
+                    </motion.button>
+                  ))}
+                </div>
                 <button
                   onClick={() => void submit()}
-                  disabled={
-                    submitting || (state.challenge.choices ? !selected : !answer.trim())
-                  }
+                  disabled={submitting || !selected}
+                  className="btn-primary mt-5 w-full py-3.5"
+                >
+                  {submitting ? 'جاري التحقق...' : 'إرسال الإجابة'}
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void submit()}
+                  className="input-field text-center text-lg"
+                  placeholder="إجابتك هنا..."
+                  dir="rtl"
+                  autoFocus
+                />
+                <button
+                  onClick={() => void submit()}
+                  disabled={submitting || !answer.trim()}
                   className="btn-primary mt-5 w-full py-3.5"
                 >
                   {submitting ? 'جاري التحقق...' : 'إرسال الإجابة'}
@@ -216,3 +325,4 @@ export function DailyChallengeScreen() {
     </div>
   );
 }
+

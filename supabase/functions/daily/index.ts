@@ -67,11 +67,21 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!daily) {
-        const { data: pool } = await supabase
+        // Prefer letter-pool challenges (extract N words from letters)
+        let { data: pool } = await supabase
           .from('challenges')
           .select('id')
           .eq('active', true)
-          .limit(80);
+          .not('letter_pool', 'is', null)
+          .limit(120);
+        if (!pool?.length) {
+          const fallback = await supabase
+            .from('challenges')
+            .select('id')
+            .eq('active', true)
+            .limit(80);
+          pool = fallback.data;
+        }
         if (!pool?.length) return json({ error: 'No challenges' }, 500);
         // Deterministic pick by date
         let h = 0;
@@ -118,6 +128,7 @@ serve(async (req) => {
           difficulty: daily.challenge?.difficulty,
           timeLimitMs: daily.challenge?.time_limit_ms ?? 15000,
           letterPool: daily.challenge?.letter_pool,
+          targetWordCount: daily.challenge?.letter_pool?.length ? 3 : 1,
           choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })),
         },
         streak,
@@ -133,25 +144,52 @@ serve(async (req) => {
         .single();
       if (!daily) return json({ error: 'No daily challenge' }, 404);
 
-      const normalized = normalizeArabic(answer);
-      let correct = false;
       const { data: accepted } = await supabase
         .from('challenge_answers')
         .select('normalized_answer')
         .eq('challenge_id', daily.challenge_id);
-      if (accepted?.length) {
-        correct = accepted.some((a: any) => a.normalized_answer === normalized);
-      }
-      if (!correct) {
-        const { data: choices } = await supabase
-          .from('challenge_choices')
-          .select('choice_id, label, is_correct')
-          .eq('challenge_id', daily.challenge_id);
-        correct = !!choices?.find(
-          (c: any) =>
-            c.is_correct &&
-            (c.choice_id === answer || normalizeArabic(c.label) === normalized)
-        );
+
+      const { data: chMeta } = await supabase
+        .from('challenges')
+        .select('letter_pool')
+        .eq('id', daily.challenge_id)
+        .maybeSingle();
+
+      const acceptedSet = new Set(
+        (accepted ?? []).map((a: any) => normalizeArabic(a.normalized_answer))
+      );
+
+      // Multi-word daily: "word1|word2|word3" — need 3 unique accepted words
+      const parts = String(answer)
+        .split(/[|,،\n]+/)
+        .map((s) => normalizeArabic(s.trim()))
+        .filter(Boolean);
+      const uniqueParts = [...new Set(parts)];
+
+      let correct = false;
+      let matchedWords: string[] = [];
+      const TARGET = chMeta?.letter_pool?.length ? 3 : 1;
+
+      if (TARGET > 1 && acceptedSet.size > 0) {
+        matchedWords = uniqueParts.filter((w) => acceptedSet.has(w));
+        correct = matchedWords.length >= TARGET;
+      } else {
+        const normalized = normalizeArabic(answer);
+        if (acceptedSet.size) {
+          correct = acceptedSet.has(normalized);
+          if (correct) matchedWords = [normalized];
+        }
+        if (!correct) {
+          const { data: choices } = await supabase
+            .from('challenge_choices')
+            .select('choice_id, label, is_correct')
+            .eq('challenge_id', daily.challenge_id);
+          correct = !!choices?.find(
+            (c: any) =>
+              c.is_correct &&
+              (c.choice_id === answer || normalizeArabic(c.label) === normalized)
+          );
+        }
       }
 
       const { data: ch } = await supabase
@@ -184,10 +222,14 @@ serve(async (req) => {
           ok: true,
           correct,
           points: score.total,
+          coinGain: correct ? (daily.bonus_coins ?? 40) : 0,
+          xpGain: correct ? (daily.bonus_xp ?? 35) : 0,
           alreadyCompleted: !!atomic.already,
           coins: atomic.coins,
           awarded: atomic.awarded,
-          streak: { current: atomic.streak },
+          streak: { current_streak: atomic.streak, longest_streak: atomic.streak, last_daily_date: day },
+          matchedWords,
+          needed: TARGET,
           multiplier: atomic.multiplier ?? 1,
         });
       }
@@ -281,3 +323,4 @@ async function updateStreak(supabase: any, userId: string, day: string) {
 
   return { user_id: userId, current_streak: current, longest_streak: longest, last_daily_date: day };
 }
+
