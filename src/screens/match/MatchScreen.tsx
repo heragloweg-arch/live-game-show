@@ -136,24 +136,6 @@ useEffect(() => {
     }
   };
 
-  if ((phase === 'idle' || phase === 'loading') && !match) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-white/50">جاري تجهيز المباراة...</p>
-      </div>
-    );
-  }
-
-  if (phase === 'error') {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6">
-        <p className="text-red-400">{(active as any).error ?? 'حدث خطأ'}</p>
-        <Link to="/home" className="btn-primary">العودة</Link>
-      </div>
-    );
-  }
-
-
   useEffect(() => {
     if (phase !== 'round_result' || !match?.lastAnswerResult) return;
     const o = match.lastAnswerResult.outcome;
@@ -165,6 +147,24 @@ useEffect(() => {
     if (phase === 'finished') void hapticHeavy();
   }, [phase]);
 
+  if ((phase === 'idle' || phase === 'loading') && !match) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6">
+        <p className="text-white/50">جاري تجهيز المباراة...</p>
+        <p className="text-center text-xs text-white/30">الاتصال بالسيرفر وبدء الجولة</p>
+      </div>
+    );
+  }
+
+  if (phase === 'error') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6">
+        <p className="text-center text-red-400">{(active as any).error ?? 'حدث خطأ'}</p>
+        <Link to="/play/difficulty" className="btn-secondary">إعادة المحاولة</Link>
+        <Link to="/home" className="btn-primary">العودة</Link>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-900">
