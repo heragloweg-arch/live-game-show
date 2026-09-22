@@ -147,6 +147,25 @@ useEffect(() => {
     if (phase === 'finished') void hapticHeavy();
   }, [phase]);
 
+  // بعد النتيجة: انتقال تلقائي للجولة التالية (مع زر يدوي احتياطي)
+  useEffect(() => {
+    if (phase !== 'round_result' || !useServer) return;
+    const t = window.setTimeout(() => {
+      void server.goNextRound();
+    }, 1800);
+    return () => window.clearTimeout(t);
+  }, [phase, match?.currentRound, useServer]);
+
+  // انتهى الوقت بدون إجابة → إرسال فارغ ثم التالي
+  useEffect(() => {
+    if (phase !== 'playing' || !useServer || !match?.round) return;
+    if (remaining > 0) return;
+    const t = window.setTimeout(() => {
+      void active.submitAnswer('');
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [phase, remaining, match?.round?.roundId, useServer]);
+
   if ((phase === 'idle' || phase === 'loading') && !match) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6">
@@ -270,20 +289,6 @@ useEffect(() => {
                     <span>الوقت</span>
                     <span className={cn(remaining < 4000 && 'text-red-400 font-bold')}>
                       {formatCountdown(remaining)}
-          
-          {match?.round?.challenge?.letterPool && match.round.challenge.letterPool.length > 0 && phase !== 'finished' && (
-            <div className="mb-4">
-              <LetterPoolBoard
-                letters={match.round.challenge.letterPool}
-                disabled={phase !== 'playing' && phase !== 'active'}
-                onChange={(v) => {
-                  // setAnswer if exists
-                  if (typeof (active as any).setAnswer === 'function') (active as any).setAnswer(v);
-                }}
-              />
-            </div>
-          )}
-
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/10">
@@ -296,7 +301,7 @@ useEffect(() => {
                         width:
                           Math.max(
                             0,
-                            (remaining / (match.round.challenge?.timeLimitMs ?? 15000)) * 100
+                            (remaining / Math.max(1, match.round.challenge?.timeLimitMs ?? 15000)) * 100
                           ) + '%',
                       }}
                     />
@@ -306,11 +311,12 @@ useEffect(() => {
 
               {phase === 'playing' && (
                 <>
-                  {match.round.challenge?.choices ? (
+                  {match.round.challenge?.choices && match.round.challenge.choices.length > 0 ? (
                     <div className="grid gap-2">
                       {match.round.challenge.choices.map((c) => (
                         <button
                           key={c.id}
+                          type="button"
                           onClick={() => setSelectedChoice(c.id)}
                           className={cn(
                             'rounded-xl border px-4 py-3 text-right transition-all',
@@ -323,11 +329,17 @@ useEffect(() => {
                         </button>
                       ))}
                     </div>
+                  ) : match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0 ? (
+                    <LetterPoolBoard
+                      letters={match.round.challenge.letterPool}
+                      disabled={false}
+                      onChange={setAnswer}
+                    />
                   ) : (
                     <input
                       type="text"
-                      value={(active as any).answer ?? answer}
-                      onChange={(e) => { setAnswer(e.target.value); (active as any).setAnswer?.(e.target.value); }}
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                       placeholder="اكتب إجابتك هنا..."
                       className="input-field text-center text-lg"
@@ -336,9 +348,12 @@ useEffect(() => {
                     />
                   )}
                   <button
+                    type="button"
                     onClick={handleSubmit}
                     disabled={
-                      match.round.challenge?.choices ? !selectedChoice : !((active as any).answer ?? answer).trim()
+                      match.round.challenge?.choices?.length
+                        ? !selectedChoice
+                        : !answer.trim()
                     }
                     className="btn-primary mt-4 w-full"
                   >
@@ -348,6 +363,8 @@ useEffect(() => {
               )}
 
               {phase === 'submitting' && (
+                <p className="text-center text-white/50">جاري التحقق...</p>
+              )}              {phase === 'submitting' && (
                 <p className="text-center text-white/50">جاري التحقق...</p>
               )}
 

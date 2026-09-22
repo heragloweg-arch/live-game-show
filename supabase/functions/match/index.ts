@@ -135,14 +135,37 @@ async function pickChallenges(supabase: any, count: number) {
       .eq('active', true)
       .eq('qa_status', 'approved');
     if (desiredType) query = query.eq('type', desiredType);
-    const { data } = await query.limit(80);
-    const pool = (data ?? []).filter((c: any) => !used.has(c.id));
+    const { data } = await query.limit(120);
+    let pool = (data ?? []).filter((c: any) => !used.has(c.id));
+    // Prefer challenges that are playable in UI: have choices OR letter_pool
+    const withInput = [];
+    for (const c of pool) {
+      if (c.letter_pool?.length) {
+        withInput.push(c);
+        continue;
+      }
+      const { count: cc } = await supabase
+        .from('challenge_choices')
+        .select('*', { count: 'exact', head: true })
+        .eq('challenge_id', c.id);
+      if ((cc ?? 0) > 0) withInput.push(c);
+    }
+    if (withInput.length) pool = withInput;
     if (!pool.length && data?.length) {
-      challenges.push(data[Math.floor(Math.random() * data.length)]);
+      const fallback = data[Math.floor(Math.random() * data.length)];
+      used.add(fallback.id);
+      const { data: choices } = await supabase
+        .from('challenge_choices')
+        .select('choice_id, label')
+        .eq('challenge_id', fallback.id);
+      challenges.push({
+        ...fallback,
+        timeLimitMs: fallback.time_limit_ms,
+        choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })) ?? undefined,
+      });
       continue;
     }
     if (!pool.length) continue;
-    // Weighted random: prefer higher weight (Speed/Words/Mystery)
     const totalW = pool.reduce((s: number, c: any) => s + (Number(c.weight) || 10), 0);
     let r = Math.random() * totalW;
     let pick = pool[0];
