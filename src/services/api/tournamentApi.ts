@@ -70,6 +70,13 @@ export async function getMyEntry(tournamentId: string) {
   return invoke<{ entry: any | null }>({ action: 'my_entry', tournamentId });
 }
 
+export async function startBracketMatch(tournamentMatchId: string) {
+  return invoke<{ ok: boolean; matchId: string; alreadyStarted?: boolean }>({
+    action: 'start_bracket_match',
+    tournamentMatchId,
+  });
+}
+
 export async function generateBracket(tournamentId: string, force = false) {
   return invoke<{ ok: boolean; bracket: any }>({
     action: 'generate_bracket',

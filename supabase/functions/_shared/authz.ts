@@ -6,7 +6,7 @@ const TERMINAL = new Set([
   'MATCH_FINISHED',
   'FINAL_RESULT',
   'MATCH_TERMINATED',
-  'FINISHED',
+  'FINISHED', // legacy alias if any
   'CANCELLED',
 ]);
 
@@ -42,37 +42,34 @@ export async function assertMatchNotFinished(
   return { ok: true, match };
 }
 
-/** All human players submitted OR server time expired */
+export type RoundAdvanceGate =
+  | { can: true; reason: 'TIME_EXPIRED' | 'ALL_ANSWERED' }
+  | { can: false; reason: 'ROUND_NOT_FOUND' | 'WAITING_FOR_OPPONENT' };
+
+/** All human players submitted OR server time expired. */
 export async function canAdvanceRound(
   supabase: any,
   matchId: string,
-  roundId: string,
-  _serverEndAt?: string | null
-): Promise<{ can: boolean; reason?: string }> {
+  roundId: string
+): Promise<RoundAdvanceGate> {
   const { data: round } = await supabase.from('rounds').select('*').eq('id', roundId).maybeSingle();
-  if (!round) return { can: false, reason: 'no_round' };
-
-  const endAt = _serverEndAt || round.server_end_at;
-  if (endAt && new Date(endAt).getTime() <= Date.now()) {
-    return { can: true, reason: 'time_expired' };
+  if (!round) return { can: false, reason: 'ROUND_NOT_FOUND' };
+  if (round.server_end_at && new Date(round.server_end_at).getTime() <= Date.now()) {
+    return { can: true, reason: 'TIME_EXPIRED' };
   }
-
   const { data: humans } = await supabase
     .from('match_participants')
     .select('user_id')
     .eq('match_id', matchId)
     .eq('is_ai', false);
   const humanIds = (humans || []).map((h: any) => h.user_id).filter(Boolean);
-  if (!humanIds.length) return { can: true, reason: 'no_humans' };
-
+  if (!humanIds.length) return { can: true, reason: 'ALL_ANSWERED' };
   const { count } = await supabase
     .from('answer_submissions')
     .select('*', { count: 'exact', head: true })
     .eq('round_id', roundId)
     .in('user_id', humanIds);
-
-  if ((count ?? 0) >= humanIds.length) {
-    return { can: true, reason: 'all_answered' };
-  }
-  return { can: false, reason: 'waiting_answers' };
+  return (count ?? 0) >= humanIds.length
+    ? { can: true, reason: 'ALL_ANSWERED' }
+    : { can: false, reason: 'WAITING_FOR_OPPONENT' };
 }

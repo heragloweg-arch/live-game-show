@@ -33,6 +33,18 @@ serve(async (req) => {
     const body = await req.json();
     const { matchId, roundId, requestId, answer, clientTimestamp } = body;
 
+    if (body.action === 'spend_lifeline' && body.lifelineType === 'fifty_fifty') {
+      if (!matchId || !roundId) return json({ error: 'matchId and roundId required' }, 400);
+      const authz = await assertMatchParticipant(supabase, matchId, user.id);
+      if (!authz.ok) return json({ error: authz.error }, authz.status);
+      const { data: choices } = await supabase.from('challenge_choices').select('choice_id,is_correct').eq('challenge_id', (await supabase.from('rounds').select('challenge_id').eq('id', roundId).single()).data?.challenge_id);
+      const wrong = (choices ?? []).filter((c: any) => !c.is_correct).map((c: any) => c.choice_id);
+      const removed = wrong.slice(0, Math.max(0, Math.min(2, wrong.length)));
+      const { data, error } = await supabase.rpc('spend_lifeline_fifty', { p_user_id: user.id, p_match_id: matchId, p_round_id: roundId, p_removed_choice_ids: removed });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
+    }
+
     if (!matchId || !roundId || !requestId || answer === undefined) {
       return json({ error: 'Missing required fields: matchId, roundId, requestId, answer' }, 400);
     }
@@ -234,45 +246,5 @@ async function persistAnswer(supabase: any, opts: {
       duplicate: !!data.duplicate,
     };
   }
-  console.warn('[answer] atomic rpc fallback', error?.message);
-  const { data: prior } = await supabase.from('answer_submissions').select('*')
-    .eq('round_id', opts.roundId).eq('user_id', opts.userId).maybeSingle();
-  if (prior) {
-    return {
-      requestId: prior.request_id,
-      outcome: prior.outcome,
-      points: prior.points,
-      bonus: prior.bonus,
-      serverValidatedAt: prior.server_validated_at,
-      normalizedAnswer: prior.normalized_answer,
-      duplicate: true,
-    };
-  }
-  await supabase.from('answer_submissions').insert({
-    request_id: opts.requestId,
-    match_id: opts.matchId,
-    round_id: opts.roundId,
-    user_id: opts.userId,
-    answer: opts.answer,
-    normalized_answer: opts.normalized,
-    outcome: opts.outcome,
-    points: opts.points,
-    bonus: opts.bonus,
-    response_time_ms: opts.responseTimeMs,
-    client_timestamp: opts.clientTimestamp,
-    server_validated_at: new Date().toISOString(),
-  });
-  const { data: part } = await supabase.from('match_participants').select('score')
-    .eq('match_id', opts.matchId).eq('user_id', opts.userId).maybeSingle();
-  await supabase.from('match_participants').update({
-    score: (part?.score ?? 0) + opts.points + (opts.bonus ?? 0),
-  }).eq('match_id', opts.matchId).eq('user_id', opts.userId);
-  return {
-    requestId: opts.requestId,
-    outcome: opts.outcome,
-    points: opts.points,
-    bonus: opts.bonus,
-    serverValidatedAt: new Date().toISOString(),
-    normalizedAnswer: opts.normalized,
-  };
+  throw new Error(`submit_answer_atomic failed: ${error?.message ?? 'empty RPC response'}`);
 }

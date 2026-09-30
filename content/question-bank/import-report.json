@@ -1,0 +1,85 @@
+{
+  "files": 10,
+  "total": 1119,
+  "eligible": 968,
+  "needs_review": 116,
+  "rejected": 125,
+  "duplicate": 35,
+  "byFile": {
+    "db1.json": {
+      "total": 150,
+      "eligible": 133,
+      "needs_review": 17,
+      "rejected": 17
+    },
+    "db2.json": {
+      "total": 150,
+      "eligible": 135,
+      "needs_review": 15,
+      "rejected": 15
+    },
+    "db3.json": {
+      "total": 150,
+      "eligible": 134,
+      "needs_review": 16,
+      "rejected": 16
+    },
+    "db4.json": {
+      "total": 150,
+      "eligible": 133,
+      "needs_review": 17,
+      "rejected": 17
+    },
+    "db5.json": {
+      "total": 150,
+      "eligible": 134,
+      "needs_review": 16,
+      "rejected": 16
+    },
+    "db6.json": {
+      "total": 150,
+      "eligible": 135,
+      "needs_review": 15,
+      "rejected": 15
+    },
+    "db7.json": {
+      "total": 95,
+      "eligible": 77,
+      "needs_review": 0,
+      "rejected": 1
+    },
+    "db7_religion.json": {
+      "total": 100,
+      "eligible": 87,
+      "needs_review": 3,
+      "rejected": 4
+    },
+    "db7_speed.json": {
+      "total": 24,
+      "eligible": 0,
+      "needs_review": 17,
+      "rejected": 24
+    },
+    "generated_questions.json": {
+      "total": 0,
+      "eligible": 0,
+      "needs_review": 0,
+      "rejected": 0
+    }
+  },
+  "byCategory": {
+    "رياضة": 90,
+    "جغرافيا": 90,
+    "تاريخ": 90,
+    "سينما مصرية": 120,
+    "دين": 295,
+    "سرعة": 114,
+    "علوم": 90,
+    "سينما عربية": 60,
+    "معلومات عامة": 90,
+    "قرآن": 23,
+    "سيرة": 24,
+    "صحابة": 18,
+    "أنبياء": 15
+  }
+}

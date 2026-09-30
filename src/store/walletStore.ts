@@ -22,8 +22,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   loadWallet: async () => {
     set({ loading: true, error: null });
     try {
-      const w = await fetchWallet();
-      set({ wallet: w, loading: false });
+      const [w, entries] = await Promise.all([fetchWallet(), fetchLedger()]);
+      set({ wallet: w, ledger: entries, loading: false });
     } catch (e) {
       set({
         error: e instanceof Error ? e.message : String(e),

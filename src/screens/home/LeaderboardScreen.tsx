@@ -4,6 +4,7 @@ import { ArrowRight, Trophy, Loader2, RefreshCw } from 'lucide-react';
 import { fetchLeaderboard } from '../../services/profile/profileApi';
 import type { UserProfile } from '../../types';
 import { cn } from '../../utils/cn';
+import { BottomAdBanner } from '../../components/ads/BottomAdBanner';
 
 export function LeaderboardScreen() {
   const [entries, setEntries] = useState<UserProfile[]>([]);
@@ -89,6 +90,7 @@ export function LeaderboardScreen() {
           );
         })}
       </div>
+      <BottomAdBanner />
     </div>
   );
 }

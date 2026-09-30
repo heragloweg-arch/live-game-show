@@ -1,0 +1,1 @@
+function o(t){return new Date(t).getTime()}function a(t,n){const r=o(t),e=o(n);return Math.max(0,r-e)}function i(t){const n=Math.ceil(t/1e3),r=Math.floor(n/60),e=n%60;return r>0?`${r}:${e.toString().padStart(2,"0")}`:e.toString()}export{i as f,a as r};

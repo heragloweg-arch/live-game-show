@@ -1,19 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, LogOut, Coins, Pencil, Loader2, History } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
-import { updateProfile, fetchMatchHistory } from '../../services/profile/profileApi';
+import { updateProfile, fetchMatchHistory, fetchRecentOpponents, type RecentOpponent, type MatchHistoryRecord } from '../../services/profile/profileApi';
+import { createRematch } from '../../services/api/matchApi';
 import { cn } from '../../utils/cn';
 import { bestTitle } from '../../services/cosmetics/titles';
+import { BottomAdBanner } from '../../components/ads/BottomAdBanner';
+import { useThemeStore, type ThemeMode } from '../../store/themeStore';
 
 export function ProfileScreen() {
+  const navigate = useNavigate();
   const { user, signOut, refreshProfile } = useAuthStore();
   const { wallet, loadWallet } = useWalletStore();
+  const { mode: themeMode, setMode: setThemeMode } = useThemeStore();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.displayName ?? '');
   const [saving, setSaving] = useState(false);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<MatchHistoryRecord[]>([]);
+  const [opponents, setOpponents] = useState<RecentOpponent[]>([]);
+  const [rematching, setRematching] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,7 +36,18 @@ export function ProfileScreen() {
   useEffect(() => {
     if (!user?.id) return;
     fetchMatchHistory(user.id).then(setHistory);
+    fetchRecentOpponents(user.id).then(setOpponents);
   }, [user?.id]);
+
+  const rematch = async (opponent: RecentOpponent) => {
+    setRematching(opponent.userId);
+    try {
+      const match = await createRematch(opponent.lastMatchId);
+      navigate(`/match/${match.matchId ?? match.id}`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'تعذر بدء الإعادة');
+    } finally { setRematching(null); }
+  };
 
   const save = async () => {
     if (!user || !name.trim()) return;
@@ -140,7 +159,7 @@ export function ProfileScreen() {
           <p className="py-4 text-center text-xs text-white/35">لا يوجد سجل بعد</p>
         ) : (
           <div className="space-y-2">
-            {history.slice(0, 8).map((h: any) => {
+            {history.slice(0, 8).map((h) => {
               const m = h.matches;
               const won = m?.winner_id === user?.id;
               return (
@@ -167,6 +186,11 @@ export function ProfileScreen() {
         )}
       </div>
 
+      {opponents.length > 0 && <div className="card mb-5 p-4"><div className="mb-3 flex items-center gap-2 text-sm font-medium"><Swords className="h-4 w-4 text-gold-400" />آخر المنافسين</div><div className="space-y-2">{opponents.map((opponent) => <div key={opponent.userId} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-400/15 font-bold text-violet-200">{opponent.displayName[0]}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{opponent.displayName}</p><p className="truncate text-[11px] text-white/35">@{opponent.username}</p></div><button type="button" onClick={() => void rematch(opponent)} disabled={rematching === opponent.userId} className="btn-secondary px-3 py-2 text-xs">{rematching === opponent.userId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'إعادة'}</button></div>)}</div></div>}
+
+      <ThemePicker mode={themeMode} onChange={setThemeMode} />
+
+      <BottomAdBanner />
       <button
         onClick={() => signOut()}
         className="btn-secondary w-full gap-2 border-red-500/30 text-red-400"
@@ -176,6 +200,20 @@ export function ProfileScreen() {
       </button>
     </div>
   );
+}
+
+function ThemePicker({ mode, onChange }: { mode: ThemeMode; onChange: (mode: ThemeMode) => void }) {
+  const options: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
+    { value: 'system', label: 'حسب الجهاز', icon: Monitor },
+    { value: 'dark', label: 'Qaddaha Night', icon: Moon },
+    { value: 'light', label: 'Qaddaha Day', icon: Sun },
+  ];
+  return <section className="card mb-5 p-4" aria-labelledby="theme-heading">
+    <div className="mb-3"><h2 id="theme-heading" className="text-sm font-bold">مظهر التطبيق</h2><p className="mt-1 text-xs text-white/45">اختر المظهر الأكثر راحة لك أثناء اللعب</p></div>
+    <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="مظهر التطبيق">
+      {options.map(({ value, label, icon: Icon }) => <button key={value} type="button" role="radio" aria-checked={mode === value} onClick={() => onChange(value)} className={cn('flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-[10px] font-bold transition', mode === value ? 'border-violet-400/60 bg-violet-500/15 text-violet-200' : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10')}><Icon className="h-4 w-4" aria-hidden="true" /><span>{label}</span></button>)}
+    </div>
+  </section>;
 }
 
 function Stat({ label, value }: { label: string; value: number }) {

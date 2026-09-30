@@ -30,5 +30,6 @@ export function shouldShowAds(): boolean {
 }
 
 export function dailyRewardMultiplier(): number {
+  // Scope is subscription daily cosmetic coins only; never apply to match score, XP, or correctness.
   return isPlusActive() ? 2 : 1;
 }

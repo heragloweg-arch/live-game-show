@@ -92,6 +92,11 @@ export function SubscriptionScreen() {
         </div>
       )}
 
+      <section className="mb-5 grid gap-3 sm:grid-cols-2" aria-label="مقارنة الخطط">
+        <div className="card p-4"><p className="eyebrow">مجاني</p><h2 className="mt-1 font-display text-lg font-black">ابدأ بلا التزام</h2><p className="mt-2 text-xs leading-5 text-white/45">كل التحديات الأساسية، متجر التجميل، والبطولات المتاحة. قد تظهر إعلانات خارج الجولة.</p></div>
+        <div className="card-glow p-4"><p className="eyebrow text-gold-300">قدها+</p><h2 className="mt-1 font-display text-lg font-black text-gold-100">لعب أهدأ وقيمة يومية</h2><p className="mt-2 text-xs leading-5 text-white/55">إزالة الإعلانات، عملات يومية، وشارة تجميلية — بدون نقاط أو إجابات مدفوعة.</p></div>
+      </section>
+
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="h-8 w-8 animate-spin text-gold-400" />

@@ -3,7 +3,6 @@ import {
   joinMatchmaking,
   cancelMatchmaking,
   getMatchmakingStatus,
-  type MatchmakingStatus,
 } from '../services/api/matchApi';
 import type { Difficulty } from '../types';
 

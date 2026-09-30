@@ -18,7 +18,7 @@ export interface ActiveMatchRef {
 
 export function saveActiveMatch(matchId: string, mode?: string) {
   if (typeof window === 'undefined') return;
-  if (!matchId || matchId === 'solo-demo' || matchId.startsWith('solo')) return;
+  if (!matchId) return;
   const payload: ActiveMatchRef = {
     matchId,
     mode,

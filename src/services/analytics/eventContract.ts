@@ -23,6 +23,7 @@ export const ANALYTICS_EVENTS = {
   subscription_start: 'subscription_start',
   subscription_success: 'subscription_success',
   ad_impression: 'ad_impression',
+  rewarded_complete: 'rewarded_complete',
   reward_claim: 'reward_claim',
   share_result: 'share_result',
   team_queue: 'team_queue',

@@ -5,7 +5,6 @@ import { ArrowRight, Bot, Flame, Shield, Zap, Loader2 } from 'lucide-react';
 import type { Difficulty } from '../../types';
 import { cn } from '../../utils/cn';
 import { createSoloMatch } from '../../services/api/matchApi';
-import { FLAGS } from '../../config/flags';
 
 const LEVELS: {
   id: Difficulty;
@@ -61,11 +60,6 @@ export function DifficultyScreen() {
       return;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Dev-only fallback
-      if (FLAGS.enableLocalDemo) {
-        navigate(`/match/solo-demo?diff=${diff}`);
-        return;
-      }
       setError(
         msg.includes('Not authenticated') || msg.includes('authenticated')
           ? 'يجب تسجيل الدخول أولاً. أعد فتح التطبيق.'

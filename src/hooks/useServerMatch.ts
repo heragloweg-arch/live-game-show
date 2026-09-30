@@ -8,6 +8,7 @@ import { allowAction } from '../utils/rateLimit';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createSoloMatch,
+  createRematch,
   startRound as apiStartRound,
   nextRound as apiNextRound,
   finishMatch as apiFinishMatch,
@@ -85,6 +86,15 @@ export function useServerMatch() {
     });
   }, [setMatch]);
 
+  const startLocalCountdown = useCallback(() => {
+    if (localTimerRef.current) clearInterval(localTimerRef.current);
+    localTimerRef.current = setInterval(() => {
+      const current = useMatchStore.getState().match;
+      if (!current?.round || current.status !== 'ROUND_ACTIVE') return;
+      setMatch({ ...current, serverNow: new Date().toISOString() });
+    }, 250);
+  }, [setMatch]);
+
   const startSolo = useCallback(async (difficulty: Difficulty = 'normal') => {
     clearTimers();
     clearMatch();
@@ -116,7 +126,19 @@ export function useServerMatch() {
       setError(e instanceof Error ? e.message : String(e));
       setPhase('error');
     }
-  }, [attachRealtime, clearMatch, setMatch]);
+  }, [attachRealtime, clearMatch, setMatch, startLocalCountdown]);
+
+  const startRematch = useCallback(async (previousMatchId: string, difficulty: Difficulty = 'normal') => {
+    clearTimers(); clearMatch(); setError(null); setPhase('loading');
+    try {
+      const state = await createRematch(previousMatchId, difficulty);
+      setMatch(state); saveActiveMatch(state.matchId, state.mode); track('match_start', { matchId: state.matchId, mode: 'rematch' }); setPhase('vs'); attachRealtime(state.matchId);
+      setTimeout(async () => {
+        try { const started = await apiStartRound(state.matchId); setMatch(started); setAnswer(''); setPhase('playing'); startLocalCountdown(); }
+        catch (e) { setError(e instanceof Error ? e.message : String(e)); setPhase('error'); }
+      }, 1200);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); setPhase('error'); }
+  }, [attachRealtime, clearMatch, setMatch, startLocalCountdown]);
 
   const loadMatch = useCallback(async (matchId: string) => {
     clearTimers();
@@ -151,22 +173,7 @@ export function useServerMatch() {
       setError(e instanceof Error ? e.message : String(e));
       setPhase('error');
     }
-  }, [attachRealtime, setMatch]);
-
-  const startLocalCountdown = () => {
-    if (localTimerRef.current) clearInterval(localTimerRef.current);
-    localTimerRef.current = setInterval(() => {
-      const current = useMatchStore.getState().match;
-      if (!current?.round || current.status !== 'ROUND_ACTIVE') return;
-      // Touch serverNow for UI re-render; authority remains server end time
-      setMatch({ ...current, serverNow: new Date().toISOString() });
-      const left = remainingMs(current.round.serverEndAt, new Date().toISOString());
-      if (left <= 0) {
-        // Timeout — submit empty / let server handle on next poll
-        // Client shows timeout UX; actual validation is server-side
-      }
-    }, 250);
-  };
+  }, [attachRealtime, setMatch, startLocalCountdown]);
 
   const submitAnswer = useCallback(async (answer: string) => {
     const current = useMatchStore.getState().match;
@@ -231,7 +238,7 @@ export function useServerMatch() {
       setError(e instanceof Error ? e.message : String(e));
       setPhase('error');
     }
-  }, [setMatch]);
+  }, [setMatch, startLocalCountdown]);
 
   const endMatch = useCallback(async () => {
     const current = useMatchStore.getState().match;
@@ -291,7 +298,7 @@ export function useServerMatch() {
     } finally {
       setReconnecting(false);
     }
-  }, [attachRealtime, setMatch]);
+  }, [attachRealtime, setMatch, startLocalCountdown]);
 
   useEffect(() => () => clearTimers(), []);
 
@@ -306,6 +313,7 @@ export function useServerMatch() {
     reconnecting,
     reconnect,
     startSolo,
+    startRematch,
     loadMatch,
     submitAnswer,
     goNextRound,

@@ -108,6 +108,7 @@ serve(async (req) => {
       const id = body.id as string;
       const { data: row } = await supabase.from('creator_challenges').select('*').eq('id', id).single();
       if (!row) return json({ error: 'Not found' }, 404);
+      if (row.status !== 'pending') return json({ ok: true, alreadyReviewed: true, challengeId: row.published_challenge_id });
 
       const { data: ch, error: chErr } = await supabase.from('challenges').insert({
         type: row.type,
@@ -134,7 +135,13 @@ serve(async (req) => {
         published_challenge_id: ch.id,
         reviewed_at: new Date().toISOString(),
       }).eq('id', id);
-      return json({ ok: true, challengeId: ch.id });
+      const { data: rewardBalance, error: rewardError } = await supabase.rpc('grant_creator_approval_reward', {
+        p_user_id: row.creator_id,
+        p_submission_id: id,
+        p_amount: 100,
+      });
+      if (rewardError) return json({ error: `تم النشر لكن تعذر تسجيل مكافأة المبدع: ${rewardError.message}`, challengeId: ch.id }, 500);
+      return json({ ok: true, challengeId: ch.id, creatorReward: rewardBalance?.awarded ?? 0, creatorBalance: rewardBalance?.coins ?? null });
     }
 
     return json({ error: 'Unknown action' }, 400);

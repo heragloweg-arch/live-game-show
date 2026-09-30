@@ -2,6 +2,7 @@
   "name": "qaddaha",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "قدها — Soft-Launch Candidate (Arabic live challenge game)",
   "scripts": {
     "dev": "vite",
@@ -19,13 +20,20 @@
     "android:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
     "android:sync-billing": "npm run build && npx cap sync android",
     "postinstall": "node -e \"console.log('[qaddaha] npm i done — for APK: npm run build && npx cap sync android')\"",
-    "start": "npx --yes serve -s dist -l tcp://0.0.0.0:${PORT:-3000}",
+    "start": "npx serve -s dist -l tcp://0.0.0.0:$PORT",
     "railway:build": "npm install --legacy-peer-deps && npm run build",
     "android:deps": "npm install && npx cap sync android",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "ci": "npm run typecheck && npm run lint && npm run build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:production": "npm run build && node scripts/verify-production.mjs",
+    "verify:launch-config": "node scripts/verify-launch-config.mjs",
+    "verify:content-release": "node scripts/verify-content-release.mjs",
+    "content:approve-batch": "node scripts/approve-content-batch.mjs",
+    "content:import-bank": "node scripts/import-question-bank.mjs content/question-bank/source/bank.zip content/question-bank",
+    "content:audit-wording": "python3 scripts/audit-question-wording.py content/question-bank/review-queue.json content/question-bank/wording-audit.json",
+    "content:apply-wording": "python3 scripts/apply-wording-audit.py content/question-bank/wording-audit.json content/question-bank/wording-reviewed-queue.json && npm run content:import-bank"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.2",
@@ -73,6 +81,6 @@
     "vitest": "^2.1.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.22.0"
   }
 }

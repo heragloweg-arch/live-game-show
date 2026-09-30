@@ -12,6 +12,7 @@
 import { Capacitor } from '@capacitor/core';
 import { isFeatureEnabled } from '../../config/softLaunch';
 import { track } from '../analytics/events';
+import { shouldShowAds } from '../billing/entitlements';
 
 export type AdPlacement =
   | 'home_banner'
@@ -66,6 +67,7 @@ export const AD_POLICY = {
 } as const;
 
 function adsGloballyEnabled(): boolean {
+  if (!shouldShowAds()) return false;
   if (import.meta.env.VITE_ADS_ENABLED === 'true') return true;
   return isFeatureEnabled('ads');
 }
@@ -152,12 +154,14 @@ export async function showAd(
       if (placement === 'rewarded_extra_coins') {
         await AdMob.prepareRewardVideoAd({ adId: id });
         const reward = await AdMob.showRewardVideoAd();
-        const s = loadState();
-        s.rewardedCountToday += 1;
-        saveState(s);
-        track('ad_reward_claimed', { placement, reward: JSON.stringify(reward ?? {}) });
-        void claimAdRewardOnServer(placement);
-        return 'rewarded';
+        const claimed = await claimAdRewardOnServer(placement);
+        if (claimed) {
+          const s = loadState();
+          s.rewardedCountToday += 1;
+          saveState(s);
+        }
+        track(claimed ? 'rewarded_complete' : 'ad_reward_claimed', { placement, reward: JSON.stringify(reward ?? {}), serverClaimed: claimed });
+        return claimed ? 'rewarded' : 'failed';
       }
 
       // interstitial
@@ -178,11 +182,13 @@ export async function showAd(
   if (import.meta.env.VITE_ADS_SIMULATE === 'true') {
     const s = loadState();
     if (placement === 'rewarded_extra_coins') {
-      s.rewardedCountToday += 1;
-      saveState(s);
-      track('ad_reward_claimed', { placement, simulated: true });
-      void claimAdRewardOnServer(placement);
-        return 'rewarded';
+      const claimed = await claimAdRewardOnServer(placement);
+      if (claimed) {
+        s.rewardedCountToday += 1;
+        saveState(s);
+        track('rewarded_complete', { placement, simulated: true, serverClaimed: true });
+      }
+      return claimed ? 'rewarded' : 'failed';
     }
     if (placement !== 'home_banner') {
       s.lastInterstitialAt = Date.now();
@@ -206,14 +212,16 @@ export async function hideBanner(): Promise<void> {
 }
 
 
-export async function claimAdRewardOnServer(placement: AdPlacement): Promise<void> {
+export async function claimAdRewardOnServer(placement: AdPlacement): Promise<boolean> {
   try {
     const { supabase } = await import('../supabase/client');
-    const requestId = `ad_${placement}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const requestId = typeof crypto?.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `ad_${placement}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return;
+    if (!session?.access_token) return false;
     const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/economy`;
-    await fetch(base, {
+    const response = await fetch(base, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -222,5 +230,6 @@ export async function claimAdRewardOnServer(placement: AdPlacement): Promise<voi
       },
       body: JSON.stringify({ action: 'ad_reward_claim', placement, requestId }),
     });
-  } catch { /* */ }
+    return response.ok;
+  } catch { return false; }
 }

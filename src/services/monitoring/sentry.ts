@@ -3,8 +3,6 @@
  * Production: set VITE_SENTRY_DSN and optionally install @sentry/react.
  * Without DSN — safe no-op hooks (console in dev).
  */
-import { FLAGS } from '../../config/flags';
-
 const dsn = typeof import.meta !== 'undefined' ? import.meta.env.VITE_SENTRY_DSN : '';
 
 export function initMonitoring() {

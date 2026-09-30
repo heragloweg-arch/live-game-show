@@ -10,6 +10,7 @@ import {
   finalizeTournament,
   distributePrizes,
   createNextTournament,
+  startBracketMatch,
 } from '../../services/api/tournamentApi';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
@@ -20,6 +21,7 @@ import { track } from '../../services/analytics/events';
 export function TournamentDetailScreen() {
   const { tournamentId } = useParams();
   const refreshProfile = useAuthStore((s) => s.refreshProfile);
+  const currentUser = useAuthStore((s) => s.user);
   const loadWallet = useWalletStore((s) => s.loadWallet);
   const [data, setData] = useState<any>(null);
   const [entry, setEntry] = useState<any>(null);
@@ -156,6 +158,14 @@ export function TournamentDetailScreen() {
             <span className="flex-1 text-white/80">
               {m.player_a?.slice?.(0, 8) || m.player_a || 'BYE'} vs {m.player_b?.slice?.(0, 8) || m.player_b || 'BYE'}
             </span>
+            {entry && currentUser && (m.player_a === currentUser.id || m.player_b === currentUser.id) && m.status !== 'completed' && (
+              <button type="button" className="btn-primary px-2 py-1 text-[11px]" disabled={busy} onClick={async () => {
+                setBusy(true); setError(null);
+                try { const result = await startBracketMatch(m.id); window.location.href = `/match/${result.matchId}`; }
+                catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+                finally { setBusy(false); }
+              }}>ابدأ المواجهة</button>
+            )}
             <span className={m.status === 'completed' ? 'text-zatona-400' : 'text-white/35'}>
               {m.status}
             </span>

@@ -61,7 +61,7 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
   }, [poll]);
 
   useEffect(() => {
-    if (!round) return;
+    if (!round?.id) return;
     const t = setInterval(() => setServerNow(new Date().toISOString()), 250);
     return () => clearInterval(t);
   }, [round?.id]);

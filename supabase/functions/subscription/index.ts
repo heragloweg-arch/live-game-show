@@ -89,11 +89,19 @@ serve(async (req) => {
         });
       }
 
+      const effectivePlan = sub?.plan ?? profile?.subscription_plan ?? 'free';
+      let dailyGrant = null;
+      if (['plus_monthly', 'plus_yearly', 'host_pro'].includes(effectivePlan) && (!sub?.expires_at || new Date(sub.expires_at) >= new Date())) {
+        // Plus multiplier applies only to the cosmetic daily grant, never to match score or XP.
+        const { data: grant } = await supabase.rpc('claim_subscription_daily_atomic', { p_user_id: user.id, p_plan: effectivePlan, p_coins: 50 });
+        dailyGrant = grant ?? null;
+      }
       return json({
-        plan: sub?.plan ?? profile?.subscription_plan ?? 'free',
+        plan: effectivePlan,
         status: sub?.status ?? 'none',
         subscription: sub,
         expiresAt: sub?.expires_at ?? profile?.subscription_expires_at,
+        dailyGrant,
       });
     }
 
@@ -115,7 +123,7 @@ serve(async (req) => {
 
       if (!catalogItem) return json({ error: 'Unknown product' }, 400);
 
-      // Store receipt (idempotent)
+      // Store receipt as pending. It must not become verified before Play API validation.
       await supabase.from('purchase_receipts').upsert(
         {
           user_id: user.id,
@@ -123,13 +131,12 @@ serve(async (req) => {
           purchase_token: purchaseToken,
           order_id: orderId,
           provider: 'google_play',
-          status: 'verified',
-          verified_at: new Date().toISOString(),
+          status: 'pending',
+          verified_at: null,
         },
         { onConflict: 'provider,purchase_token' }
       );
 
-      const allowUnverified = Deno.env.get('ALLOW_UNVERIFIED_PLAY_PURCHASES') === 'true';
       const hasGoogleCreds = !!(
         Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') &&
         Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')
@@ -149,6 +156,15 @@ serve(async (req) => {
           }, { onConflict: 'provider,purchase_token' });
           return json({ error: verified.error || 'Play verification failed', code: 'PLAY_VERIFY_FAILED' }, 402);
         }
+        await supabase.from('purchase_receipts').upsert({
+          user_id: user.id,
+          product_id: productId,
+          purchase_token: purchaseToken,
+          order_id: orderId,
+          provider: 'google_play',
+          status: 'verified',
+          verified_at: new Date().toISOString(),
+        }, { onConflict: 'provider,purchase_token' });
         // Prefer Play expiry when present
         const result = await activatePlan(
           supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
@@ -157,13 +173,7 @@ serve(async (req) => {
         return result;
       }
 
-      if (allowUnverified) {
-        console.warn('[subscription] ALLOW_UNVERIFIED_PLAY_PURCHASES — staging only');
-        return await activatePlan(supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play_unverified');
-      }
-
       return json({
-        error: 'Google Play verification not configured. Set GOOGLE_PLAY_PACKAGE_NAME + GOOGLE_PLAY_SERVICE_ACCOUNT_JSON.',
         code: 'PLAY_VERIFY_REQUIRED',
       }, 503);
     }
@@ -182,7 +192,7 @@ serve(async (req) => {
           .eq('google_product_id', productId)
           .maybeSingle();
         if (!catalogItem) continue;
-        if (Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')) {
+        if (Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') && Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')) {
           const verified = await verifySubscriptionPurchase(productId, purchaseToken);
           if (!verified.ok) continue;
           await activatePlan(
@@ -197,6 +207,9 @@ serve(async (req) => {
 
     if (action === 'activate_dev') {
       // Staging only
+      if (Deno.env.get('SUPABASE_ENVIRONMENT') === 'production' || Deno.env.get('ENVIRONMENT') === 'production') {
+        return json({ error: 'Dev billing is forbidden in production' }, 403);
+      }
       if (Deno.env.get('ALLOW_DEV_BILLING') !== 'true') {
         return json({ error: 'Dev billing disabled' }, 403);
       }

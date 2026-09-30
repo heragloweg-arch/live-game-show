@@ -14,7 +14,6 @@ import {
 } from '../_shared/authz.ts';
 
 const TOTAL_ROUNDS = 5;
-const ROUND_SEQUENCE = ['speed', 'knowledge', 'words', 'speed', 'mystery'];
 const WIN_COINS = 50;
 const LOSS_COINS = 15;
 const WIN_XP = 50;
@@ -76,6 +75,8 @@ serve(async (req) => {
           return json({ error: 'استخدم دعوة 1v1 (inviteToken) أو matchmaking', code: 'INVITE_REQUIRED' }, 403);
         }
         return await acceptMatchInvite(supabase, user, body.inviteToken);
+      case 'rematch':
+        return await createRematch(supabase, user, String(body.matchId ?? ''), String(body.difficulty ?? 'normal'));
       case 'get':
         return await getMatch(supabase, body.matchId, user.id);
       case 'start_round':
@@ -124,48 +125,26 @@ async function ensureProfile(supabase: any, user: any) {
   }
 }
 
-async function pickChallenges(supabase: any, count: number) {
+async function pickChallenges(supabase: any, count: number, difficulty?: string) {
   const challenges: any[] = [];
   const used = new Set<string>();
+  let previousSubtype: string | null = null;
   for (let i = 0; i < count; i++) {
-    const desiredType = ROUND_SEQUENCE[i] === 'mystery' ? null : ROUND_SEQUENCE[i];
     let query = supabase
       .from('challenges')
       .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, weight')
       .eq('active', true)
-      .eq('qa_status', 'approved');
-    if (desiredType) query = query.eq('type', desiredType);
-    const { data } = await query.limit(120);
-    let pool = (data ?? []).filter((c: any) => !used.has(c.id));
-    // Prefer challenges that are playable in UI: have choices OR letter_pool
-    const withInput = [];
-    for (const c of pool) {
-      if (c.letter_pool?.length) {
-        withInput.push(c);
-        continue;
-      }
-      const { count: cc } = await supabase
-        .from('challenge_choices')
-        .select('*', { count: 'exact', head: true })
-        .eq('challenge_id', c.id);
-      if ((cc ?? 0) > 0) withInput.push(c);
+      .eq('qa_status', 'approved')
+      .neq('type', 'speed');
+    if (difficulty && ['easy', 'normal', 'hard'].includes(difficulty)) {
+      query = query.eq('difficulty', difficulty);
     }
-    if (withInput.length) pool = withInput;
-    if (!pool.length && data?.length) {
-      const fallback = data[Math.floor(Math.random() * data.length)];
-      used.add(fallback.id);
-      const { data: choices } = await supabase
-        .from('challenge_choices')
-        .select('choice_id, label')
-        .eq('challenge_id', fallback.id);
-      challenges.push({
-        ...fallback,
-        timeLimitMs: fallback.time_limit_ms,
-        choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })) ?? undefined,
-      });
-      continue;
-    }
+    const { data } = await query.limit(80);
+    const pool = (data ?? []).filter((c: any) =>
+      !used.has(c.id) && Array.isArray(c.letter_pool) && c.letter_pool.length > 0 && c.subtype !== previousSubtype
+    );
     if (!pool.length) continue;
+    // Weighted random: prefer higher weight (Speed/Words/Mystery)
     const totalW = pool.reduce((s: number, c: any) => s + (Number(c.weight) || 10), 0);
     let r = Math.random() * totalW;
     let pick = pool[0];
@@ -174,14 +153,10 @@ async function pickChallenges(supabase: any, count: number) {
       if (r <= 0) { pick = c; break; }
     }
     used.add(pick.id);
-    const { data: choices } = await supabase
-      .from('challenge_choices')
-      .select('choice_id, label')
-      .eq('challenge_id', pick.id);
+    previousSubtype = pick.subtype;
     challenges.push({
       ...pick,
       timeLimitMs: pick.time_limit_ms,
-      choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })) ?? undefined,
     });
   }
   return challenges;
@@ -189,7 +164,7 @@ async function pickChallenges(supabase: any, count: number) {
 
 async function createSoloMatch(supabase: any, user: any, difficulty: string) {
   const now = new Date().toISOString();
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
+  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, difficulty);
   if (challenges.length < TOTAL_ROUNDS) {
     return json({ error: 'Not enough challenges in bank. Run seed migrations.' }, 500);
   }
@@ -249,10 +224,10 @@ async function createSoloMatch(supabase: any, user: any, difficulty: string) {
   return json({ match: await buildMatchState(supabase, match.id) });
 }
 
-async function create1v1Match(supabase: any, user: any, opponentId: string) {
+async function create1v1Match(supabase: any, user: any, opponentId: string, difficulty = 'normal') {
   if (!opponentId) return json({ error: 'opponentId required' }, 400);
   const now = new Date().toISOString();
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
+  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, difficulty);
   if (challenges.length < TOTAL_ROUNDS) {
     return json({ error: 'Not enough challenges in bank' }, 500);
   }
@@ -290,6 +265,19 @@ async function create1v1Match(supabase: any, user: any, opponentId: string) {
   );
 
   return json({ match: await buildMatchState(supabase, match.id) });
+}
+
+async function createRematch(supabase: any, user: any, previousMatchId: string, difficulty = 'normal') {
+  if (!previousMatchId) return json({ error: 'matchId required' }, 400);
+  const { data: previous } = await supabase.from('matches').select('id, mode, status').eq('id', previousMatchId).single();
+  if (!previous || previous.mode !== '1v1' || !['MATCH_FINISHED', 'FINAL_RESULT'].includes(previous.status)) {
+    return json({ error: 'Rematch is only available after a finished 1v1' }, 400);
+  }
+  const { data: participants } = await supabase.from('match_participants').select('user_id, is_ai').eq('match_id', previousMatchId);
+  if (!(participants ?? []).some((p: any) => p.user_id === user.id)) return json({ error: 'You were not a participant in this match' }, 403);
+  const opponent = (participants ?? []).find((p: any) => p.user_id && p.user_id !== user.id && !p.is_ai);
+  if (!opponent) return json({ error: 'Opponent is no longer available' }, 409);
+  return create1v1Match(supabase, user, opponent.user_id, difficulty);
 }
 
 async function getMatch(supabase: any, matchId: string, userId: string) {
@@ -335,7 +323,7 @@ async function acceptMatchInvite(supabase: any, user: any, token: string) {
   if (inv.from_user === user.id) return json({ error: 'لا تقبل دعوتك' }, 400);
 
     const now = new Date().toISOString();
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
+  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, inv.difficulty || 'normal');
   if (challenges.length < TOTAL_ROUNDS) return json({ error: 'Not enough challenges' }, 500);
 
   const { data: match, error: matchErr } = await supabase.from('matches').insert({
@@ -389,7 +377,7 @@ async function createCoupleMatch(supabase: any, user: any, difficulty: string) {
   const { data: me } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', user.id).single();
   const { data: partner } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', partnerId).single();
 
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
+  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, difficulty);
   if (challenges.length < TOTAL_ROUNDS) {
     return json({ error: 'Not enough challenges' }, 500);
   }
@@ -552,7 +540,7 @@ async function nextRound(supabase: any, matchId: string, userId: string) {
   if (!round) return json({ error: 'Round not found' }, 404);
 
   // Gate: both humans answered OR time expired (solo: one answer)
-  const gate = await canAdvanceRound(supabase, matchId, round.id, round.server_end_at);
+  const gate = await canAdvanceRound(supabase, matchId, round.id);
   if (!gate.can) {
     return json({
       error: 'لا يمكن الانتقال بعد — بانتظار الخصم أو انتهاء الوقت',
@@ -595,185 +583,19 @@ async function nextRound(supabase: any, matchId: string, userId: string) {
 }
 
 async function finishMatch(supabase: any, matchId: string, userId: string | null) {
-  // Prefer atomic DB settlement
-  try {
-    if (userId) {
-      const authz = await assertMatchParticipant(supabase, matchId, userId);
-      if (!authz.ok) return json({ error: authz.error }, authz.status);
-    }
-    const { data: settled, error: settleErr } = await supabase.rpc('settle_match', { p_match_id: matchId });
-    if (!settleErr && settled?.ok) {
-      const state = await buildMatchState(supabase, matchId, userId ?? undefined);
-      return json({ match: state, rewards: settled.rewards, alreadySettled: !!settled.already });
-    }
-  } catch (e) {
-    console.warn('[finish] settle_match fallback', e);
-  }
-
   if (userId) {
     const authz = await assertMatchParticipant(supabase, matchId, userId);
     if (!authz.ok) return json({ error: authz.error }, authz.status);
   }
 
-  const { data: match } = await supabase.from('matches').select('*').eq('id', matchId).single();
-  if (!match) return json({ error: 'Match not found' }, 404);
-
-  // Idempotent: already finished
-  if (match.status === 'MATCH_FINISHED' || match.status === 'FINAL_RESULT') {
-    const state = await buildMatchState(supabase, matchId, userId ?? undefined);
-    const rewards = await loadRewardSnapshot(supabase, matchId);
-    return json({ match: state, rewards, alreadySettled: true });
+  const { data: settled, error: settleErr } = await supabase.rpc('settle_match', { p_match_id: matchId });
+  if (settleErr || !settled?.ok) {
+    console.error('[finish] atomic settlement failed', settleErr?.message ?? settled);
+    return json({ error: 'تعذر تثبيت نتيجة المباراة ذرياً، أعد المحاولة', code: 'SETTLEMENT_UNAVAILABLE' }, 503);
   }
+  const state = await buildMatchState(supabase, matchId, userId ?? undefined);
+  return json({ match: state, rewards: settled.rewards, alreadySettled: !!settled.already });
 
-  // Ensure AI scored last round if needed
-  if (match.mode === 'solo') {
-    await applyAiRoundScore(supabase, matchId, match.current_round);
-  }
-
-  const { data: participants } = await supabase
-    .from('match_participants')
-    .select('*')
-    .eq('match_id', matchId);
-
-  let winnerId: string | null = null;
-  if (participants && participants.length >= 2) {
-    const sorted = [...participants].sort((a: any, b: any) => b.score - a.score);
-    if (sorted[0].score > sorted[1].score) winnerId = sorted[0].user_id;
-  }
-
-  const now = new Date().toISOString();
-  await supabase
-    .from('matches')
-    .update({
-      status: 'MATCH_FINISHED',
-      winner_id: winnerId,
-      sequence: (match.sequence ?? 0) + 1,
-      ended_at: now,
-      server_now: now,
-    })
-    .eq('id', matchId);
-
-  const rewards: any[] = [];
-
-  if (participants) {
-    for (const p of participants) {
-      if (!p.user_id || p.is_ai) continue;
-      const won = winnerId != null && p.user_id === winnerId;
-      const draw = winnerId == null;
-      const xpGain = draw ? 30 : won ? WIN_XP : LOSS_XP;
-      const coinGain = draw ? 25 : won ? WIN_COINS : LOSS_COINS;
-
-      // Profile stats — only once per match via ledger check
-      const { data: existingXp } = await supabase
-        .from('xp_events')
-        .select('id')
-        .eq('user_id', p.user_id)
-        .eq('match_id', matchId)
-        .eq('source', 'match_result')
-        .maybeSingle();
-
-      if (!existingXp) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('wins, losses, total_matches, xp, level, xp_to_next, coins')
-          .eq('id', p.user_id)
-          .single();
-
-        if (prof) {
-          let newXp = (prof.xp ?? 0) + xpGain;
-          let level = prof.level ?? 1;
-          let xpToNext = prof.xp_to_next ?? 100;
-          while (newXp >= xpToNext) {
-            newXp -= xpToNext;
-            level += 1;
-            xpToNext = Math.round(xpToNext * 1.25);
-          }
-
-          await supabase
-            .from('profiles')
-            .update({
-              wins: (prof.wins ?? 0) + (won ? 1 : 0),
-              losses: (prof.losses ?? 0) + (!won && !draw ? 1 : 0),
-              total_matches: (prof.total_matches ?? 0) + 1,
-              xp: newXp,
-              level,
-              xp_to_next: xpToNext,
-            })
-            .eq('id', p.user_id);
-
-          await supabase.from('xp_events').insert({
-            user_id: p.user_id,
-            source: 'match_result',
-            amount: xpGain,
-            match_id: matchId,
-          });
-        }
-      }
-
-      // Coins via credit_coins RPC (idempotent via ledger reference)
-      const { data: existingCoin } = await supabase
-        .from('wallet_ledger')
-        .select('id')
-        .eq('user_id', p.user_id)
-        .eq('type', 'match_reward')
-        .eq('reference_id', matchId)
-        .maybeSingle();
-
-      let coins = 0;
-      if (!existingCoin) {
-        const { data: balance } = await supabase.rpc('credit_coins', {
-          p_user_id: p.user_id,
-          p_amount: coinGain,
-          p_type: 'match_reward',
-          p_reference: matchId,
-        });
-        coins = balance ?? coinGain;
-      } else {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('coins')
-          .eq('id', p.user_id)
-          .single();
-        coins = prof?.coins ?? 0;
-      }
-
-      const { data: finalProf } = await supabase
-        .from('profiles')
-        .select('wins, losses, total_matches, xp, level, xp_to_next, coins, username, display_name')
-        .eq('id', p.user_id)
-        .single();
-
-      rewards.push({
-        userId: p.user_id,
-        won,
-        draw,
-        xpGain: existingXp ? 0 : xpGain,
-        coinGain: existingCoin ? 0 : coinGain,
-        profile: finalProf,
-        coinsBalance: finalProf?.coins ?? coins,
-      });
-    }
-  }
-
-  const state = await buildMatchState(supabase, matchId);
-  
-  // Couple co-op: update shared bond stats (team success = both did well / not zero)
-  if (match.mode === 'couple' && match.couple_id) {
-    const totalScore = (participants || []).reduce((s: number, p: any) => s + (p.score || 0), 0);
-    const won = totalScore > 0;
-    const { data: c } = await supabase.from('couples').select('shared_wins, shared_matches').eq('id', match.couple_id).single();
-    if (c) {
-      await supabase.from('couples').update({
-        shared_matches: (c.shared_matches ?? 0) + 1,
-        shared_wins: (c.shared_wins ?? 0) + (won ? 1 : 0),
-        last_played_at: now,
-        last_match_id: matchId,
-        updated_at: now,
-      }).eq('id', match.couple_id);
-    }
-  }
-
-return json({ match: state, rewards, alreadySettled: false });
 }
 
 async function loadRewardSnapshot(supabase: any, matchId: string) {
@@ -805,20 +627,10 @@ async function buildMatchState(supabase: any, matchId: string, viewerId?: string
 
   const { data: round } = await supabase
     .from('rounds')
-    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool)')
+    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length)')
     .eq('match_id', matchId)
     .eq('round_number', match.current_round)
     .maybeSingle();
-
-  // NEVER expose is_correct to client
-  let choices: any[] | undefined;
-  if (round?.challenge_id) {
-    const { data: ch } = await supabase
-      .from('challenge_choices')
-      .select('choice_id, label')
-      .eq('challenge_id', round.challenge_id);
-    choices = ch?.map((c: any) => ({ id: c.choice_id, label: c.label }));
-  }
 
   let myLastAnswer = null;
   if (viewerId && round?.id) {
@@ -891,7 +703,7 @@ async function buildMatchState(supabase: any, matchId: string, viewerId?: string
             difficulty: round.challenge?.difficulty,
             timeLimitMs: round.challenge?.time_limit_ms ?? 15000,
             letterPool: round.challenge?.letter_pool,
-            choices,
+            maxLength: round.challenge?.max_length,
             version: 1,
           },
           status: round.status,

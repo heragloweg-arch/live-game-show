@@ -41,6 +41,13 @@ const DEFAULT_TYPE_MULTIPLIER: Record<ChallengeType, number> = {
   mystery: 1.15,
 };
 
+export const DEFAULT_SCORING: ScoringConfig = {
+  baseCorrect: 100,
+  speedBonusMax: 50,
+  difficultyMultiplier: { easy: 0.9, normal: 1, hard: 1.2 },
+  typeMultiplier: DEFAULT_TYPE_MULTIPLIER,
+};
+
 /**
  * Calculate points for a single answer.
  * Speed bonus is linear: faster answer → higher bonus (capped).

@@ -1,15 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn(
-    '[Qaddaha] Supabase env vars missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
-  );
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const invalidProductionConfig = import.meta.env.PROD && (
+  !supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder')
+);
+if (invalidProductionConfig) {
+  throw new Error('[Qaddaha] Production requires valid VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(
+  supabaseUrl || 'http://localhost:54321',
+  supabaseAnonKey || 'local-development-key',
+  {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -21,6 +24,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       eventsPerSecond: 10,
     },
   },
-});
+  },
+);
 
 export type SupabaseClient = typeof supabase;
