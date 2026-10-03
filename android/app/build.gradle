@@ -4,6 +4,26 @@ android {
     namespace "com.qaddaha.challenges"
     compileSdk rootProject.ext.compileSdkVersion
 
+    def releaseKeystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+    def releaseKeystorePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+    def releaseKeyAlias = System.getenv("RELEASE_KEY_ALIAS")
+    def releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+    def hasReleaseSigning = [releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword].every { it }
+    def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+    if (!hasReleaseSigning && isReleaseTask) {
+        throw new GradleException("Release signing is required. Set RELEASE_KEYSTORE_PATH, RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, and RELEASE_KEY_PASSWORD outside the repository.")
+    }
+    if (hasReleaseSigning) {
+        signingConfigs {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId "com.qaddaha.challenges"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -19,6 +39,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            if (hasReleaseSigning) signingConfig signingConfigs.release
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {

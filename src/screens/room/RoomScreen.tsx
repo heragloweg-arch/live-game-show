@@ -24,6 +24,7 @@ export function RoomScreen() {
   const [err, setErr] = useState<string | null>(null);
 
   const voice = useLiveKitRoom();
+  const activeRoomId = room?.id;
 
   // If roomId looks like UUID, treat as direct room id
   const isUuid = !!roomId && /^[0-9a-f-]{36}$/i.test(roomId);
@@ -39,15 +40,15 @@ export function RoomScreen() {
   }, [roomId]);
 
   useEffect(() => {
-    if (phase !== 'inside' || !room) return;
+    if (phase !== 'inside' || !activeRoomId) return;
     const refresh = async () => {
       try {
-        const list = await listParticipants(room.id);
+        const list = await listParticipants(activeRoomId);
         setMembers(list);
       } catch { /* ignore */ }
     };
     void refresh();
-    const stop = startRoomRealtime(room.id, {
+    const stop = startRoomRealtime(activeRoomId, {
       onRoomUpdate: (row) => {
         setRoom((prev) =>
           prev
@@ -69,7 +70,7 @@ export function RoomScreen() {
       stop();
       clearInterval(fallback);
     };
-  }, [phase, room?.id]);
+  }, [phase, activeRoomId]);
 
   async function handleJoinById(id: string) {
     setPhase('connecting');

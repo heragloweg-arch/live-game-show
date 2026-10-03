@@ -1,9 +1,10 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "nixpacks"
+buildCommand = "npm ci --legacy-peer-deps && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs"
 
 [deploy]
+startCommand = "npx --yes serve -s dist -l tcp://0.0.0.0:$PORT"
 healthcheckPath = "/"
-healthcheckTimeout = 100
+healthcheckTimeout = 30
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 5

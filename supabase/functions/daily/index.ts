@@ -59,89 +59,33 @@ serve(async (req) => {
     const action = body.action as string;
     const day = todayUTC();
 
-    if (action === 'check_word') {
-      const word = normalizeArabic(String(body.word ?? ''));
-      if (!word) return json({ ok: false, error: 'empty' }, 400);
-      const { data: daily } = await supabase
-        .from('daily_challenges')
-        .select('challenge_id')
-        .eq('challenge_date', day)
-        .maybeSingle();
-      if (!daily) return json({ ok: false, error: 'no_daily' }, 404);
-      const { data: ch } = await supabase
-        .from('challenges')
-        .select('validation_rules')
-        .eq('id', daily.challenge_id)
-        .maybeSingle();
-      const targets = Array.isArray(ch?.validation_rules?.targets)
-        ? ch.validation_rules.targets.map((t: any) => normalizeArabic(String(t.word ?? '')))
-        : [];
-      const { data: accepted } = await supabase
-        .from('challenge_answers')
-        .select('normalized_answer')
-        .eq('challenge_id', daily.challenge_id);
-      const set = new Set([
-        ...targets,
-        ...(accepted ?? []).map((a: any) => normalizeArabic(a.normalized_answer)),
-      ]);
-      return json({ ok: set.has(word), word });
-    }
-
     if (action === 'get_today') {
-      async function pickLetterPoolChallengeId(): Promise<string | null> {
-        // Prefer seeded multi-word dailies, then any challenge with letter_pool (len >= 8)
-        const preferred = [
-          'd0000001-0000-4000-8000-000000000011',
-          'd0000001-0000-4000-8000-000000000012',
-          'd0000001-0000-4000-8000-000000000013',
-          'd0000001-0000-4000-8000-000000000014',
-        ];
-        let h = 0;
-        for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) >>> 0;
-        const prefId = preferred[h % preferred.length];
-        const { data: pref } = await supabase
-          .from('challenges')
-          .select('id, letter_pool')
-          .eq('id', prefId)
-          .eq('active', true)
-          .maybeSingle();
-        if (pref?.letter_pool?.length) return pref.id;
-
-        const { data: pool } = await supabase
-          .from('challenges')
-          .select('id, letter_pool')
-          .eq('active', true)
-          .not('letter_pool', 'is', null)
-          .limit(150);
-        const rich = (pool ?? []).filter((c: any) => (c.letter_pool?.length ?? 0) >= 8);
-        const list = rich.length ? rich : (pool ?? []);
-        if (!list.length) return null;
-        return list[h % list.length].id as string;
-      }
-
       let { data: daily } = await supabase
         .from('daily_challenges')
-        .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, validation_rules)')
+        .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool)')
         .eq('challenge_date', day)
         .maybeSingle();
 
-      // Force letter-pool daily: replace if missing or empty pool
-      const poolLen = daily?.challenge?.letter_pool?.length ?? 0;
-      if (!daily || poolLen < 8) {
-        const pickId = await pickLetterPoolChallengeId();
-        if (!pickId) return json({ error: 'No letter-pool challenges. Run migration 000027.' }, 500);
+      if (!daily) {
+        const { data: pool } = await supabase
+          .from('challenges')
+          .select('id')
+          .eq('active', true)
+          .limit(80);
+        if (!pool?.length) return json({ error: 'No challenges' }, 500);
+        // Deterministic pick by date
+        let h = 0;
+        for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) >>> 0;
+        const pick = pool[h % pool.length];
         const { data: inserted } = await supabase
           .from('daily_challenges')
-          .upsert(
-            {
-              challenge_date: day,
-              challenge_id: pickId,
-              bonus_coins: 40,
-              bonus_xp: 35,
-            },
-            { onConflict: 'challenge_date' }
-          )
-          .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, validation_rules)')
+          .upsert({
+            challenge_date: day,
+            challenge_id: pick.id,
+            bonus_coins: 40,
+            bonus_xp: 35,
+          }, { onConflict: 'challenge_date' })
+          .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool)')
           .single();
         daily = inserted;
       }
@@ -159,19 +103,6 @@ serve(async (req) => {
         .maybeSingle();
 
       const streak = await getStreakRow(supabase, user.id);
-      const letterPool: string[] = Array.isArray(daily.challenge?.letter_pool)
-        ? daily.challenge.letter_pool
-        : [];
-      const rules = daily.challenge?.validation_rules ?? {};
-      const rawTargets = Array.isArray(rules.targets) ? rules.targets : [];
-      // Client sees length + hint only — not the solution word
-      const targetSlots = rawTargets.map((t: any, i: number) => ({
-        index: i,
-        length: Number(t.length) || 0,
-        hint: t.hint ? String(t.hint) : undefined,
-      }));
-      const theme = rules.theme ? String(rules.theme) : undefined;
-      const targetWordCount = Number(rules.targetWordCount) || (targetSlots.length || 3);
 
       return json({
         date: day,
@@ -183,17 +114,10 @@ serve(async (req) => {
           id: daily.challenge?.id ?? daily.challenge_id,
           type: daily.challenge?.type,
           subtype: daily.challenge?.subtype,
-          prompt:
-            daily.challenge?.prompt ||
-            (theme
-              ? `من الحروف: كوّن ${targetWordCount} كلمات لها علاقة بـ${theme}`
-              : `من الحروف: كوّن ${targetWordCount} كلمات محددة`),
+          prompt: daily.challenge?.prompt,
           difficulty: daily.challenge?.difficulty,
-          timeLimitMs: daily.challenge?.time_limit_ms ?? 90000,
-          letterPool,
-          targetWordCount,
-          theme,
-          targetSlots,
+          timeLimitMs: daily.challenge?.time_limit_ms ?? 15000,
+          letterPool: daily.challenge?.letter_pool,
           choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })),
         },
         streak,
@@ -209,64 +133,25 @@ serve(async (req) => {
         .single();
       if (!daily) return json({ error: 'No daily challenge' }, 404);
 
-      const { data: chMeta } = await supabase
-        .from('challenges')
-        .select('letter_pool, validation_rules')
-        .eq('id', daily.challenge_id)
-        .maybeSingle();
-
+      const normalized = normalizeArabic(answer);
+      let correct = false;
       const { data: accepted } = await supabase
         .from('challenge_answers')
         .select('normalized_answer')
         .eq('challenge_id', daily.challenge_id);
-
-      const rules = chMeta?.validation_rules ?? {};
-      const ruleWords = Array.isArray(rules.targets)
-        ? rules.targets.map((t: any) => normalizeArabic(String(t.word ?? ''))).filter(Boolean)
-        : [];
-      const acceptedSet = new Set([
-        ...ruleWords,
-        ...(accepted ?? []).map((a: any) => normalizeArabic(a.normalized_answer)),
-      ]);
-
-      const parts = String(answer)
-        .split(/[|,،\n]+/)
-        .map((s) => normalizeArabic(s.trim()))
-        .filter(Boolean);
-      const uniqueParts = [...new Set(parts)];
-
-      let correct = false;
-      let matchedWords: string[] = [];
-      const TARGET = ruleWords.length || (chMeta?.letter_pool?.length ? 3 : 1);
-
-      if (TARGET > 1 && acceptedSet.size > 0) {
-        // Must match TARGET distinct accepted words (order free)
-        matchedWords = uniqueParts.filter((w) => acceptedSet.has(w));
-        // If ruleWords defined, require covering all rule words (or TARGET of them)
-        if (ruleWords.length) {
-          const need = new Set(ruleWords);
-          matchedWords = uniqueParts.filter((w) => need.has(w));
-          correct = matchedWords.length >= ruleWords.length;
-        } else {
-          correct = matchedWords.length >= TARGET;
-        }
-      } else {
-        const normalized = normalizeArabic(answer);
-        if (acceptedSet.size) {
-          correct = acceptedSet.has(normalized);
-          if (correct) matchedWords = [normalized];
-        }
-        if (!correct) {
-          const { data: choices } = await supabase
-            .from('challenge_choices')
-            .select('choice_id, label, is_correct')
-            .eq('challenge_id', daily.challenge_id);
-          correct = !!choices?.find(
-            (c: any) =>
-              c.is_correct &&
-              (c.choice_id === answer || normalizeArabic(c.label) === normalized)
-          );
-        }
+      if (accepted?.length) {
+        correct = accepted.some((a: any) => a.normalized_answer === normalized);
+      }
+      if (!correct) {
+        const { data: choices } = await supabase
+          .from('challenge_choices')
+          .select('choice_id, label, is_correct')
+          .eq('challenge_id', daily.challenge_id);
+        correct = !!choices?.find(
+          (c: any) =>
+            c.is_correct &&
+            (c.choice_id === answer || normalizeArabic(c.label) === normalized)
+        );
       }
 
       const { data: ch } = await supabase
@@ -299,14 +184,10 @@ serve(async (req) => {
           ok: true,
           correct,
           points: score.total,
-          coinGain: correct ? (daily.bonus_coins ?? 40) : 0,
-          xpGain: correct ? (daily.bonus_xp ?? 35) : 0,
           alreadyCompleted: !!atomic.already,
           coins: atomic.coins,
           awarded: atomic.awarded,
-          streak: { current_streak: atomic.streak, longest_streak: atomic.streak, last_daily_date: day },
-          matchedWords,
-          needed: TARGET,
+          streak: { current: atomic.streak },
           multiplier: atomic.multiplier ?? 1,
         });
       }
@@ -352,6 +233,58 @@ serve(async (req) => {
         coinGain,
         streak,
       });
+    }
+
+    if (action === 'get_pack') {
+      let { data: pack } = await supabase.from('daily_packs').select('*').eq('pack_date', day).eq('active', true).maybeSingle();
+      if (!pack) {
+        const { data: pool } = await supabase.from('challenges').select('id').eq('active', true).limit(120);
+        if (!pool || pool.length < 3) return json({ error: 'Not enough production challenges' }, 500);
+        let hash = 0;
+        for (const ch of day) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+        const picks = [0, 1, 2].map((offset) => pool[(hash + offset * 17) % pool.length]);
+        const { data: created, error: createErr } = await supabase.from('daily_packs').upsert({
+          pack_date: day, title: 'رحلة اليوم', theme: 'mixed', bonus_coins: 80, bonus_xp: 100, active: true,
+        }, { onConflict: 'pack_date' }).select('*').single();
+        if (createErr || !created) return json({ error: createErr?.message ?? 'Pack unavailable' }, 500);
+        pack = created;
+        await supabase.from('daily_pack_slots').upsert(
+          picks.map((p: any, i: number) => ({ pack_id: pack!.id, slot_number: i + 1, challenge_id: p.id, bonus_coins: 20 + i * 10, bonus_xp: 25 + i * 10 })),
+          { onConflict: 'pack_id,slot_number' },
+        );
+      }
+      await supabase.from('retention_opens').insert({ user_id: user.id, surface: 'daily_pack', metadata: { date: day } });
+      const { data: slots, error: slotsErr } = await supabase.from('daily_pack_slots')
+        .select('id, slot_number, bonus_coins, bonus_xp, challenge:challenges(id,type,subtype,prompt,difficulty,time_limit_ms,letter_pool)')
+        .eq('pack_id', pack.id).order('slot_number');
+      if (slotsErr) return json({ error: slotsErr.message }, 500);
+      const { data: completed } = await supabase.from('daily_pack_completions').select('slot_id,outcome,points').eq('user_id', user.id).eq('pack_id', pack.id);
+      return json({ date: day, pack, slots: slots ?? [], completed: completed ?? [], streak: await getStreakRow(supabase, user.id) });
+    }
+
+    if (action === 'submit_slot') {
+      const slotId = String(body.slotId ?? '');
+      const answer = String(body.answer ?? '');
+      const { data: slot } = await supabase.from('daily_pack_slots').select('*, pack:daily_packs!inner(pack_date,active), challenge:challenges(*)').eq('id', slotId).single();
+      if (!slot || !slot.pack?.active || slot.pack.pack_date !== day) return json({ error: 'Daily slot unavailable' }, 404);
+      const { data: existing } = await supabase.from('daily_pack_completions').select('*').eq('user_id', user.id).eq('slot_id', slotId).maybeSingle();
+      if (existing) return json({ ok: true, alreadyCompleted: true, completion: existing });
+      const normalized = normalizeArabic(answer);
+      const { data: accepted } = await supabase.from('challenge_answers').select('normalized_answer').eq('challenge_id', slot.challenge_id);
+      let correct = !!accepted?.some((a: any) => a.normalized_answer === normalized);
+      if (!correct) {
+        const { data: choices } = await supabase.from('challenge_choices').select('choice_id,label,is_correct').eq('challenge_id', slot.challenge_id);
+        correct = !!choices?.some((c: any) => c.is_correct && (c.choice_id === answer || normalizeArabic(c.label) === normalized));
+      }
+      const score = calculateScore({ outcome: correct ? 'correct' : 'wrong', responseTimeMs: body.responseTimeMs ?? 5000, timeLimitMs: slot.challenge?.time_limit_ms ?? 15000, difficulty: slot.challenge?.difficulty ?? 'normal', challengeType: slot.challenge?.type ?? 'knowledge', config: DEFAULT_SCORING });
+      const { data: atomic, error: atomicErr } = await supabase.rpc('complete_daily_pack_slot_atomic', {
+        p_user_id: user.id, p_pack_id: slot.pack_id, p_slot_id: slotId,
+        p_outcome: correct ? 'correct' : 'wrong', p_points: score.total,
+      });
+      if (atomicErr) return json({ error: atomicErr.message }, 409);
+      return json({ ok: true, correct, points: score.total, coinGain: atomic?.coinGain ?? 0, xpGain: atomic?.xpGain ?? 0,
+        alreadyCompleted: !!atomic?.alreadyCompleted, packComplete: !!atomic?.packComplete,
+        completed: atomic?.completed ?? 1, streak: await getStreakRow(supabase, user.id) });
     }
 
     if (action === 'get_streak') {

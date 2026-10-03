@@ -1,1 +1,24 @@
+
+node_modules/
+dist/
 .env
+.env.*
+!.env.example
+android/.gradle/
+android/build/
+android/app/build/
+android/app/*.apk
+android/app/*.aab
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore
+keystore.properties
+android/app/google-services.json
+content/approval/*approved*.json
+
+# Python and local tooling artifacts
+__pycache__/
+*.py[cod]
+node_modules
+node_modules/

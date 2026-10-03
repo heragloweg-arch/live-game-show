@@ -1,10 +1,11 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
+    "builder": "NIXPACKS",
+    "buildCommand": "npm ci --legacy-peer-deps && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs"
   },
   "deploy": {
+    "startCommand": "npx --yes serve -s dist -l tcp://0.0.0.0:$PORT",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",

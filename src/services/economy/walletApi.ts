@@ -1,6 +1,6 @@
 /**
  * Economy API — talks to Edge Function `economy`
- * Falls back to profile.coins when function not deployed yet.
+ * Production source of truth is the economy Edge Function.
  */
 
 import { supabase } from '../supabase/client';
@@ -35,24 +35,7 @@ async function invokeEconomy<T>(body: Record<string, unknown>): Promise<T> {
 }
 
 export async function fetchWallet(): Promise<Wallet> {
-  try {
-    return await invokeEconomy<Wallet>({ action: 'get_wallet' });
-  } catch {
-    // Fallback: read from profiles
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, coins, updated_at')
-      .eq('id', user.id)
-      .single();
-    return {
-      userId: user.id,
-      coins: data?.coins ?? 0,
-      gems: 0,
-      updatedAt: data?.updated_at ?? new Date().toISOString(),
-    };
-  }
+  return invokeEconomy<Wallet>({ action: 'get_wallet' });
 }
 
 export async function fetchLedger(limit = 20): Promise<LedgerEntry[]> {

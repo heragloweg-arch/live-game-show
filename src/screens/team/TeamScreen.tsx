@@ -5,7 +5,6 @@ import { ArrowRight, Loader2, Swords, Users, Copy } from 'lucide-react';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import {
   teamPickup,
-  teamPickupCancel,
   teamCancelQueue,
   teamCreate,
   teamJoin,

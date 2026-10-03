@@ -3,7 +3,7 @@
  * Server-authoritative models. Client never decides winner / score / correct answer.
  */
 
-export type MatchMode = 'solo' | '1v1' | 'room' | 'host';
+export type MatchMode = 'solo' | '1v1' | 'room' | 'host' | 'couple' | 'team';
 
 export type MatchStatus =
   | 'IDLE'
@@ -75,6 +75,8 @@ export interface Challenge {
   /** For speed/words: letter pool or hint structure. */
   letterPool?: string[];
   maxLength?: number;
+  /** Optional HTTPS media; absence never blocks a playable challenge. */
+  imageUrl?: string | null;
   timeLimitMs: number;
   version: number;
 }

@@ -12,6 +12,7 @@ export type TransactionType =
   | 'spend_hint'
   | 'spend_continue'
   | 'admin_grant'
+  | 'creator_approval'
   | 'refund';
 
 export interface Wallet {

@@ -3,28 +3,19 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { useSoloMatch } from '../../hooks/useSoloMatch';
 import { useServerMatch } from '../../hooks/useServerMatch';
-import { grantMatchReward } from '../../services/economy/walletApi';
-import { useWalletStore } from '../../store/walletStore';
-import { useAuthStore } from '../../store/authStore';
 import type { Difficulty } from '../../types';
 import { cn } from '../../utils/cn';
 import { hapticSuccess, hapticError, hapticHeavy } from '../../utils/haptics';
-import { allowAction } from '../../utils/rateLimit';
 import { MatchSkeleton } from '../../components/ui/Skeleton';
 import { TeamMatchBoard } from '../../components/match/TeamMatchBoard';
-import { FLAGS } from '../../config/flags';
 import { formatCountdown } from '../../utils/time';
 import { LetterPoolBoard } from '../../components/game/LetterPoolBoard';
 import { showAd } from '../../services/ads/adMob';
 import { track } from '../../services/analytics/events';
-
-function isServerMatchId(id: string | undefined): boolean {
-  if (!id) return false;
-  // UUID v4 shape from server
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-}
+import { playSound } from '../../utils/sound';
+import { spendFiftyFifty } from '../../services/api/lifelineApi';
+import { MatchEndSummary } from '../../components/match/MatchEndSummary';
 
 async function shareMatchResult(text: string) {
   try {
@@ -40,37 +31,24 @@ export function MatchScreen() {
   const { matchId } = useParams();
   const [search] = useSearchParams();
   const difficulty = (search.get('diff') as Difficulty) || 'normal';
-  const canLocal =
-    FLAGS.enableLocalDemo &&
-    !!matchId &&
-    (matchId === 'solo-demo' || matchId.startsWith('solo'));
-  const useServer = isServerMatchId(matchId) || !canLocal;
-
-  const local = useSoloMatch();
   const server = useServerMatch();
-
-  // Production: server path. Local engine only with VITE_ENABLE_LOCAL_DEMO=true
-  const active = useServer && !canLocal ? server : canLocal ? local : server;
-  const match = active.match;
-  const phase = active.phase as string;
-  const remaining = active.remainingMs;
-  const creditLocal = useWalletStore((s) => s.creditLocal);
-  const refreshProfile = useAuthStore((s) => s.refreshProfile);
+  const match = server.match;
+  const finishedMatchId = match?.matchId ?? match?.id;
+  const finishedMatchMode = match?.mode;
+  const active = server;
+  const phase = server.phase as string;
+  const remaining = server.remainingMs;
 
   const [answer, setAnswer] = useState('');
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [removedChoices, setRemovedChoices] = useState<string[]>([]);
+  const [lifelineBusy, setLifelineBusy] = useState(false);
 
   useEffect(() => {
-    if (canLocal) {
-      local.startSolo(difficulty);
-    } else if (matchId && isServerMatchId(matchId)) {
-      server.loadMatch(matchId);
-    } else if (matchId && matchId !== 'solo-demo') {
-      // Non-uuid ids: try server load
+    if (matchId) {
       server.loadMatch(matchId);
     }
     return () => {
-      local.reset();
       server.reset();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,36 +65,15 @@ export function MatchScreen() {
     }
   }, [match?.lastAnswerResult]);
 
-  // Grant wallet reward when match finishes (server path)
-  
   // Post-match interstitial (policy-capped, never during round)
   useEffect(() => {
-    if (phase !== 'finished' || !match) return;
-    track('match_finish', { matchId: match.matchId ?? match.id, mode: match.mode });
+    if (phase !== 'finished' || !finishedMatchId) return;
+    track('match_finish', { matchId: finishedMatchId, mode: finishedMatchMode });
     const t = window.setTimeout(() => {
       void showAd('post_match_interstitial');
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [phase, match?.matchId, match?.id]);
-
-useEffect(() => {
-    if (phase === 'finished' && match && useServer) {
-      const won = match.winnerId === match.player?.id;
-      grantMatchReward(match.matchId)
-        .then((w) => {
-          useWalletStore.getState().setWallet(w);
-          void refreshProfile();
-        })
-        .catch(() => {
-          // optimistic local credit if API fails
-          // rewards only from server settlement
-        });
-    }
-    if (phase === 'finished' && match && !useServer) {
-      const won = match.winnerId === match.player?.id;
-      // rewards only from server settlement
-    }
-  }, [phase, match?.matchId]);
+  }, [phase, finishedMatchId, finishedMatchMode]);
 
   const handleSubmit = () => {
     const value = match?.round?.challenge?.choices
@@ -129,48 +86,47 @@ useEffect(() => {
   };
 
   const handleNext = () => {
-    if (useServer) {
-      server.goNextRound();
-    } else {
-      local.nextRound();
+    server.goNextRound();
+    setRemovedChoices([]);
+  };
+
+  const handleFiftyFifty = async () => {
+    if (!match?.matchId || !match.round || lifelineBusy) return;
+    setLifelineBusy(true);
+    try {
+      const result = await spendFiftyFifty(match.matchId, match.round.roundId);
+      setRemovedChoices(result.removedChoiceIds);
+      track('lifeline_use', { type: 'fifty_fifty', matchId: match.matchId, roundId: match.round.roundId, alreadyUsed: !!result.alreadyUsed });
+    } catch (e) {
+      console.warn('[lifeline]', e);
+    } finally {
+      setLifelineBusy(false);
     }
   };
 
   useEffect(() => {
     if (phase !== 'round_result' || !match?.lastAnswerResult) return;
     const o = match.lastAnswerResult.outcome;
-    if (o === 'correct') void hapticSuccess();
-    else void hapticError();
-  }, [phase, match?.lastAnswerResult?.outcome, match?.lastAnswerResult?.requestId]);
+    if (o === 'correct') {
+      void hapticSuccess();
+      playSound('correct');
+    } else {
+      void hapticError();
+      playSound('wrong');
+    }
+  }, [phase, match?.lastAnswerResult]);
 
   useEffect(() => {
-    if (phase === 'finished') void hapticHeavy();
+    if (phase === 'finished') {
+      void hapticHeavy();
+      playSound('finish');
+    }
   }, [phase]);
-
-  // بعد النتيجة: انتقال تلقائي للجولة التالية (مع زر يدوي احتياطي)
-  useEffect(() => {
-    if (phase !== 'round_result' || !useServer) return;
-    const t = window.setTimeout(() => {
-      void server.goNextRound();
-    }, 1800);
-    return () => window.clearTimeout(t);
-  }, [phase, match?.currentRound, useServer]);
-
-  // انتهى الوقت بدون إجابة → إرسال فارغ ثم التالي
-  useEffect(() => {
-    if (phase !== 'playing' || !useServer || !match?.round) return;
-    if (remaining > 0) return;
-    const t = window.setTimeout(() => {
-      void active.submitAnswer('');
-    }, 400);
-    return () => window.clearTimeout(t);
-  }, [phase, remaining, match?.round?.roundId, useServer]);
 
   if ((phase === 'idle' || phase === 'loading') && !match) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6">
+      <div className="flex min-h-screen items-center justify-center">
         <p className="text-white/50">جاري تجهيز المباراة...</p>
-        <p className="text-center text-xs text-white/30">الاتصال بالسيرفر وبدء الجولة</p>
       </div>
     );
   }
@@ -178,12 +134,12 @@ useEffect(() => {
   if (phase === 'error') {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6">
-        <p className="text-center text-red-400">{(active as any).error ?? 'حدث خطأ'}</p>
-        <Link to="/play/difficulty" className="btn-secondary">إعادة المحاولة</Link>
+        <p className="text-red-400">{active.error ?? 'حدث خطأ'}</p>
         <Link to="/home" className="btn-primary">العودة</Link>
       </div>
     );
   }
+
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-900">
@@ -194,21 +150,21 @@ useEffect(() => {
         <div className="flex items-center gap-2 text-sm text-white/50">
           <Zap className="h-4 w-4 text-zatona-400" />
           جولة {match?.currentRound ?? 1} / {match?.totalRounds ?? 5}
-          {useServer && <span className="text-[10px] text-zatona-500">SERVER</span>}
+          <span className="text-[10px] text-zatona-500">SERVER</span>
         </div>
         <div className="w-9" />
       </header>
 
 
-      {useServer && (server as any).online === false && (
+      {server.online === false && (
         <div className="flex items-center justify-between bg-amber-500/15 px-4 py-2 text-xs text-amber-200">
           <span>انقطع الاتصال — نحاول المزامنة مع السيرفر</span>
           <button
             type="button"
             className="rounded-lg bg-white/10 px-2 py-1 font-semibold"
-            onClick={() => (server as any).reconnect?.()}
+            onClick={() => void server.reconnect()}
           >
-            {(server as any).reconnecting ? '...' : 'إعادة الاتصال'}
+            {server.reconnecting ? '...' : 'إعادة الاتصال'}
           </button>
         </div>
       )}
@@ -240,7 +196,7 @@ useEffect(() => {
 
       <div className="flex flex-1 flex-col items-center justify-center px-5 pb-8">
         <AnimatePresence mode="wait">
-          {phase === 'loading' && useServer ? (
+          {phase === 'loading' ? (
             <MatchSkeleton />
           ) : (phase === 'vs' || phase === 'loading') && (
             <motion.div
@@ -301,7 +257,7 @@ useEffect(() => {
                         width:
                           Math.max(
                             0,
-                            (remaining / Math.max(1, match.round.challenge?.timeLimitMs ?? 15000)) * 100
+                            (remaining / (match.round.challenge?.timeLimitMs ?? 15000)) * 100
                           ) + '%',
                       }}
                     />
@@ -311,12 +267,18 @@ useEffect(() => {
 
               {phase === 'playing' && (
                 <>
-                  {match.round.challenge?.choices && match.round.challenge.choices.length > 0 ? (
+                  {match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0 ? (
+                    <LetterPoolBoard
+                      letters={match.round.challenge.letterPool}
+                      maxLength={match.round.challenge.maxLength}
+                      disabled={false}
+                      onChange={setAnswer}
+                    />
+                  ) : match.round.challenge?.choices && match.round.challenge.choices.length > 0 ? (
                     <div className="grid gap-2">
-                      {match.round.challenge.choices.map((c) => (
+                      {match.round.challenge.choices.filter((c) => !removedChoices.includes(c.id)).map((c) => (
                         <button
                           key={c.id}
-                          type="button"
                           onClick={() => setSelectedChoice(c.id)}
                           className={cn(
                             'rounded-xl border px-4 py-3 text-right transition-all',
@@ -329,17 +291,11 @@ useEffect(() => {
                         </button>
                       ))}
                     </div>
-                  ) : match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0 ? (
-                    <LetterPoolBoard
-                      letters={match.round.challenge.letterPool}
-                      disabled={false}
-                      onChange={setAnswer}
-                    />
                   ) : (
                     <input
                       type="text"
-                      value={answer}
-                      onChange={(e) => setAnswer(e.target.value)}
+                      value={active.answer ?? answer}
+                      onChange={(e) => { setAnswer(e.target.value); active.setAnswer(e.target.value); }}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                       placeholder="اكتب إجابتك هنا..."
                       className="input-field text-center text-lg"
@@ -347,13 +303,15 @@ useEffect(() => {
                       autoFocus
                     />
                   )}
+                  {match.round.challenge?.choices && match.round.challenge.choices.length >= 4 && removedChoices.length === 0 && (
+                    <button type="button" onClick={() => void handleFiftyFifty()} disabled={lifelineBusy} className="btn-ghost mt-3 w-full text-xs text-gold-300">
+                      {lifelineBusy ? 'جاري استخدام المساعدة...' : '50:50 · حذف إجابتين'}
+                    </button>
+                  )}
                   <button
-                    type="button"
                     onClick={handleSubmit}
                     disabled={
-                      match.round.challenge?.choices?.length
-                        ? !selectedChoice
-                        : !answer.trim()
+                      match.round.challenge?.choices ? !selectedChoice : !(active.answer ?? answer).trim()
                     }
                     className="btn-primary mt-4 w-full"
                   >
@@ -363,8 +321,6 @@ useEffect(() => {
               )}
 
               {phase === 'submitting' && (
-                <p className="text-center text-white/50">جاري التحقق...</p>
-              )}              {phase === 'submitting' && (
                 <p className="text-center text-white/50">جاري التحقق...</p>
               )}
 
@@ -403,73 +359,26 @@ useEffect(() => {
               key="final"
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="card w-full max-w-md p-8 text-center"
+              className="w-full"
             >
-              <h2 className="mb-2 font-display text-3xl font-black text-gradient">
-                {match.winnerId === match.player?.id
-                  ? 'فوز! 🏆'
-                  : match.winnerId === null
-                  ? 'تعادل'
-                  : 'خسارة'}
-              </h2>
-              <p className="mb-2 text-lg font-bold text-white/70">
-                {match.mode === 'team'
-                  ? `${match.teamScoreA ?? 0} — ${match.teamScoreB ?? 0}`
-                  : `${match.player?.score ?? 0} — ${match.opponent?.score ?? 0}`}
-              </p>
-              <button
-                type="button"
-                className="btn-secondary mb-4 w-full text-sm"
-                onClick={() => {
+              <MatchEndSummary
+                matchId={match.matchId ?? match.id}
+                mode={match.mode}
+                won={match.winnerId === match.player?.id}
+                draw={match.winnerId === null}
+                playerScore={Number(match.mode === 'team' ? match.teamScoreA : match.player?.score ?? 0)}
+                opponentScore={Number(match.mode === 'team' ? match.teamScoreB : match.opponent?.score ?? 0)}
+                coinGain={typeof server.lastRewards?.coinGain === 'number' ? server.lastRewards.coinGain : null}
+                xpGain={typeof server.lastRewards?.xpGain === 'number' ? server.lastRewards.xpGain : null}
+                onShare={() => {
                   const a = match.mode === 'team' ? match.teamScoreA : match.player?.score;
                   const b = match.mode === 'team' ? match.teamScoreB : match.opponent?.score;
                   track('share_result', { matchId: match.matchId ?? match.id });
-                  void shareMatchResult(
-                    `🔥 قدها؟ نتيجتي ${a ?? 0} — ${b ?? 0}\nتحداك تكسر رقمي 👇 ${window.location.origin}`
-                  );
+                  void shareMatchResult(`🔥 قدها؟ نتيجتي ${a ?? 0} — ${b ?? 0}\nتحداك تكسر رقمي 👇 ${window.location.origin}`);
                 }}
-              >
-                شارك نتيجتك — قدها؟
-              </button>
-              <div className="mb-6 space-y-1 text-sm">
-                <p className="text-gold-400">
-                  +
-                  {(server as any).lastRewards?.coinGain ??
-                    (match.winnerId === match.player?.id ? 50 : 15)}{' '}
-                  عملة
-                </p>
-                <p className="text-zatona-400/90">
-                  +
-                  {(server as any).lastRewards?.xpGain ??
-                    (match.winnerId === match.player?.id ? 50 : 20)}{' '}
-                  XP
-                </p>
-              </div>
-              <div className="flex flex-col gap-3">
-                {!useServer && (
-                  <button
-                    onClick={() => local.startSolo(difficulty)}
-                    className="btn-primary w-full"
-                  >
-                    إعادة المباراة
-                  </button>
-                )}
-                {useServer && (
-                  <button
-                    onClick={() => server.startSolo(difficulty)}
-                    className="btn-primary w-full"
-                  >
-                    مباراة جديدة (سيرفر)
-                  </button>
-                )}
-                <Link
-                  to="/home"
-                  onClick={() => active.reset()}
-                  className="btn-secondary w-full text-center"
-                >
-                  الرئيسية
-                </Link>
-              </div>
+                onRematch={() => match.mode === '1v1' && match.matchId ? server.startRematch(match.matchId, difficulty) : server.startSolo(difficulty)}
+                onReset={() => active.reset()}
+              />
             </motion.div>
           )}
         </AnimatePresence>

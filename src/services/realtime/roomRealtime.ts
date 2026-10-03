@@ -17,8 +17,6 @@ export function startRoomRealtime(
   handlers: RoomRealtimeHandlers
 ): () => void {
   let channel: RealtimeChannel | null = null;
-  let stopped = false;
-
   try {
     channel = supabase
       .channel(`room:${roomId}`)
@@ -61,7 +59,6 @@ export function startRoomRealtime(
   }
 
   return () => {
-    stopped = true;
     if (channel) {
       void supabase.removeChannel(channel);
       channel = null;

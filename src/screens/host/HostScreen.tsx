@@ -18,7 +18,6 @@ import {
 } from '../../components/host/HostShowDirector';
 import { track } from '../../services/analytics/events';
 import { startRoomRealtime } from '../../services/realtime/roomRealtime';
-import { isHostProActive } from '../../services/billing/entitlements';
 
 type HostPhase = 'setup' | 'lobby' | 'live' | 'ended';
 
@@ -31,6 +30,7 @@ export function HostScreen() {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const activeRoomId = room?.id;
   const [showStage, setShowStage] = useState<ShowStage>('intro');
 
   const voice = useLiveKitRoom();
@@ -44,9 +44,9 @@ export function HostScreen() {
   }, [room]);
 
   useEffect(() => {
-    if ((phase === 'lobby' || phase === 'live') && room) {
+    if ((phase === 'lobby' || phase === 'live') && activeRoomId) {
       void refreshMembers();
-      const stop = startRoomRealtime(room.id, {
+      const stop = startRoomRealtime(activeRoomId, {
         onParticipantChange: () => void refreshMembers(),
         onRoomUpdate: (row) => {
           setRoom((prev) =>
@@ -62,9 +62,8 @@ export function HostScreen() {
         clearInterval(fallback);
       };
     }
-  }, [phase, room?.id, refreshMembers]);
+  }, [phase, activeRoomId, refreshMembers]);
 
-  const hostPro = isHostProActive();
   // Soft gate: warn in UI; hard gate when server REQUIRE_HOST_PRO=true
 
   const handleCreate = async () => {

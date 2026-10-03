@@ -101,73 +101,21 @@ serve(async (req) => {
 
     if (action === 'join') {
       const tournamentId = body.tournamentId as string;
+      const { data: joined, error: joinErr } = await supabase.rpc('join_tournament_atomic', { p_tournament_id: tournamentId, p_user_id: user.id });
+      if (joinErr) return json({ error: joinErr.message }, joinErr.message.includes('INSUFFICIENT') ? 400 : 409);
       const { data: t } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
       if (!t) return json({ error: 'Tournament not found' }, 404);
-      if (t.status !== 'registration') {
-        return json({ error: 'التسجيل مغلق' }, 400);
-      }
-
-      const { count } = await supabase
-        .from('tournament_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('tournament_id', tournamentId);
-      if ((count ?? 0) >= t.max_players) return json({ error: 'الدوري ممتلئ' }, 400);
-
-      const { data: existing } = await supabase
-        .from('tournament_entries')
-        .select('id')
-        .eq('tournament_id', tournamentId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (existing) return json({ ok: true, alreadyJoined: true });
-
-      const entryFee = t.entry_coins ?? 0;
-      if (entryFee > 0) {
-        const { data: prof } = await supabase.from('profiles').select('coins').eq('id', user.id).single();
-        if ((prof?.coins ?? 0) < entryFee) return json({ error: 'رصيد العملات غير كافٍ' }, 400);
-        await supabase
-          .from('profiles')
-          .update({ coins: (prof?.coins ?? 0) - entryFee })
-          .eq('id', user.id);
-        try {
-          await supabase.from('wallet_ledger').insert({
-            user_id: user.id,
-            amount: -entryFee,
-            type: 'tournament_entry',
-            reference_id: tournamentId,
-            balance_after: (prof?.coins ?? 0) - entryFee,
-          });
-        } catch {
-          /* ledger schema may vary */
-        }
-      }
-
-      const { error: joinErr } = await supabase.from('tournament_entries').insert({
-        tournament_id: tournamentId,
-        user_id: user.id,
-        seed: (count ?? 0) + 1,
-      });
-      if (joinErr) return json({ error: joinErr.message }, 500);
-
-      // Auto-bracket when full
-      const { count: afterCount } = await supabase
-        .from('tournament_entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('tournament_id', tournamentId);
-
+      const { count: afterCount } = await supabase.from('tournament_entries').select('*', { count: 'exact', head: true }).eq('tournament_id', tournamentId);
       let bracket = null;
-      if ((afterCount ?? 0) >= t.max_players) {
-        bracket = await generateBracket(supabase, tournamentId);
-      }
+      if ((afterCount ?? 0) >= t.max_players) bracket = await generateBracket(supabase, tournamentId);
+      return json({ ok: true, entryFee: joined?.entryFee ?? t.entry_coins, alreadyJoined: joined?.alreadyJoined ?? false, filled: afterCount, maxPlayers: t.max_players, bracketGenerated: !!bracket, bracket });
+    }
 
-      return json({
-        ok: true,
-        entryFee,
-        filled: afterCount,
-        maxPlayers: t.max_players,
-        bracketGenerated: !!bracket,
-        bracket,
-      });
+    if (action === 'start_bracket_match') {
+      const tournamentMatchId = body.tournamentMatchId as string;
+      const { data, error } = await supabase.rpc('start_bracket_match', { p_tournament_match_id: tournamentMatchId, p_user_id: user.id });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
     }
 
     if (action === 'leave') {
@@ -375,63 +323,6 @@ serve(async (req) => {
       if (rpcErr) return json({ error: rpcErr.message }, 500);
       return json(rpcRes);
     }
-    if (action === 'distribute_prizes_legacy_disabled') {
-      // admin gate distribute_prizes
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
-        return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
-      }
-
-      const tournamentId = body.tournamentId as string;
-      const { data: trow } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
-      if (!trow) return json({ error: 'Not found' }, 404);
-      if (trow.prizes_distributed) return json({ ok: true, already: true });
-      if (trow.status !== 'completed') {
-        return json({ error: 'يجب إنهاء الدوري (finalize) قبل توزيع الجوائز' }, 400);
-      }
-
-      const pool = Number(trow.prize_pool) || 0;
-      const championShare = Math.floor(pool * 0.6);
-      const runnerShare = Math.floor(pool * 0.3);
-      const restShare = Math.max(0, pool - championShare - runnerShare);
-      const paid: { userId: string; amount: number; place: string }[] = [];
-
-      async function credit(userId: string | null, amount: number, place: string) {
-        if (!userId || amount <= 0) return;
-        const { data: prof } = await supabase.from('profiles').select('coins').eq('id', userId).single();
-        const next = (prof?.coins ?? 0) + amount;
-        await supabase.from('profiles').update({ coins: next }).eq('id', userId);
-        try {
-          await supabase.from('wallet_ledger').insert({
-            user_id: userId,
-            amount,
-            type: 'tournament_prize',
-            reference_id: tournamentId,
-            balance_after: next,
-          });
-        } catch { /* ledger optional shape */ }
-        paid.push({ userId, amount, place });
-      }
-
-      await credit(trow.champion_id, championShare, 'champion');
-      await credit(trow.runner_up_id, runnerShare, 'runner_up');
-      // small share to 3rd by points if any
-      const { data: third } = await supabase
-        .from('tournament_entries')
-        .select('user_id')
-        .eq('tournament_id', tournamentId)
-        .order('points', { ascending: false })
-        .range(2, 2);
-      if (third?.[0]?.user_id) await credit(third[0].user_id, restShare, 'third');
-
-      await supabase.from('tournaments').update({
-        prizes_distributed: true,
-        settled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).eq('id', tournamentId);
-
-      return json({ ok: true, paid, prizePool: pool });
-    }
-
     if (action === 'archive') {
       // admin gate archive
       if (!isTournamentAdmin(user.id) && action !== 'report_result') {
@@ -673,4 +564,3 @@ async function generateRoundRobin(supabase: any, tournamentId: string, force = f
   await supabase.from('tournaments').update({ status: 'active', updated_at: new Date().toISOString() }).eq('id', tournamentId);
   return created;
 }
-

@@ -82,7 +82,7 @@ async function assertHost(supabase: any, roomId: string, userId: string) {
 
 async function startChallenge(supabase: any, userId: string, roomId: string) {
   if (!roomId) return json({ error: 'roomId required' }, 400);
-  await assertHost(supabase, roomId, userId);
+  const room = await assertHost(supabase, roomId, userId);
 
   // Close any active round
   await supabase
@@ -94,23 +94,39 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
   // Next round number
   const { data: last } = await supabase
     .from('room_rounds')
-    .select('round_number')
+    .select('round_number, challenge:challenges(subtype)')
     .eq('room_id', roomId)
     .order('round_number', { ascending: false })
     .limit(1)
     .maybeSingle();
 
   const roundNumber = (last?.round_number ?? 0) + 1;
+  const previousSubtype = last?.challenge?.subtype ?? null;
+  const { data: priorRounds } = await supabase
+    .from('room_rounds')
+    .select('challenge_id')
+    .eq('room_id', roomId);
+  const usedChallengeIds = new Set((priorRounds ?? []).map((r: any) => r.challenge_id));
 
-  // Pick random active challenge
+  // Pick a production-approved, playable challenge matching the room contract.
   const { data: pool } = await supabase
     .from('challenges')
-    .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool')
+    .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length')
     .eq('active', true)
+    .eq('qa_status', 'approved')
+    .eq('difficulty', room.difficulty ?? 'normal')
+    .not('letter_pool', 'is', null)
     .limit(40);
 
   if (!pool?.length) return json({ error: 'No challenges in bank' }, 500);
-  const challenge = pool[Math.floor(Math.random() * pool.length)];
+  const shuffled = [...pool]
+    .filter((candidate: any) => !usedChallengeIds.has(candidate.id) && candidate.subtype !== previousSubtype)
+    .sort(() => Math.random() - 0.5);
+  let challenge: any = null;
+  for (const candidate of shuffled) {
+    if (Array.isArray(candidate.letter_pool) && candidate.letter_pool.length > 0) { challenge = candidate; break; }
+  }
+  if (!challenge) return json({ error: 'No playable challenges in bank' }, 500);
 
   const now = new Date();
   const end = new Date(now.getTime() + (challenge.time_limit_ms ?? 15000));
@@ -134,11 +150,6 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
   // Ensure room is live
   await supabase.from('rooms').update({ status: 'live' }).eq('id', roomId).eq('status', 'waiting');
 
-  const { data: choices } = await supabase
-    .from('challenge_choices')
-    .select('choice_id, label')
-    .eq('challenge_id', challenge.id);
-
   return json({
     round: {
       id: round.id,
@@ -156,7 +167,7 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
         difficulty: challenge.difficulty,
         timeLimitMs: challenge.time_limit_ms,
         letterPool: challenge.letter_pool,
-        choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })),
+        maxLength: challenge.max_length,
       },
     },
   });
@@ -168,9 +179,15 @@ async function getState(supabase: any, roomId: string) {
   const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
   if (!room) return json({ error: 'Room not found' }, 404);
 
+  const { data: expired } = await supabase.from('room_rounds').select('id')
+    .eq('room_id', roomId).eq('status', 'active').lt('server_end_at', new Date().toISOString()).limit(1);
+  if (expired?.[0]?.id) {
+    await supabase.from('room_rounds').update({ status: 'revealed' }).eq('id', expired[0].id).eq('status', 'active');
+  }
+
   const { data: round } = await supabase
     .from('room_rounds')
-    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool)')
+    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length)')
     .eq('room_id', roomId)
     .in('status', ['active', 'revealed'])
     .order('sequence', { ascending: false })
@@ -179,11 +196,6 @@ async function getState(supabase: any, roomId: string) {
 
   let payload: any = null;
   if (round) {
-    const { data: choices } = await supabase
-      .from('challenge_choices')
-      .select('choice_id, label')
-      .eq('challenge_id', round.challenge_id);
-
     payload = {
       id: round.id,
       roomId,
@@ -200,7 +212,7 @@ async function getState(supabase: any, roomId: string) {
         difficulty: round.challenge?.difficulty,
         timeLimitMs: round.challenge?.time_limit_ms ?? 15000,
         letterPool: round.challenge?.letter_pool,
-        choices: choices?.map((c: any) => ({ id: c.choice_id, label: c.label })),
+        maxLength: round.challenge?.max_length,
       },
     };
   }

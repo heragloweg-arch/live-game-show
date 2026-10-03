@@ -90,6 +90,13 @@ export async function create1v1Match(opponentId: string): Promise<MatchState> {
   return data.match;
 }
 
+export async function createRematch(previousMatchId: string, difficulty: Difficulty = 'normal'): Promise<MatchState> {
+  const data = await invoke<{ match: MatchState }>('match', {
+    action: 'rematch', matchId: previousMatchId, difficulty,
+  });
+  return data.match;
+}
+
 export async function getMatch(matchId: string): Promise<MatchState> {
   const data = await invoke<{ match: MatchState }>('match', {
     action: 'get',

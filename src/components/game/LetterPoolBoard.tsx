@@ -4,11 +4,13 @@ import { cn } from '../../utils/cn';
 
 interface Props {
   letters: string[];
+  maxLength?: number;
   onChange: (value: string) => void;
   disabled?: boolean;
 }
 
-export function LetterPoolBoard({ letters, onChange, disabled }: Props) {
+export function LetterPoolBoard({ letters, maxLength, onChange, disabled }: Props) {
+  const lettersKey = letters.join('|');
   const shuffled = useMemo(() => {
     const arr = [...letters];
     for (let i = arr.length - 1; i > 0; i--) {
@@ -16,19 +18,19 @@ export function LetterPoolBoard({ letters, onChange, disabled }: Props) {
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
     return arr.map((ch, i) => ({ id: `${ch}-${i}`, ch }));
-  }, [letters.join('')]);
+  }, [letters]);
 
   const [picked, setPicked] = useState<string[]>([]);
 
   useEffect(() => {
     setPicked([]);
     onChange('');
-  }, [letters.join('')]);
+  }, [lettersKey, onChange]);
 
   const available = shuffled.filter((x) => !picked.includes(x.id));
 
   const pick = (id: string) => {
-    if (disabled) return;
+    if (disabled || (maxLength != null && picked.length >= maxLength)) return;
     const next = [...picked, id];
     setPicked(next);
     const word = next
@@ -55,18 +57,12 @@ export function LetterPoolBoard({ letters, onChange, disabled }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex min-h-[48px] flex-wrap justify-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-3">
-        {picked.length === 0 && (
-          <span className="text-sm text-white/30">رتّب الحروف…</span>
-        )}
-        {picked.map((id) => {
-          const ch = shuffled.find((s) => s.id === id)?.ch;
+        {Array.from({ length: maxLength ?? Math.max(picked.length, 1) }).map((_, index) => {
+          const id = picked[index];
+          const ch = id ? shuffled.find((s) => s.id === id)?.ch : '';
           return (
-            <motion.span
-              key={id}
-              layout
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/30 font-display text-lg font-bold text-white"
-            >
-              {ch}
+            <motion.span key={`${id ?? 'empty'}-${index}`} layout className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 font-display text-lg font-bold text-white">
+              {ch || <span className="text-white/35">_</span>}
             </motion.span>
           );
         })}
@@ -76,7 +72,7 @@ export function LetterPoolBoard({ letters, onChange, disabled }: Props) {
           <button
             key={x.id}
             type="button"
-            disabled={disabled}
+            disabled={disabled || (maxLength != null && picked.length >= maxLength)}
             onClick={() => pick(x.id)}
             className={cn(
               'flex h-12 w-12 items-center justify-center rounded-xl border border-white/15 bg-white/10 font-display text-lg font-bold',

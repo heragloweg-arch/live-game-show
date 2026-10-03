@@ -65,6 +65,61 @@ serve(async (req) => {
       return json({ entries });
     }
 
+    if (action === 'list_cosmetics') {
+      const [{ data: catalog, error: catalogError }, { data: owned }, { data: profile }] = await Promise.all([
+        supabase.from('cosmetic_catalog').select('id,kind,title,price_coins,metadata,active').eq('active', true).order('price_coins'),
+        supabase.from('user_cosmetics').select('cosmetic_id,equipped').eq('user_id', user.id),
+        supabase.from('profiles').select('coins').eq('id', user.id).single(),
+      ]);
+      if (catalogError) return json({ error: catalogError.message }, 500);
+      const ownedMap = new Map((owned ?? []).map((row: any) => [row.cosmetic_id, row]));
+      return json({
+        coins: profile?.coins ?? 0,
+        items: (catalog ?? []).map((item: any) => ({
+          ...item,
+          owned: ownedMap.has(item.id),
+          equipped: !!ownedMap.get(item.id)?.equipped,
+        })),
+      });
+    }
+
+    if (action === 'buy_cosmetic') {
+      const cosmeticId = String(body.cosmeticId ?? '');
+      if (!cosmeticId) return json({ error: 'cosmeticId required' }, 400);
+      const { data, error } = await supabase.rpc('purchase_cosmetic_atomic', {
+        p_user_id: user.id,
+        p_cosmetic_id: cosmeticId,
+      });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
+    }
+
+    if (action === 'equip_cosmetic') {
+      const cosmeticId = String(body.cosmeticId ?? '');
+      if (!cosmeticId) return json({ error: 'cosmeticId required' }, 400);
+      const { data, error } = await supabase.rpc('equip_cosmetic_atomic', {
+        p_user_id: user.id,
+        p_cosmetic_id: cosmeticId,
+      });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
+    }
+
+    if (action === 'weekly_journey') {
+      const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
+      const today = now.toISOString().slice(0, 10);
+      const start = new Date(now);
+      start.setUTCDate(start.getUTCDate() - 6);
+      const startDate = start.toISOString().slice(0, 10);
+      const { data: packs, error: packsError } = await supabase.from('daily_packs').select('id,pack_date').gte('pack_date', startDate).lte('pack_date', today).order('pack_date');
+      if (packsError) return json({ error: packsError.message }, 500);
+      const packIds = (packs ?? []).map((p: any) => p.id);
+      const { data: completions } = packIds.length ? await supabase.from('daily_pack_completions').select('pack_id,slot_id').eq('user_id', user.id).in('pack_id', packIds) : { data: [] };
+      const counts = new Map<string, number>();
+      for (const row of completions ?? []) counts.set(row.pack_id, (counts.get(row.pack_id) ?? 0) + 1);
+      return json({ today, days: (packs ?? []).map((p: any) => ({ date: p.pack_date, completedSlots: Math.min(3, counts.get(p.id) ?? 0), complete: (counts.get(p.id) ?? 0) >= 3 })) });
+    }
+
     if (action === 'daily_bonus') {
       const today = new Date().toISOString().slice(0, 10);
       const { data: claim } = await supabase
@@ -163,43 +218,15 @@ serve(async (req) => {
       const requestId = String(body.requestId || '');
       const placement = String(body.placement || 'rewarded_extra_coins');
       if (!requestId) return json({ error: 'requestId required' }, 400);
-
-      const { data: existing } = await supabase
-        .from('ad_reward_claims')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('request_id', requestId)
-        .maybeSingle();
-      if (existing) {
-        const { data: prof } = await supabase.from('profiles').select('coins').eq('id', user.id).single();
-        return json({ coins: prof?.coins ?? 0, already: true });
-      }
-
-      // Daily cap 12 claims
-      const dayStart = new Date();
-      dayStart.setUTCHours(0, 0, 0, 0);
-      const { count } = await supabase
-        .from('ad_reward_claims')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', dayStart.toISOString());
-      if ((count ?? 0) >= 12) return json({ error: 'Daily ad reward limit', code: 'CAPPED' }, 429);
-
-      const coins = 20;
-      const { data: balance, error } = await supabase.rpc('credit_coins', {
+      const { data, error } = await supabase.rpc('claim_ad_reward_atomic', {
         p_user_id: user.id,
-        p_amount: coins,
-        p_type: 'ad_reward',
-        p_reference: requestId,
+        p_request_id: requestId,
+        p_placement: placement,
+        p_coins: 20,
+        p_daily_cap: 12,
       });
-      if (error) return json({ error: error.message }, 500);
-      await supabase.from('ad_reward_claims').insert({
-        user_id: user.id,
-        placement,
-        request_id: requestId,
-        coins_awarded: coins,
-      });
-      return json({ coins: balance ?? coins, awarded: coins });
+      if (error) return json({ error: error.message, code: /limit/i.test(error.message) ? 'CAPPED' : 'CLAIM_FAILED' }, /limit/i.test(error.message) ? 429 : 400);
+      return json(data);
     }
 
 return json({ error: 'Unknown action' }, 400);

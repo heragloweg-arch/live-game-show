@@ -34,6 +34,7 @@ export interface RoomChallenge {
   difficulty: string;
   timeLimitMs: number;
   letterPool?: string[];
+  maxLength?: number;
   choices?: { id: string; label: string }[];
 }
 

@@ -110,7 +110,24 @@ export async function fetchLeaderboard(limit = 20): Promise<UserProfile[]> {
   return (data ?? []).map(mapRow);
 }
 
-export async function fetchMatchHistory(userId: string, limit = 15) {
+export interface MatchHistoryRecord {
+  match_id: string;
+  score: number;
+  side: string;
+  is_ai: boolean;
+  joined_at: string;
+  matches: {
+    id: string;
+    mode: string;
+    status: string;
+    winner_id: string | null;
+    created_at: string;
+    ended_at: string | null;
+    total_rounds: number;
+  } | null;
+}
+
+export async function fetchMatchHistory(userId: string, limit = 15): Promise<MatchHistoryRecord[]> {
   const { data, error } = await supabase
     .from('match_participants')
     .select(
@@ -139,5 +156,41 @@ export async function fetchMatchHistory(userId: string, limit = 15) {
     console.error('[profile] history', error.message);
     return [];
   }
-  return data ?? [];
+  return (data ?? []) as unknown as MatchHistoryRecord[];
+}
+
+export interface RecentOpponent {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  lastMatchId: string;
+  playedAt: string;
+}
+
+export async function fetchRecentOpponents(userId: string, limit = 5): Promise<RecentOpponent[]> {
+  const { data: mine, error } = await supabase
+    .from('match_participants')
+    .select('match_id, joined_at, matches:match_id(status, ended_at, created_at)')
+    .eq('user_id', userId)
+    .order('joined_at', { ascending: false })
+    .limit(30);
+  if (error) return [];
+  const matchIds = (mine ?? []).filter((row) => ['MATCH_FINISHED', 'FINAL_RESULT'].includes((row.matches as { status?: string } | null)?.status ?? '')).map((row) => row.match_id);
+  if (!matchIds.length) return [];
+  const { data: others } = await supabase
+    .from('match_participants')
+    .select('match_id, user_id, joined_at, profiles:user_id(id, username, display_name, avatar_url)')
+    .in('match_id', matchIds)
+    .neq('user_id', userId);
+  const seen = new Set<string>();
+  const result: RecentOpponent[] = [];
+  for (const row of others ?? []) {
+    const profile = row.profiles as { id?: string; username?: string; display_name?: string; avatar_url?: string | null } | null;
+    if (!profile?.id || seen.has(profile.id)) continue;
+    seen.add(profile.id);
+    result.push({ userId: profile.id, username: profile.username ?? 'player', displayName: profile.display_name ?? 'لاعب قدها', avatarUrl: profile.avatar_url ?? null, lastMatchId: row.match_id, playedAt: row.joined_at });
+    if (result.length >= limit) break;
+  }
+  return result;
 }

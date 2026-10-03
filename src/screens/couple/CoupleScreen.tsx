@@ -6,7 +6,6 @@ import { ScreenShell } from '../../components/layout/ScreenShell';
 import { coupleCreate, coupleDissolve, coupleJoin, coupleStatus } from '../../services/api/coupleApi';
 import { createCoupleMatch } from '../../services/api/matchApi';
 import { track } from '../../services/analytics/events';
-import { cn } from '../../utils/cn';
 
 export function CoupleScreen() {
   const navigate = useNavigate();

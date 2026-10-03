@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { MatchState, MatchDelta, AnswerSubmission, AnswerResult } from '../types';
+import type { MatchState, MatchDelta } from '../types';
 import { remainingMs } from '../utils/time';
 
 interface MatchStore {
