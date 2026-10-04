@@ -4,6 +4,8 @@ import { Loader2, Zap, Trophy, Play } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { cn } from '../../utils/cn';
 import { formatCountdown } from '../../utils/time';
+import { AnswerHint } from '../game/AnswerHint';
+import { hasPlayableAnswerContract } from '../../utils/challengeContract';
 import {
   startRoomChallenge,
   getRoomChallengeState,
@@ -176,8 +178,10 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
             <h3 className="mb-4 text-center font-display text-lg font-bold leading-relaxed">
               {round.challenge.prompt}
             </h3>
+            <AnswerHint challenge={round.challenge} />
+            {!hasPlayableAnswerContract(round.challenge) && <p className="content-warning mb-3 text-center">هذه الجولة غير متاحة حالياً لأن عقد الإجابة غير مكتمل.</p>}
 
-            {round.status === 'active' && !result && (
+            {round.status === 'active' && !result && hasPlayableAnswerContract(round.challenge) && (
               <>
                 <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/10">
                   <div

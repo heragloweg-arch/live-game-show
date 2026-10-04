@@ -16,6 +16,8 @@ import { track } from '../../services/analytics/events';
 import { playSound } from '../../utils/sound';
 import { spendFiftyFifty } from '../../services/api/lifelineApi';
 import { MatchEndSummary } from '../../components/match/MatchEndSummary';
+import { AnswerHint } from '../../components/game/AnswerHint';
+import { hasPlayableAnswerContract } from '../../utils/challengeContract';
 
 async function shareMatchResult(text: string) {
   try {
@@ -235,11 +237,13 @@ export function MatchScreen() {
                 {match.round.challenge?.difficulty}
               </p>
 
-              <h2 className="mb-6 text-center font-display text-xl font-bold leading-relaxed text-white">
+              {!hasPlayableAnswerContract(match.round.challenge) && <p className="content-warning mb-3 text-center">هذه الجولة غير متاحة حالياً لأن عقد الإجابة غير مكتمل.</p>}
+              <h2 className="mb-3 text-center font-display text-xl font-bold leading-relaxed text-white">
                 {match.round.challenge?.prompt}
               </h2>
+              <AnswerHint challenge={match.round.challenge} />
 
-              {phase === 'playing' && (
+              {phase === 'playing' && hasPlayableAnswerContract(match.round.challenge) && (
                 <div className="mb-5">
                   <div className="mb-1.5 flex justify-between text-xs text-white/40">
                     <span>الوقت</span>

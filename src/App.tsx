@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import { AppProviders } from './app/providers';
 
 const SplashScreen = lazy(() => import('./screens/splash/SplashScreen').then((m) => ({ default: m.SplashScreen })));
+const AuthScreen = lazy(() => import('./screens/auth/AuthScreen').then((m) => ({ default: m.AuthScreen })));
 const HomeScreen = lazy(() => import('./screens/home/HomeScreen').then((m) => ({ default: m.HomeScreen })));
 const PlayScreen = lazy(() => import('./screens/play/PlayScreen').then((m) => ({ default: m.PlayScreen })));
 const DifficultyScreen = lazy(() => import('./screens/play/DifficultyScreen').then((m) => ({ default: m.DifficultyScreen })));
@@ -48,6 +49,7 @@ export default function App() {
           <AnimatePresence mode="wait">
             <Routes>
               <Route path="/" element={<SplashScreen />} />
+              <Route path="/auth" element={<AuthScreen />} />
               <Route path="/home" element={<HomeScreen />} />
               <Route path="/onboarding" element={<OnboardingScreen />} />
               <Route path="/daily" element={<DailyChallengeScreen />} />

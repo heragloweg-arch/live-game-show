@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { trackAppOpen } from '../../services/analytics/events';
 
 export function SplashScreen() {
-  const { sessionLoading, isAuthenticated, signInAnonymously } = useAuthStore();
+  const { sessionLoading, isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -19,7 +19,8 @@ export function SplashScreen() {
     (async () => {
       try {
         if (!isAuthenticated) {
-          await signInAnonymously();
+          navigate('/auth', { replace: true });
+          return;
         }
         // Read fresh state after signup — do not use stale `user` closure
         const u = useAuthStore.getState().user as any;
@@ -35,7 +36,7 @@ export function SplashScreen() {
     return () => {
       cancelled = true;
     };
-  }, [sessionLoading, isAuthenticated, navigate, signInAnonymously]);
+  }, [sessionLoading, isAuthenticated, navigate]);
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-surface-950">

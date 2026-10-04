@@ -9,6 +9,9 @@ interface AuthState {
   isAuthenticated: boolean;
   bootstrap: () => Promise<void>;
   signInAnonymously: () => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  signUpWithPassword: (email: string, password: string, displayName?: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
@@ -26,10 +29,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   bootstrap: async () => {
     set({ sessionLoading: true });
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const profile = await loadUserProfile(session.user.id, {
           username: session.user.user_metadata?.username,
@@ -54,6 +54,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  signInWithPassword: async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw error;
+    if (data.user) {
+      const profile = await loadUserProfile(data.user.id, {
+        username: data.user.user_metadata?.username,
+        displayName: data.user.user_metadata?.display_name,
+      });
+      set({ user: profile, isAuthenticated: true, sessionLoading: false });
+    }
+  },
+
+  signUpWithPassword: async (email, password, displayName) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: { display_name: displayName?.trim() || undefined },
+        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+      },
+    });
+    if (error) throw error;
+    if (data.user && data.session) {
+      const profile = await loadUserProfile(data.user.id, { displayName: displayName?.trim() });
+      set({ user: profile, isAuthenticated: true, sessionLoading: false });
+    }
+    return { needsEmailConfirmation: Boolean(data.user && !data.session) };
+  },
+
+  signInWithGoogle: async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+    });
+    if (error) throw error;
+  },
+
   signOut: async () => {
     await supabase.auth.signOut();
     set({ user: null, isAuthenticated: false });
@@ -69,14 +106,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setUser: (user) => set({ user, isAuthenticated: !!user }),
 }));
 
-// Keep session in sync
 if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_OUT') {
-      useAuthStore.getState().setUser(null);
-    }
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-      void useAuthStore.getState().bootstrap();
-    }
+    if (event === 'SIGNED_OUT') useAuthStore.getState().setUser(null);
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') void useAuthStore.getState().bootstrap();
   });
 }

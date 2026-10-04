@@ -1,92 +1,37 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Bot, Swords, Users, Crown } from 'lucide-react';
+import { ArrowRight, Bot, CalendarDays, Crown, Swords, Users, Zap } from 'lucide-react';
 import { cn } from '../../utils/cn';
+
+const modes = [
+  { icon: Swords, title: 'مباراة سريعة', description: 'خصم حقيقي الآن', tone: 'violet', primary: true, action: '/play/matchmaking?diff=normal' },
+  { icon: CalendarDays, title: 'التحدي اليومي', description: '3 محطات ومكافأة اليوم', tone: 'gold', action: '/daily' },
+  { icon: Bot, title: 'ضد الكمبيوتر', description: 'اختر مستوى التحدي', tone: 'cyan', action: '/play/difficulty' },
+  { icon: Users, title: 'غرفة الأصدقاء', description: 'كود أو رابط دعوة', tone: 'cyan', action: '/room/join' },
+  { icon: Users, title: 'معركة الفرق', description: 'تنافسوا كمجموعة', tone: 'pink', action: '/team' },
+  { icon: Crown, title: 'استضف تحدياً', description: 'أدر الجولة مباشرة', tone: 'gold', action: '/host' },
+] as const;
 
 export function PlayScreen() {
   const navigate = useNavigate();
-
   return (
-    <div className="min-h-screen px-5 pb-10 pt-6">
-      <header className="mb-8 flex items-center gap-3">
-        <Link to="/home" className="btn-ghost -mr-2 p-2">
-          <ArrowRight className="h-5 w-5" />
-        </Link>
-        <h1 className="font-display text-2xl font-bold">اختر وضع اللعب</h1>
+    <main className="play-page" dir="rtl">
+      <header className="play-header">
+        <Link to="/home" className="btn-ghost play-back" aria-label="العودة للرئيسية"><ArrowRight size={20} /></Link>
+        <div><span className="eyebrow">ساحة المنافسة</span><h1>اختر تحديك</h1></div>
+        <span className="play-status"><span /> جاهز</span>
       </header>
-
-      <div className="flex flex-col gap-4">
-        <ModeCard
-          icon={<Bot className="h-7 w-7 text-zatona-400" />}
-          title="ضد الكمبيوتر"
-          description="تحدى الذكاء الاصطناعي · 3 مستويات · سيرفر"
-          onClick={() => navigate('/play/difficulty')}
-        />
-        <ModeCard
-          icon={<Swords className="h-7 w-7 text-neon-cyan" />}
-          title="مباراة سريعة 1 ضد 1"
-          description="ابحث عن خصم حقيقي الآن"
-          onClick={() => navigate('/play/matchmaking?diff=normal')}
-          primary
-        />
-        <ModeCard
-          icon={<Users className="h-7 w-7 text-amber-300" />}
-          title="ادعُ صديقاً"
-          description="أنشئ رابط دعوة 1 ضد 1 وشاركه"
-          onClick={() => navigate('/play/invite/create')}
-        />
-        <ModeCard
-          icon={<Users className="h-7 w-7 text-neon-purple" />}
-          title="غرف التحدي"
-          description="انضم بكود الغرفة أو من دعوة المضيف"
-          onClick={() => navigate('/room/join')}
-        />
-        <ModeCard
-          icon={<Users className="h-7 w-7 text-sky-400" />}
-          title="معارك الفرق"
-          description="1v1 حتى 15v15 · مجموع نقاط الفريق"
-          onClick={() => navigate('/team')}
-        />
-        <ModeCard
-          icon={<Crown className="h-7 w-7 text-gold-400" />}
-          title="استضف تحدي مباشر"
-          description="لوحة المضيف + صوت LiveKit + أسئلة"
-          onClick={() => navigate('/host')}
-        />
-      </div>
-    </div>
+      <section className="play-hero">
+        <div className="play-hero-content"><span className="auth-kicker"><Zap size={14} /> كل إجابة تقرّبك من القمة</span><h2>العب بطريقتك،<br /><strong>وأثبت أنك قدّها.</strong></h2><p>ابدأ بمباراة سريعة أو أكمل رحلة اليوم لتحافظ على سلسلتك.</p></div>
+        <div className="play-hero-orbit" aria-hidden="true" />
+      </section>
+      <section className="play-section"><div className="play-section-heading"><div><span className="eyebrow">الاختيار الموصى به</span><h2>ابدأ الآن</h2></div><span className="play-count">{modes.length} ساحات</span></div><div className="play-mode-grid">{modes.slice(0, 2).map((mode) => <ModeCard key={mode.title} {...mode} onClick={() => navigate(mode.action)} />)}</div></section>
+      <section className="play-section"><div className="play-section-heading"><div><span className="eyebrow">اكتشف أكثر</span><h2>ساحات أخرى</h2></div></div><div className="play-mode-grid">{modes.slice(2).map((mode) => <ModeCard key={mode.title} {...mode} onClick={() => navigate(mode.action)} />)}</div></section>
+      <Link to="/home" className="play-home-link">العودة إلى لوحة التحكم <ArrowRight size={15} /></Link>
+    </main>
   );
 }
 
-function ModeCard({
-  icon,
-  title,
-  description,
-  onClick,
-  primary,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  onClick: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={cn(
-        'card flex items-start gap-4 p-5 text-right transition-all',
-        primary && 'border-zatona-500/40 shadow-glow'
-      )}
-    >
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/5">
-        {icon}
-      </div>
-      <div className="flex-1">
-        <h2 className="font-display text-lg font-bold text-white">{title}</h2>
-        <p className="mt-1 text-sm text-white/50">{description}</p>
-      </div>
-    </motion.button>
-  );
+function ModeCard({ icon: Icon, title, description, tone, primary, onClick }: { icon: typeof Swords; title: string; description: string; tone: string; primary?: boolean; onClick: () => void }) {
+  return <motion.button whileTap={{ scale: 0.985 }} onClick={onClick} className={cn('play-mode-card', `play-mode-${tone}`, primary && 'play-mode-primary')}><span className="play-mode-icon"><Icon size={22} /></span><span className="play-mode-copy"><strong>{title}</strong><small>{description}</small></span><ArrowRight className="play-mode-arrow" size={18} /></motion.button>;
 }
