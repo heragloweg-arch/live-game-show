@@ -40,9 +40,12 @@ function renderBootError(reason: string) {
 
 function getMissingProductionEnv() {
   const env = import.meta.env;
+  const runtimeEnv = typeof window !== 'undefined' ? window.__QADDAHA_ENV__ : undefined;
+  const supabaseUrl = runtimeEnv?.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = runtimeEnv?.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;
   const missing: string[] = [];
-  if (env.PROD && (!env.VITE_SUPABASE_URL || env.VITE_SUPABASE_URL.includes('placeholder'))) missing.push('VITE_SUPABASE_URL');
-  if (env.PROD && (!env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY.includes('placeholder'))) missing.push('VITE_SUPABASE_ANON_KEY');
+  if (env.PROD && (!supabaseUrl || supabaseUrl.includes('placeholder'))) missing.push('VITE_SUPABASE_URL');
+  if (env.PROD && (!supabaseAnonKey || supabaseAnonKey.includes('placeholder'))) missing.push('VITE_SUPABASE_ANON_KEY');
   return missing;
 }
 
