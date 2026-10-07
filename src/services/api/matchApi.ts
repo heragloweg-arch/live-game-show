@@ -3,11 +3,10 @@
  */
 
 import { supabase } from '../supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 import type { MatchState, Difficulty, AnswerResult } from '../../types';
 
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
-  : '';
+const FUNCTIONS_URL = getFunctionsUrl();
 
 export interface MatchReward {
   userId: string;
@@ -51,7 +50,7 @@ async function invoke<T>(fnName: string, body: Record<string, unknown>): Promise
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+      apikey: getSupabaseAnonKey(),
     },
     body: JSON.stringify(body),
   });

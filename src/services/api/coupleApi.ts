@@ -1,8 +1,7 @@
 import { supabase } from '../supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 
-const BASE = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/couple`
-  : '';
+const BASE = getFunctionsUrl('couple');
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -12,7 +11,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${session.access_token}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+      apikey: getSupabaseAnonKey(),
     },
     body: JSON.stringify(body),
   });

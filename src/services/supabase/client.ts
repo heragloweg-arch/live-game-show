@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAnonKey, getSupabaseUrl } from '../../config/runtime';
 
-const runtimeEnv = typeof window !== 'undefined' ? window.__QADDAHA_ENV__ : undefined;
-const supabaseUrl = runtimeEnv?.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = runtimeEnv?.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = getSupabaseUrl();
+const supabaseAnonKey = getSupabaseAnonKey();
 const invalidProductionConfig = import.meta.env.PROD && (
   !supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('placeholder')
 );

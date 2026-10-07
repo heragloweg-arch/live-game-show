@@ -10,6 +10,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 import { isFeatureEnabled } from '../../config/softLaunch';
 import { track } from '../analytics/events';
 import { shouldShowAds } from '../billing/entitlements';
@@ -220,13 +221,13 @@ export async function claimAdRewardOnServer(placement: AdPlacement): Promise<boo
       : `ad_${placement}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return false;
-    const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/economy`;
+    const base = getFunctionsUrl('economy');
     const response = await fetch(base, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
-        apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+        apikey: getSupabaseAnonKey(),
       },
       body: JSON.stringify({ action: 'ad_reward_claim', placement, requestId }),
     });

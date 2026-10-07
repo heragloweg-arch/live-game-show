@@ -3,10 +3,9 @@
  */
 
 import { supabase } from '../supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
-  : '';
+const FUNCTIONS_URL = getFunctionsUrl();
 
 async function token(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -21,7 +20,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${t}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+      apikey: getSupabaseAnonKey(),
     },
     body: JSON.stringify(body),
   });

@@ -1,15 +1,14 @@
 import { supabase } from '../supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
-  : '';
+const FUNCTIONS_URL = getFunctionsUrl();
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) throw new Error('Not authenticated');
   const res = await fetch(`${FUNCTIONS_URL}/daily`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}`, apikey: getSupabaseAnonKey() },
     body: JSON.stringify(body),
   });
   const data = await res.json();

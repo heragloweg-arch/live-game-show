@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Loader2 } from 'lucide-react';
 import { ScreenShell } from '../../components/layout/ScreenShell';
 import { supabase } from '../../services/supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 
-const BASE = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/creator`
-  : '';
+const BASE = getFunctionsUrl('creator');
 
 export function CreatorAdminScreen() {
   const [items, setItems] = useState<any[]>([]);
@@ -26,7 +25,7 @@ export function CreatorAdminScreen() {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+          apikey: getSupabaseAnonKey(),
         },
         body: JSON.stringify({ action: 'list_pending' }),
       });
@@ -53,7 +52,7 @@ export function CreatorAdminScreen() {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session!.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+          apikey: getSupabaseAnonKey(),
         },
         body: JSON.stringify({ action: 'approve', id }),
       });

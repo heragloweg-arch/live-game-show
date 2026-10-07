@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AppProviders } from './app/providers';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 const SplashScreen = lazy(() => import('./screens/splash/SplashScreen').then((m) => ({ default: m.SplashScreen })));
 const AuthScreen = lazy(() => import('./screens/auth/AuthScreen').then((m) => ({ default: m.AuthScreen })));
@@ -31,51 +32,50 @@ const InviteAcceptScreen = lazy(() => import('./screens/play/InviteAcceptScreen'
 const InviteCreateScreen = lazy(() => import('./screens/play/InviteCreateScreen').then((m) => ({ default: m.InviteCreateScreen })));
 
 function RouteFallback() {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center px-6 text-center">
-      <div className="card w-full max-w-sm p-8">
-        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-zatona-400" />
-        <p className="text-sm text-white/55">نجهّز تجربتك…</p>
-      </div>
-    </div>
-  );
+  return <div className="route-loading" dir="rtl"><span className="boot-progress" /><p>نجهّز تجربتك…</p></div>;
+}
+
+function ProtectedLayout() {
+  return <ProtectedRoute><Outlet /></ProtectedRoute>;
 }
 
 export default function App() {
   return (
     <AppProviders>
-      <div className="relative min-h-screen bg-hero-gradient safe-top safe-bottom">
+      <div className="app-viewport">
         <Suspense fallback={<RouteFallback />}>
           <AnimatePresence mode="wait">
             <Routes>
               <Route path="/" element={<SplashScreen />} />
               <Route path="/auth" element={<AuthScreen />} />
-              <Route path="/home" element={<HomeScreen />} />
-              <Route path="/onboarding" element={<OnboardingScreen />} />
-              <Route path="/daily" element={<DailyChallengeScreen />} />
               <Route path="/legal/privacy" element={<PrivacyScreen />} />
               <Route path="/legal/terms" element={<TermsScreen />} />
-              <Route path="/metrics" element={<MetricsScreen />} />
-              <Route path="/tournament" element={<TournamentListScreen />} />
-              <Route path="/tournament/:tournamentId" element={<TournamentDetailScreen />} />
-              <Route path="/subscription" element={<SubscriptionScreen />} />
-              <Route path="/shop" element={<ShopScreen />} />
-              <Route path="/couple" element={<CoupleScreen />} />
-              <Route path="/team" element={<TeamScreen />} />
-              <Route path="/creator" element={<CreatorScreen />} />
-              <Route path="/creator/admin" element={<CreatorAdminScreen />} />
-              <Route path="/play" element={<PlayScreen />} />
-              <Route path="/play/invite/create" element={<InviteCreateScreen />} />
-              <Route path="/play/invite/:token" element={<InviteAcceptScreen />} />
-              <Route path="/play/difficulty" element={<DifficultyScreen />} />
-              <Route path="/play/matchmaking" element={<MatchmakingScreen />} />
-              <Route path="/match/:matchId" element={<MatchScreen />} />
-              <Route path="/host" element={<HostScreen />} />
-              <Route path="/room/join" element={<RoomScreen />} />
-              <Route path="/room/:roomId" element={<RoomScreen />} />
-              <Route path="/profile" element={<ProfileScreen />} />
-              <Route path="/leaderboard" element={<LeaderboardScreen />} />
-              <Route path="*" element={<Navigate to="/home" replace />} />
+              <Route element={<ProtectedLayout />}>
+                <Route path="/home" element={<HomeScreen />} />
+                <Route path="/onboarding" element={<OnboardingScreen />} />
+                <Route path="/daily" element={<DailyChallengeScreen />} />
+                <Route path="/metrics" element={<MetricsScreen />} />
+                <Route path="/tournament" element={<TournamentListScreen />} />
+                <Route path="/tournament/:tournamentId" element={<TournamentDetailScreen />} />
+                <Route path="/subscription" element={<SubscriptionScreen />} />
+                <Route path="/shop" element={<ShopScreen />} />
+                <Route path="/couple" element={<CoupleScreen />} />
+                <Route path="/team" element={<TeamScreen />} />
+                <Route path="/creator" element={<CreatorScreen />} />
+                <Route path="/creator/admin" element={<CreatorAdminScreen />} />
+                <Route path="/play" element={<PlayScreen />} />
+                <Route path="/play/invite/create" element={<InviteCreateScreen />} />
+                <Route path="/play/invite/:token" element={<InviteAcceptScreen />} />
+                <Route path="/play/difficulty" element={<DifficultyScreen />} />
+                <Route path="/play/matchmaking" element={<MatchmakingScreen />} />
+                <Route path="/match/:matchId" element={<MatchScreen />} />
+                <Route path="/host" element={<HostScreen />} />
+                <Route path="/room/join" element={<RoomScreen />} />
+                <Route path="/room/:roomId" element={<RoomScreen />} />
+                <Route path="/profile" element={<ProfileScreen />} />
+                <Route path="/leaderboard" element={<LeaderboardScreen />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>
         </Suspense>

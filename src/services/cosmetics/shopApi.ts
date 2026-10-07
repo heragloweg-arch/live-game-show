@@ -1,4 +1,5 @@
 import { supabase } from '../supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 
 export type CosmeticKind = 'frame' | 'title' | 'theme' | 'emote';
 export interface CosmeticItem {
@@ -12,9 +13,7 @@ export interface CosmeticItem {
   equipped?: boolean;
 }
 
-const FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL
-  ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`
-  : '';
+const FUNCTIONS_URL = getFunctionsUrl();
 
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -24,7 +23,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${session.access_token}`,
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+      apikey: getSupabaseAnonKey(),
     },
     body: JSON.stringify(body),
   });

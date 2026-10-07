@@ -15,7 +15,7 @@ function readableAuthError(error: unknown) {
 
 export function AuthScreen() {
   const navigate = useNavigate();
-  const { signInWithPassword, signUpWithPassword, signInWithGoogle, signInAnonymously } = useAuthStore();
+  const { signInWithPassword, signUpWithPassword, signInWithGoogle } = useAuthStore();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,19 +62,6 @@ export function AuthScreen() {
     }
   };
 
-  const guest = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      await signInAnonymously();
-      navigate('/onboarding', { replace: true });
-    } catch (err) {
-      setError(readableAuthError(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <main className="auth-page" dir="rtl">
       <div className="auth-ambient auth-ambient-one" />
@@ -103,7 +90,6 @@ export function AuthScreen() {
         </form>
         <div className="auth-divider"><span>أو</span></div>
         <button type="button" className="btn-secondary auth-google" onClick={() => void google()} disabled={busy}><Chrome size={18} /> المتابعة بحساب Google</button>
-        <button type="button" className="auth-guest" onClick={() => void guest()} disabled={busy}>جرّب كزائر أولاً</button>
         <button type="button" className="auth-back" onClick={() => navigate('/')}><ArrowRight size={16} /> العودة</button>
       </motion.section>
     </main>

@@ -5,6 +5,7 @@ import type { UserProfile } from '../types';
 
 interface AuthState {
   user: UserProfile | null;
+  isAnonymousSession: boolean;
   sessionLoading: boolean;
   isAuthenticated: boolean;
   bootstrap: () => Promise<void>;
@@ -23,6 +24,7 @@ async function loadUserProfile(userId: string, meta?: { username?: string; displ
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  isAnonymousSession: false,
   sessionLoading: true,
   isAuthenticated: false,
 
@@ -31,17 +33,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
+        if (session.user.is_anonymous) {
+          await supabase.auth.signOut();
+          set({ user: null, isAnonymousSession: false, isAuthenticated: false, sessionLoading: false });
+          return;
+        }
         const profile = await loadUserProfile(session.user.id, {
           username: session.user.user_metadata?.username,
           displayName: session.user.user_metadata?.display_name,
         });
-        set({ user: profile, isAuthenticated: true, sessionLoading: false });
+        set({ user: profile, isAnonymousSession: Boolean(session.user.is_anonymous), isAuthenticated: true, sessionLoading: false });
       } else {
-        set({ user: null, isAuthenticated: false, sessionLoading: false });
+        set({ user: null, isAnonymousSession: false, isAuthenticated: false, sessionLoading: false });
       }
     } catch (err) {
       console.error('[Auth] bootstrap failed', err);
-      set({ user: null, isAuthenticated: false, sessionLoading: false });
+      set({ user: null, isAnonymousSession: false, isAuthenticated: false, sessionLoading: false });
     }
   },
 
@@ -50,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error;
     if (data.user) {
       const profile = await loadUserProfile(data.user.id);
-      set({ user: profile, isAuthenticated: true, sessionLoading: false });
+      set({ user: profile, isAnonymousSession: true, isAuthenticated: true, sessionLoading: false });
     }
   },
 
@@ -62,7 +69,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         username: data.user.user_metadata?.username,
         displayName: data.user.user_metadata?.display_name,
       });
-      set({ user: profile, isAuthenticated: true, sessionLoading: false });
+      set({ user: profile, isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
     }
   },
 
@@ -78,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error;
     if (data.user && data.session) {
       const profile = await loadUserProfile(data.user.id, { displayName: displayName?.trim() });
-      set({ user: profile, isAuthenticated: true, sessionLoading: false });
+      set({ user: profile, isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
     }
     return { needsEmailConfirmation: Boolean(data.user && !data.session) };
   },
@@ -93,7 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await supabase.auth.signOut();
-    set({ user: null, isAuthenticated: false });
+    set({ user: null, isAnonymousSession: false, isAuthenticated: false });
   },
 
   refreshProfile: async () => {
@@ -103,7 +110,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (profile) set({ user: profile });
   },
 
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  setUser: (user) => set({ user, isAuthenticated: !!user, isAnonymousSession: false }),
 }));
 
 if (typeof window !== 'undefined') {

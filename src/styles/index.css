@@ -535,3 +535,42 @@ html.theme-light .play-hero { box-shadow:0 20px 45px rgba(67,56,80,.16); }
 .boot-build { margin:14px 0 0; color:#94a3b8; font-size:11px; }
 @keyframes qaddaha-boot-progress { from { opacity:.35; transform:scaleX(.65); } to { opacity:1; transform:scaleX(1); } }
 @media (prefers-reduced-motion:reduce) { .boot-progress { animation:none; } }
+
+/* Production app frame: behaves like a mobile/tablet app, not a desktop webpage. */
+.app-viewport {
+  position: relative;
+  width: 100%;
+  min-height: 100svh;
+  max-width: 1180px;
+  margin-inline: auto;
+  overflow-x: hidden;
+  background: var(--q-bg, #070b14);
+  isolation: isolate;
+}
+.app-viewport > * { min-height: 100svh; }
+.route-loading {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  color: rgba(226,232,240,.68);
+  background: radial-gradient(circle at 50% 20%, rgba(124,58,237,.18), transparent 38%), #070b14;
+}
+.route-loading .boot-progress { display: block; }
+@media (min-width: 768px) {
+  body { padding: 18px; }
+  .app-viewport {
+    min-height: calc(100svh - 36px);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 30px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.35);
+  }
+  .app-viewport > * { min-height: calc(100svh - 36px); }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  .app-viewport { min-height: 100svh; }
+  .app-viewport > * { min-height: 100svh; }
+  .auth-page { align-items: flex-start; padding-block: 16px; }
+}
