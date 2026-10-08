@@ -9,8 +9,8 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4173
-RUN npm install --global serve@14.2.4
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/scripts/write-runtime-config.mjs ./scripts/write-runtime-config.mjs
+COPY --from=build /app/scripts/static-server.mjs ./scripts/static-server.mjs
 EXPOSE 4173
-CMD ["sh", "-c", "node scripts/write-runtime-config.mjs && serve -s dist -l tcp://0.0.0.0:${PORT:-4173}"]
+CMD ["sh", "-c", "node scripts/write-runtime-config.mjs && node scripts/static-server.mjs"]

@@ -206,12 +206,10 @@ serve(async (req) => {
     }
 
     if (action === 'activate_dev') {
-      // Staging only
-      if (Deno.env.get('SUPABASE_ENVIRONMENT') === 'production' || Deno.env.get('ENVIRONMENT') === 'production') {
-        return json({ error: 'Dev billing is forbidden in production' }, 403);
-      }
-      if (Deno.env.get('ALLOW_DEV_BILLING') !== 'true') {
-        return json({ error: 'Dev billing disabled' }, 403);
+      // Staging only: fail closed when the environment is missing or ambiguous.
+      const environment = Deno.env.get('SUPABASE_ENVIRONMENT') || Deno.env.get('ENVIRONMENT') || '';
+      if (environment !== 'staging' || Deno.env.get('ALLOW_DEV_BILLING') !== 'true') {
+        return json({ error: 'Dev billing is restricted to an explicitly enabled staging environment' }, 403);
       }
       const plan = body.plan as string;
       if (!PLAN_DAYS[plan]) return json({ error: 'Invalid plan' }, 400);

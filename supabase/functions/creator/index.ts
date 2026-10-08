@@ -110,6 +110,25 @@ serve(async (req) => {
       if (!row) return json({ error: 'Not found' }, 404);
       if (row.status !== 'pending') return json({ ok: true, alreadyReviewed: true, challengeId: row.published_challenge_id });
 
+      // Never publish a creator item unless it is playable by every client mode.
+      const acceptedAnswers = Array.isArray(row.accepted_answers)
+        ? row.accepted_answers.map((answer: unknown) => normalizeArabic(String(answer || '')).trim()).filter(Boolean)
+        : [];
+      if (!acceptedAnswers.length || acceptedAnswers.some((answer: string) => answer.length > 120)) {
+        return json({ error: 'السؤال مرفوض: يجب أن يحتوي على إجابة صالحة واحدة على الأقل' }, 422);
+      }
+      const allowedTypes = new Set(['knowledge', 'speed', 'words', 'mystery']);
+      if (!allowedTypes.has(String(row.type))) return json({ error: 'نوع السؤال غير مدعوم' }, 422);
+      if (row.type === 'speed' && row.subtype === 'letters') {
+        const letters = Array.isArray(row.letter_pool)
+          ? row.letter_pool.map((letter: unknown) => normalizeArabic(String(letter || '')).trim()).filter(Boolean)
+          : [];
+        const answerLetters = [...acceptedAnswers[0].replace(/\s+/g, '')].sort().join('');
+        if (!letters.length || letters.join('').replace(/\s+/g, '').split('').sort().join('') !== answerLetters) {
+          return json({ error: 'سؤال الحروف مرفوض: بنك الحروف لا يطابق الإجابة' }, 422);
+        }
+      }
+
       const { data: ch, error: chErr } = await supabase.from('challenges').insert({
         type: row.type,
         subtype: row.subtype,
@@ -123,7 +142,7 @@ serve(async (req) => {
       }).select().single();
       if (chErr) return json({ error: chErr.message }, 500);
 
-      for (const ans of row.accepted_answers || []) {
+      for (const ans of acceptedAnswers) {
         await supabase.from('challenge_answers').insert({
           challenge_id: ch.id,
           accepted_answer: ans,

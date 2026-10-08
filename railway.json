@@ -5,7 +5,7 @@
     "buildCommand": "npm ci --legacy-peer-deps && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs"
   },
   "deploy": {
-    "startCommand": "node scripts/write-runtime-config.mjs && npx --yes serve -s dist -l tcp://0.0.0.0:$PORT",
+    "startCommand": "node scripts/write-runtime-config.mjs && node scripts/static-server.mjs",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
