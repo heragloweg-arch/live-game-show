@@ -1,4 +1,6 @@
-const isProduction = process.env.VITE_ENVIRONMENT === 'production' || process.env.LAUNCH_GATE === 'strict';
+const isProduction = process.env.NODE_ENV === 'production'
+  || process.env.VITE_ENVIRONMENT === 'production'
+  || process.env.LAUNCH_GATE === 'strict';
 if (!isProduction) {
   console.log('Launch config check skipped: set VITE_ENVIRONMENT=production or LAUNCH_GATE=strict.');
   process.exit(0);

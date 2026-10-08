@@ -7,6 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import {
   verifyGooglePurchase,
   activateDevPlan,
+  restorePurchases,
   type PlanId,
 } from './subscriptionApi';
 import { track } from '../analytics/events';
@@ -174,7 +175,6 @@ export async function restorePlanPurchases(): Promise<PurchaseResult> {
       productId: x.productIdentifier || x.productId,
       purchaseToken: x.purchaseToken || x.transactionReceipt || x.token,
     })).filter((x: any) => x.productId && x.purchaseToken);
-    const { restorePurchases } = await import('./subscriptionApi');
     const res = await restorePurchases(purchases);
     return { ok: true, message: `تمت استعادة ${res.restored?.length ?? 0} اشتراك` };
   } catch (e) {
