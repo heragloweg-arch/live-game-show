@@ -113,6 +113,7 @@ export function useLiveKitRoom() {
         const msg = e instanceof Error ? e.message : String(e);
         setError(msg);
         setStatus('error');
+        throw e;
       }
     },
     [syncParticipants]
@@ -132,12 +133,12 @@ export function useLiveKitRoom() {
   const setMuted = useCallback(
     async (muted: boolean) => {
       const room = roomRef.current;
-      if (!room || status !== 'connected') return;
+      if (!room) return;
       await room.localParticipant.setMicrophoneEnabled(!muted);
       setIsMuted(muted);
       syncParticipants(room);
     },
-    [status, syncParticipants]
+    [syncParticipants]
   );
 
   const disconnect = useCallback(async () => {

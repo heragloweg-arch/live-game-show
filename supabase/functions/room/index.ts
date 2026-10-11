@@ -16,6 +16,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { normalizeArabic } from '../_shared/arabic.ts';
 import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
+import {
+  acceptedAnswersAfterReveal,
+  answerContextMatches,
+  isRoomMember,
+} from '../_shared/roomChallengeSecurity.ts';
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -50,7 +55,7 @@ serve(async (req) => {
       return await startChallenge(supabase, user.id, body.roomId);
     }
     if (action === 'get_state') {
-      return await getState(supabase, body.roomId);
+      return await getState(supabase, user.id, body.roomId);
     }
     if (action === 'submit_answer') {
       return await submitAnswer(supabase, user.id, body);
@@ -62,7 +67,7 @@ serve(async (req) => {
       return await closeRound(supabase, user.id, body.roomId, body.roomRoundId);
     }
     if (action === 'leaderboard') {
-      return await leaderboard(supabase, body.roomId);
+      return await leaderboard(supabase, user.id, body.roomId);
     }
 
     return json({ error: 'Unknown action' }, 400);
@@ -80,16 +85,63 @@ async function assertHost(supabase: any, roomId: string, userId: string) {
   return room;
 }
 
+async function isRoomParticipant(supabase: any, roomId: string, userId: string) {
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('host_id')
+    .eq('id', roomId)
+    .maybeSingle();
+  if (!room) return { exists: false, allowed: false };
+
+  const { data: participant } = await supabase
+    .from('room_participants')
+    .select('user_id')
+    .eq('room_id', roomId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  return {
+    exists: true,
+    allowed: isRoomMember(userId, room.host_id, participant?.user_id),
+  };
+}
+
 async function startChallenge(supabase: any, userId: string, roomId: string) {
   if (!roomId) return json({ error: 'roomId required' }, 400);
   const room = await assertHost(supabase, roomId, userId);
 
-  // Close any active round
-  await supabase
+  // A repeated start request must not close or replace a live round.
+  const { data: activeRound } = await supabase
     .from('room_rounds')
-    .update({ status: 'closed' })
+    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length)')
     .eq('room_id', roomId)
-    .in('status', ['pending', 'active', 'revealed']);
+    .eq('status', 'active')
+    .order('sequence', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (activeRound) {
+    return json({
+      round: {
+        id: activeRound.id,
+        roomId,
+        roundNumber: activeRound.round_number,
+        status: activeRound.status,
+        serverStartAt: activeRound.server_start_at,
+        serverEndAt: activeRound.server_end_at,
+        sequence: activeRound.sequence,
+        challenge: {
+          id: activeRound.challenge?.id ?? activeRound.challenge_id,
+          type: activeRound.challenge?.type,
+          subtype: activeRound.challenge?.subtype,
+          prompt: activeRound.challenge?.prompt,
+          difficulty: activeRound.challenge?.difficulty,
+          timeLimitMs: activeRound.challenge?.time_limit_ms ?? 15000,
+          letterPool: activeRound.challenge?.letter_pool,
+          maxLength: activeRound.challenge?.max_length,
+        },
+      },
+    });
+  }
 
   // Next round number
   const { data: last } = await supabase
@@ -147,6 +199,14 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
 
   if (error) return json({ error: error.message }, 500);
 
+  // Retire prior rounds only after the replacement is safely stored.
+  await supabase
+    .from('room_rounds')
+    .update({ status: 'closed' })
+    .eq('room_id', roomId)
+    .neq('id', round.id)
+    .in('status', ['pending', 'revealed']);
+
   // Ensure room is live
   await supabase.from('rooms').update({ status: 'live' }).eq('id', roomId).eq('status', 'waiting');
 
@@ -173,8 +233,12 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
   });
 }
 
-async function getState(supabase: any, roomId: string) {
+async function getState(supabase: any, userId: string, roomId: string) {
   if (!roomId) return json({ error: 'roomId required' }, 400);
+
+  const access = await isRoomParticipant(supabase, roomId, userId);
+  if (!access.exists) return json({ error: 'Room not found' }, 404);
+  if (!access.allowed) return json({ error: 'Not a room participant' }, 403);
 
   const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
   if (!room) return json({ error: 'Room not found' }, 404);
@@ -196,6 +260,16 @@ async function getState(supabase: any, roomId: string) {
 
   let payload: any = null;
   if (round) {
+    let acceptedAnswers: string[] = [];
+    if (round.status === 'revealed') {
+      const { data: answerRows } = await supabase
+        .from('challenge_answers')
+        .select('accepted_answer')
+        .eq('challenge_id', round.challenge_id)
+        .limit(10);
+      acceptedAnswers = acceptedAnswersAfterReveal(round.status, answerRows ?? []);
+    }
+
     payload = {
       id: round.id,
       roomId,
@@ -213,6 +287,7 @@ async function getState(supabase: any, roomId: string) {
         timeLimitMs: round.challenge?.time_limit_ms ?? 15000,
         letterPool: round.challenge?.letter_pool,
         maxLength: round.challenge?.max_length,
+        acceptedAnswers: acceptedAnswers.length ? acceptedAnswers : undefined,
       },
     };
   }
@@ -230,50 +305,109 @@ async function getState(supabase: any, roomId: string) {
   });
 }
 
+function answerContextFromRow(row: any) {
+  return { roomId: row.room_id, roundId: row.room_round_id, userId: row.user_id };
+}
+
+function answerResult(requestId: string, answer: any, duplicate = false) {
+  return json({
+    result: {
+      requestId,
+      outcome: answer.outcome,
+      points: answer.points,
+      bonus: answer.bonus,
+      total: (answer.points ?? 0) + (answer.bonus ?? 0),
+      duplicate,
+    },
+  });
+}
+
+async function insertRoomAnswer(supabase: any, answer: any) {
+  const { error } = await supabase.from('room_answers').insert(answer);
+  if (!error) return { answer, duplicate: false };
+
+  const { data: byRequestId } = await supabase
+    .from('room_answers')
+    .select('*')
+    .eq('request_id', answer.request_id)
+    .maybeSingle();
+  if (byRequestId) {
+    if (!answerContextMatches(answerContextFromRow(byRequestId), answerContextFromRow(answer))) {
+      return { error: 'request_id_conflict' };
+    }
+    return { answer: byRequestId, duplicate: true };
+  }
+
+  const { data: byParticipant } = await supabase
+    .from('room_answers')
+    .select('*')
+    .eq('room_round_id', answer.room_round_id)
+    .eq('user_id', answer.user_id)
+    .maybeSingle();
+  if (byParticipant && answerContextMatches(answerContextFromRow(byParticipant), answerContextFromRow(answer))) {
+    return { answer: byParticipant, duplicate: true };
+  }
+
+  return { error: error.message || 'answer_insert_failed' };
+}
+
 async function submitAnswer(supabase: any, userId: string, body: any) {
   const { roomId, roomRoundId, requestId, answer, clientTimestamp } = body;
-  if (!roomId || !roomRoundId || !requestId || answer === undefined) {
+  if (
+    typeof roomId !== 'string' || !roomId ||
+    typeof roomRoundId !== 'string' || !roomRoundId ||
+    typeof requestId !== 'string' || requestId.length < 8 || requestId.length > 128 ||
+    typeof answer !== 'string' || !answer.trim() || answer.length > 500
+  ) {
     return json({ error: 'Missing fields' }, 400);
   }
 
-  // Idempotency
+  const access = await isRoomParticipant(supabase, roomId, userId);
+  if (!access.exists) return json({ error: 'Room not found' }, 404);
+  if (!access.allowed) return json({ error: 'Not a participant' }, 403);
+
+  // Idempotency keys are scoped to the authenticated participant, room, and round.
   const { data: existing } = await supabase
     .from('room_answers')
     .select('*')
     .eq('request_id', requestId)
     .maybeSingle();
   if (existing) {
-    return json({
-      result: {
-        requestId,
-        outcome: existing.outcome,
-        points: existing.points,
-        bonus: existing.bonus,
-        duplicate: true,
-      },
-    });
+    if (!answerContextMatches(answerContextFromRow(existing), { roomId, roundId: roomRoundId, userId })) {
+      return json({ error: 'request_id_conflict' }, 409);
+    }
+    return answerResult(requestId, existing, true);
   }
-
-  // Must be participant
-  const { data: member } = await supabase
-    .from('room_participants')
-    .select('id')
-    .eq('room_id', roomId)
-    .eq('user_id', userId)
-    .maybeSingle();
-  if (!member) return json({ error: 'Not a participant' }, 403);
 
   const { data: round } = await supabase
     .from('room_rounds')
     .select('*, challenge:challenges(id, type, difficulty, time_limit_ms)')
     .eq('id', roomRoundId)
+    .eq('room_id', roomId)
     .single();
   if (!round) return json({ error: 'Round not found' }, 404);
+
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('status')
+    .eq('id', roomId)
+    .maybeSingle();
+  if (!room) return json({ error: 'Room not found' }, 404);
+  if (room.status === 'ended') return json({ error: 'Room ended' }, 400);
+
+  const { data: previousRoundAnswer } = await supabase
+    .from('room_answers')
+    .select('*')
+    .eq('room_round_id', roomRoundId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (previousRoundAnswer) return answerResult(requestId, previousRoundAnswer, true);
+
   if (round.status !== 'active') return json({ error: 'Round not active' }, 400);
 
   const now = new Date();
   if (round.server_end_at && now > new Date(round.server_end_at)) {
-    await supabase.from('room_answers').insert({
+    const stored = await insertRoomAnswer(supabase, {
       request_id: requestId,
       room_round_id: roomRoundId,
       room_id: roomId,
@@ -284,9 +418,8 @@ async function submitAnswer(supabase: any, userId: string, body: any) {
       points: 0,
       bonus: 0,
     });
-    return json({
-      result: { requestId, outcome: 'timeout', points: 0, bonus: 0 },
-    });
+    if (stored.error) return json({ error: stored.error }, stored.error === 'request_id_conflict' ? 409 : 500);
+    return answerResult(requestId, stored.answer, stored.duplicate);
   }
 
   const normalized = normalizeArabic(String(answer));
@@ -325,7 +458,7 @@ async function submitAnswer(supabase: any, userId: string, body: any) {
     config: DEFAULT_SCORING,
   });
 
-  await supabase.from('room_answers').insert({
+  const stored = await insertRoomAnswer(supabase, {
     request_id: requestId,
     room_round_id: roomRoundId,
     room_id: roomId,
@@ -337,16 +470,8 @@ async function submitAnswer(supabase: any, userId: string, body: any) {
     bonus: score.bonus,
     response_time_ms: responseTimeMs,
   });
-
-  return json({
-    result: {
-      requestId,
-      outcome: isCorrect ? 'correct' : 'wrong',
-      points: score.points,
-      bonus: score.bonus,
-      total: score.total,
-    },
-  });
+  if (stored.error) return json({ error: stored.error }, stored.error === 'request_id_conflict' ? 409 : 500);
+  return answerResult(requestId, stored.answer, stored.duplicate);
 }
 
 async function reveal(supabase: any, userId: string, roomId: string, roomRoundId: string) {
@@ -369,8 +494,12 @@ async function closeRound(supabase: any, userId: string, roomId: string, roomRou
   return json({ ok: true, status: 'closed' });
 }
 
-async function leaderboard(supabase: any, roomId: string) {
+async function leaderboard(supabase: any, userId: string, roomId: string) {
   if (!roomId) return json({ error: 'roomId required' }, 400);
+
+  const access = await isRoomParticipant(supabase, roomId, userId);
+  if (!access.exists) return json({ error: 'Room not found' }, 404);
+  if (!access.allowed) return json({ error: 'Not a room participant' }, 403);
 
   const { data: answers } = await supabase
     .from('room_answers')

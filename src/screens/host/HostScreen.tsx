@@ -88,13 +88,27 @@ export function HostScreen() {
     setBusy(true);
     setErr(null);
     try {
+      if (!voice.isConnected) await voice.connect(room.id, true);
+      await voice.setMuted(false);
       await goLive(room.id);
       setRoom({ ...room, status: 'live' });
       setPhase('live');
       setShowStage('intro');
       track('host_go_live', { roomId: room.id });
-      if (!voice.isConnected) await voice.connect(room.id, true);
-      await voice.setMuted(false);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReconnectVoice = async () => {
+    if (!room) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await voice.connect(room.id, true);
+      if (phase === 'live') await voice.setMuted(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -103,14 +117,16 @@ export function HostScreen() {
   };
 
   const handleEnd = async () => {
-    if (!room) return;
+    if (!room) return true;
     setBusy(true);
     try {
       await endRoom(room.id);
       await voice.disconnect();
       setPhase('ended');
+      return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -132,7 +148,21 @@ export function HostScreen() {
       <div className="pointer-events-none absolute -right-20 bottom-40 h-48 w-48 rounded-full bg-gold-500/10 blur-3xl" />
 
       <header className="relative z-10 mb-6 flex items-center gap-3">
-        <Link to="/home" className="btn-ghost -mr-2 p-2" onClick={() => voice.disconnect()}>
+        <Link
+          to="/home"
+          className="btn-ghost -mr-2 p-2"
+          onClick={(event) => {
+            if (room && phase !== 'ended') {
+              event.preventDefault();
+              if (!window.confirm('العودة ستُنهي الغرفة وتفصل المشاركين. هل تريد المتابعة؟')) return;
+              void handleEnd().then((ended) => {
+                if (ended) navigate('/home');
+              });
+              return;
+            }
+            void voice.disconnect();
+          }}
+        >
           <ArrowRight className="h-5 w-5" />
         </Link>
         <div className="flex-1">
@@ -262,6 +292,16 @@ export function HostScreen() {
                   ) : (
                     <Mic className="h-4 w-4 text-surface-900" />
                   )}
+                </button>
+              )}
+              {!voice.isConnected && phase === 'live' && (
+                <button
+                  type="button"
+                  onClick={() => void handleReconnectVoice()}
+                  disabled={busy || voice.status === 'connecting'}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-white/70 disabled:opacity-50"
+                >
+                  إعادة الاتصال
                 </button>
               )}
             </div>

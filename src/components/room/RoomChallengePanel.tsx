@@ -5,6 +5,7 @@ import confetti from 'canvas-confetti';
 import { cn } from '../../utils/cn';
 import { formatCountdown } from '../../utils/time';
 import { AnswerHint } from '../game/AnswerHint';
+import { LetterPoolBoard } from '../game/LetterPoolBoard';
 import { hasPlayableAnswerContract } from '../../utils/challengeContract';
 import {
   startRoomChallenge,
@@ -63,6 +64,29 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
   }, [poll]);
 
   useEffect(() => {
+    setAnswer('');
+    setSelected(null);
+    setSubmitting(false);
+    setResult(null);
+    setBoard([]);
+  }, [round?.id]);
+
+  useEffect(() => {
+    if (round?.status !== 'revealed') return;
+    let current = true;
+    void getRoomLeaderboard(roomId)
+      .then(({ leaderboard }) => {
+        if (current) setBoard(leaderboard);
+      })
+      .catch(() => {
+        if (current) setBoard([]);
+      });
+    return () => {
+      current = false;
+    };
+  }, [roomId, round?.id, round?.status]);
+
+  useEffect(() => {
     if (!round?.id) return;
     const t = setInterval(() => setServerNow(new Date().toISOString()), 250);
     return () => clearInterval(t);
@@ -86,7 +110,11 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
 
   const onSubmit = async () => {
     if (!round) return;
-    const value = round.challenge.choices ? selected ?? '' : answer.trim();
+    const value = round.challenge.letterPool?.length
+      ? answer.trim()
+      : round.challenge.choices?.length
+        ? selected ?? ''
+        : answer.trim();
     if (!value) return;
     setSubmitting(true);
     try {
@@ -117,9 +145,7 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
     setBusy(true);
     try {
       await revealRoomRound(roomId, round.id);
-      const { leaderboard } = await getRoomLeaderboard(roomId);
-      setBoard(leaderboard);
-      setRound({ ...round, status: 'revealed' });
+      await poll();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -179,6 +205,12 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
               {round.challenge.prompt}
             </h3>
             <AnswerHint challenge={round.challenge} />
+            {round.status === 'revealed' && round.challenge.acceptedAnswers?.length ? (
+              <div className="mt-3 rounded-xl border border-zatona-500/20 bg-zatona-500/10 px-3 py-2 text-center text-sm">
+                <span className="text-white/55">الإجابة المقبولة: </span>
+                <span className="font-bold text-zatona-300">{round.challenge.acceptedAnswers.join(' · ')}</span>
+              </div>
+            ) : null}
             {!hasPlayableAnswerContract(round.challenge) && <p className="content-warning mb-3 text-center">هذه الجولة غير متاحة حالياً لأن عقد الإجابة غير مكتمل.</p>}
 
             {round.status === 'active' && !result && hasPlayableAnswerContract(round.challenge) && (
@@ -195,7 +227,14 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
                   />
                 </div>
 
-                {round.challenge.choices ? (
+                {round.challenge.letterPool?.length ? (
+                  <LetterPoolBoard
+                    letters={round.challenge.letterPool}
+                    maxLength={round.challenge.maxLength}
+                    disabled={submitting}
+                    onChange={setAnswer}
+                  />
+                ) : round.challenge.choices?.length ? (
                   <div className="grid gap-2">
                     {round.challenge.choices.map((c) => (
                       <button
@@ -225,7 +264,11 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
 
                 <button
                   onClick={onSubmit}
-                  disabled={submitting || (round.challenge.choices ? !selected : !answer.trim())}
+                  disabled={submitting || (round.challenge.letterPool?.length
+                    ? !answer.trim()
+                    : round.challenge.choices?.length
+                      ? !selected
+                      : !answer.trim())}
                   className="btn-primary mt-3 w-full py-3 text-sm"
                 >
                   {submitting ? 'جاري الإرسال...' : 'إرسال'}
