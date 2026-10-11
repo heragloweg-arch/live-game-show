@@ -35,6 +35,7 @@ export interface RoomChallenge {
   letterPool?: string[];
   maxLength?: number;
   choices?: { id: string; label: string }[];
+  acceptedAnswers?: string[];
 }
 
 export interface RoomRoundState {
