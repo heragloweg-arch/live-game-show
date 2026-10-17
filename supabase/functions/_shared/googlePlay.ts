@@ -13,6 +13,12 @@ export interface PlayVerifyResult {
   raw?: unknown;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 function base64url(data: Uint8Array | string): string {
   const s = typeof data === 'string' ? data : String.fromCharCode(...data);
   return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -26,7 +32,7 @@ async function importPrivateKey(pem: string): Promise<CryptoKey> {
   const binary = Uint8Array.from(atob(cleaned), (c) => c.charCodeAt(0));
   return crypto.subtle.importKey(
     'pkcs8',
-    binary,
+    toArrayBuffer(binary),
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign']
@@ -50,7 +56,7 @@ async function getAccessToken(sa: {
   );
   const key = await importPrivateKey(sa.private_key);
   const sigInput = new TextEncoder().encode(`${header}.${claim}`);
-  const sigBuf = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, sigInput);
+  const sigBuf = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, toArrayBuffer(sigInput));
   const jwt = `${header}.${claim}.${base64url(new Uint8Array(sigBuf))}`;
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
