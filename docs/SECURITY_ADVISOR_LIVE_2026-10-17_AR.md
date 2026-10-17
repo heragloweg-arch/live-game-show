@@ -1,46 +1,42 @@
 # مراجعة أمن Supabase الحية — 17 أكتوبر 2026
 
-**النطاق:** قراءة فقط عبر Security Advisor واستعلامات catalog. لم تُنفذ أي تغييرات على قاعدة البيانات.
+## النطاق
+فحص Security Advisor واستعلامات كتالوج PostgreSQL بعد تطبيق migrations الإنتاجية حتى `20261017040000`. لم تُجر اختبارات هجومية على حسابات مستخدمين حقيقية، لذا يصف هذا التقرير إعدادات قاعدة البيانات المرصودة ولا يدعي اكتمال Red Team حي.
 
-## النتائج المؤكدة
+## النتائج بعد الإصلاح
 
-### 1. دوال SECURITY DEFINER مكشوفة لأدوار العميل
-ظهر أن الأدوار `anon` و`authenticated` تملك EXECUTE على الدوال التالية، مع أنها تبدو عمليات خادمية/إدارية ويجب مراجعة كل استعمال قبل سحب الصلاحية:
+### 1. دوال SECURITY DEFINER
+أظهر استعلام الصلاحيات أن الدوال الحساسة أصبحت غير قابلة للتنفيذ من `anon` و`authenticated`، مع منح التنفيذ إلى `service_role` حيث يلزم ذلك لوظائف Edge Functions.
 
-- `public.atomic_start_round(uuid, integer)`
-- `public.claim_matchmaking_opponent(uuid, text)`
-- `public.claim_matchmaking_opponent(uuid, text, text)`
-- `public.complete_daily_atomic(uuid, date, uuid, text, integer, integer, integer)`
-- `public.distribute_tournament_prizes(uuid)`
-- `public.handle_new_user()`
-- `public.match_human_count(uuid)`
-- `public.protect_profile_columns()`
-- `public.rls_auto_enable()`
-- `public.round_submission_count(uuid)`
+الاستثناء الوحيد المتبقي في Advisor:
+- `public.is_current_user_room_member(uuid)` — التنفيذ متاح لـ `authenticated` لأنه مستخدم في سياسات RLS لقراءات الغرف والمشاركين والجولات. الدالة تتحقق من عضوية المستخدم الحالي، ومسار البحث مثبت إلى `pg_catalog, public, pg_temp`.
 
-تظهر هذه الدوال في قاعدة الإنتاج على أنها `SECURITY DEFINER`. سجّل الاستعلام أيضًا أن `settle_match(uuid)` و`submit_answer_atomic(...)` محصورتان بالفعل في `service_role`، لكنهما ما زالتا تستخدمان `search_path=public` وتحتاجان مراجعة تثبيت المسار.
+لا تُمنح صلاحية تنفيذ عامة لدوال التسوية، والاقتصاد، والمكافآت، والبطولات، والمطابقة، أو إدارة المحتوى.
 
 ### 2. search_path
-- `public.set_updated_at()`: ليست SECURITY DEFINER، لكنها تستخدم search_path الافتراضي، وEXECUTE متاح لأدوار العميل.
-- `public.handle_new_user()` و`public.credit_coins(...)`: search_path افتراضي حسب الاستعلام.
-- معظم دوال SECURITY DEFINER الأخرى تستخدم `search_path=public`؛ يُوصى بمسار موثوق مثل `pg_catalog, public, pg_temp` بعد مراجعة جسم كل دالة واعتمادياتها.
+بعد migrations تثبيت المسارات، لم يعد Advisor يعرض `function_search_path_mutable`. الدوال الحساسة تستخدم مسارًا موثوقًا؛ يجب إبقاء هذا الشرط في أي دالة مستقبلية من نوع SECURITY DEFINER.
 
-### 3. جداول RLS
-أظهر Security Advisor ثمانية جداول عليها RLS دون policies:
-`ad_reward_claims`, `analytics_daily`, `challenge_answers`, `challenge_choices`, `investor_snapshots`, `room_participants`, `security_events`, `xp_events`.
+### 3. جداول RLS بلا policies
+يرصد Advisor 16 جدولًا عليها RLS دون policies:
+`ad_reward_claims`, `ad_reward_pending`, `analytics_daily`, `challenge_answers`, `challenge_choices`, `challenge_content_approvals`, `investor_snapshots`, `lifeline_uses`, `purchase_receipts`, `room_overlay_tokens`, `security_events`, `user_blocks`, `user_cohorts`, `user_reports`, `user_subscriptions`, `xp_events`.
 
-عدم وجود policy قد يعني رفض الوصول افتراضيًا، وليس مبررًا لإضافة policy واسعة. يجب تحديد الاستخدام المقصود لكل جدول واختباره باستخدام `anon`, `authenticated`, و`service_role`.
+هذا قد يكون مقصودًا للبيانات الداخلية ذات سياسة الرفض الافتراضية. يجب اختبار منح الجدول وسياسات RLS لكل من `anon`, `authenticated`, و`service_role` على حدة؛ لا تضف سياسة وصول واسعة لإخفاء التنبيه.
 
-### 4. إعداد Auth
-حماية كلمات المرور المسرّبة معطلة في إعدادات Auth. يلزم تفعيلها من إعدادات المشروع بعد التحقق من أثرها التشغيلي.
+### 4. الوصول المجهول وAuth
+- ما زالت بعض السياسات تسمح بقراءات مجهولة، بما يتسق مع تدفق اللعب المجهول الحالي. يجب تدقيق كل سياسة لضمان أنها لا تكشف بيانات شخصية أو مفاتيح الإجابات.
+- حماية كلمات المرور المسرّبة في Supabase Auth ما زالت معطلة. لا يتوفر إجراء إعداد Auth ضمن أدوات التنفيذ الحالية؛ يلزم تفعيلها من إعدادات المشروع.
 
-## بوابة الإصلاح الآمنة
-1. لا تطبق SQL على الإنتاج مباشرةً.
-2. أنشئ Staging أو مشروع اختبار متاحًا دون إنشاء موارد مدفوعة دون موافقة.
-3. طابق migration ledger مع ملفات المصدر أولًا؛ سجل الإنتاج يعرض 27 migration حتى `20260311000027_daily_letter_words`.
-4. راجع جسم الدوال والـ triggers قبل سحب EXECUTE، ثم أنشئ migration جديدة متوافقة مع schema الفعلي.
-5. اختبر الوصول لكل دور، وعمليات الجولات والمطابقة واليوميات والمكافآت، ثم أعد تشغيل Security Advisor.
-6. طبّق على الإنتاج فقط بعد نجاح Staging ووجود خطة rollback.
+## تحقق تشغيلي
+- migrations السلامة والحظر وOverlay مطبقة في قاعدة الإنتاج.
+- جداول `user_reports`, `user_blocks`, و`room_overlay_tokens` موجودة وRLS مفعّل، وصلاحيات العميل المباشرة مسحوبة.
+- بنك الإصدار 41 يحتوي 910 أسئلة مستوردة غير نشطة و3640 اختيارًا. بقيت 533 أسئلة نشطة ومعتمدة بعد بوابة قابلية اللعب.
+- Edge Functions `safety` و`overlay` منشورة ACTIVE. لم يُثبت بعد اختبار حظر/طرد حي أو دورة Overlay في OBS، لذلك لا تُعتبر هذه الميزات اجتازت اختبار قبول حيًا.
 
-## الحالة
-`BLOCKED` للإصلاح التنفيذي على قاعدة البيانات حتى تتوفر بيئة Staging ومطابقة migration ledger. هذا التقرير تشخيص فقط، وليس إثباتًا أن الإصلاحات طُبقت.
+## المتبقي
+1. تفعيل leaked-password protection في Supabase Auth.
+2. إكمال مراجعة الجداول الستة عشر وسياسات الوصول المجهول.
+3. اختبار RLS/GRANT من أدوار العميل والخدمة.
+4. اختبار حي للحظر والطرد الفوري وOverlay، مع إثبات انتهاء الرابط وإلغائه.
+5. إعادة تشغيل Security Advisor بعد إغلاق كل بند.
+
+**الحالة:** تحسن أمني مؤكد في الصلاحيات وsearch_path، لكن المراجعة الأمنية النهائية واختبارات التشغيل الحية لم تكتمل.
