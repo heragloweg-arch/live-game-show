@@ -3,6 +3,11 @@ import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { getSubscriptionPurchaseV2 } from '../_shared/googlePlay.ts';
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
 });
@@ -51,7 +56,7 @@ async function verifyPubSubBearer(req: Request): Promise<boolean> {
   if (!jwk) return false;
   const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
   return await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5', key, b64urlBytes(parts[2]), new TextEncoder().encode(parts[0] + '.' + parts[1]),
+    'RSASSA-PKCS1-v1_5', key, toArrayBuffer(b64urlBytes(parts[2])), toArrayBuffer(new TextEncoder().encode(parts[0] + '.' + parts[1])),
   );
 }
 
