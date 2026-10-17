@@ -21,7 +21,7 @@ export type AdPlacement =
   | 'rewarded_extra_coins'
   | 'between_rounds';
 
-export type AdResult = 'shown' | 'skipped' | 'disabled' | 'capped' | 'failed' | 'rewarded';
+export type AdResult = 'shown' | 'skipped' | 'disabled' | 'capped' | 'failed' | 'rewarded' | 'reward_pending';
 
 const STORAGE_PREFIX = 'qaddaha_ad_';
 
@@ -153,16 +153,23 @@ export async function showAd(
       }
 
       if (placement === 'rewarded_extra_coins') {
-        await AdMob.prepareRewardVideoAd({ adId: id });
+        const pending = await prepareAdRewardOnServer(placement);
+        if (!pending) return 'failed';
+        await AdMob.prepareRewardVideoAd({
+          adId: id,
+          ssv: { userId: pending.userId, customData: pending.requestId },
+        });
         const reward = await AdMob.showRewardVideoAd();
-        const claimed = await claimAdRewardOnServer(placement);
-        if (claimed) {
-          const s = loadState();
-          s.rewardedCountToday += 1;
-          saveState(s);
-        }
-        track(claimed ? 'rewarded_complete' : 'ad_reward_claimed', { placement, reward: JSON.stringify(reward ?? {}), serverClaimed: claimed });
-        return claimed ? 'rewarded' : 'failed';
+        const s = loadState();
+        s.rewardedCountToday += 1;
+        saveState(s);
+        track('rewarded_pending', {
+          placement,
+          rewardType: String(reward?.type ?? ''),
+          serverVerification: 'pending',
+          requestId: pending.requestId,
+        });
+        return 'reward_pending';
       }
 
       // interstitial
@@ -183,13 +190,9 @@ export async function showAd(
   if (import.meta.env.VITE_ADS_SIMULATE === 'true') {
     const s = loadState();
     if (placement === 'rewarded_extra_coins') {
-      const claimed = await claimAdRewardOnServer(placement);
-      if (claimed) {
-        s.rewardedCountToday += 1;
-        saveState(s);
-        track('rewarded_complete', { placement, simulated: true, serverClaimed: true });
-      }
-      return claimed ? 'rewarded' : 'failed';
+      // Simulated ads must never mint production currency.
+      track('ad_skipped', { placement, reason: 'ssv_not_available_in_simulation' });
+      return 'failed';
     }
     if (placement !== 'home_banner') {
       s.lastInterstitialAt = Date.now();
@@ -213,24 +216,29 @@ export async function hideBanner(): Promise<void> {
 }
 
 
-export async function claimAdRewardOnServer(placement: AdPlacement): Promise<boolean> {
+export interface PendingAdReward {
+  requestId: string;
+  userId: string;
+}
+export async function prepareAdRewardOnServer(placement: AdPlacement): Promise<PendingAdReward | null> {
   try {
+    if (placement !== 'rewarded_extra_coins' || typeof crypto?.randomUUID !== 'function') return null;
     const { supabase } = await import('../supabase/client');
-    const requestId = typeof crypto?.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `ad_${placement}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const requestId = crypto.randomUUID();
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) return false;
-    const base = getFunctionsUrl('economy');
-    const response = await fetch(base, {
+    if (!session?.access_token) return null;
+    const response = await fetch(getFunctionsUrl('economy'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
         apikey: getSupabaseAnonKey(),
       },
-      body: JSON.stringify({ action: 'ad_reward_claim', placement, requestId }),
+      body: JSON.stringify({ action: 'ad_reward_prepare', placement, requestId }),
     });
-    return response.ok;
-  } catch { return false; }
+    if (!response.ok) return null;
+    const result = await response.json() as { requestId?: string; userId?: string; status?: string };
+    if (result.requestId !== requestId || result.userId !== session.user.id || result.status !== 'pending') return null;
+    return { requestId, userId: result.userId };
+  } catch { return null; }
 }
