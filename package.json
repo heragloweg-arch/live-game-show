@@ -20,7 +20,7 @@
     "android:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
     "android:sync-billing": "npm run build && npx cap sync android",
     "postinstall": "node -e \"console.log('[qaddaha] npm i done — for APK: npm run build && npx cap sync android')\"",
-    "start": "node scripts/write-runtime-config.mjs && node scripts/static-server.mjs",
+    "start": "node scripts/verify-runtime-config.mjs && node scripts/write-runtime-config.mjs && node scripts/static-server.mjs",
     "railway:build": "npm ci --legacy-peer-deps && npm run build",
     "android:deps": "npm install && npx cap sync android",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
@@ -33,7 +33,9 @@
     "content:approve-batch": "node scripts/approve-content-batch.mjs",
     "content:import-bank": "node scripts/import-question-bank.mjs content/question-bank/source/bank.zip content/question-bank",
     "content:audit-wording": "python3 scripts/audit-question-wording.py content/question-bank/review-queue.json content/question-bank/wording-audit.json",
-    "content:apply-wording": "python3 scripts/apply-wording-audit.py content/question-bank/wording-audit.json content/question-bank/wording-reviewed-queue.json && npm run content:import-bank"
+    "content:apply-wording": "python3 scripts/apply-wording-audit.py content/question-bank/wording-audit.json content/question-bank/wording-reviewed-queue.json && npm run content:import-bank",
+    "verify:runtime-config": "node scripts/verify-runtime-config.mjs",
+    "test:production-gates": "node --test scripts/production-gate.test.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.2",
