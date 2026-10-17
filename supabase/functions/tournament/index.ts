@@ -173,7 +173,7 @@ serve(async (req) => {
       const matchRowId = body.tournamentMatchId as string;
       const winnerId = body.winnerId as string;
       // Validate winner is one of the two players in this tournament match
-      const { data: tmCheck } = await supabase.from('tournament_matches').select('*').eq('id', body.matchId).single();
+      const { data: tmCheck } = await supabase.from('tournament_matches').select('*').eq('id', matchRowId).single();
       if (tmCheck && winnerId && winnerId !== tmCheck.player_a && winnerId !== tmCheck.player_b) {
         return json({ error: 'winnerId must be player_a or player_b' }, 400);
       }
