@@ -28,6 +28,8 @@ const CoupleScreen = lazy(() => import('./screens/couple/CoupleScreen').then((m)
 const TeamScreen = lazy(() => import('./screens/team/TeamScreen').then((m) => ({ default: m.TeamScreen })));
 const CreatorScreen = lazy(() => import('./screens/creator/CreatorScreen').then((m) => ({ default: m.CreatorScreen })));
 const CreatorAdminScreen = lazy(() => import('./screens/creator/CreatorAdminScreen').then((m) => ({ default: m.CreatorAdminScreen })));
+const SafetyAdminScreen = lazy(() => import('./screens/creator/SafetyAdminScreen').then((m) => ({ default: m.SafetyAdminScreen })));
+const OverlayScreen = lazy(() => import('./screens/host/OverlayScreen').then((m) => ({ default: m.OverlayScreen })));
 const InviteAcceptScreen = lazy(() => import('./screens/play/InviteAcceptScreen').then((m) => ({ default: m.InviteAcceptScreen })));
 const InviteCreateScreen = lazy(() => import('./screens/play/InviteCreateScreen').then((m) => ({ default: m.InviteCreateScreen })));
 
@@ -50,6 +52,7 @@ export default function App() {
               <Route path="/auth" element={<AuthScreen />} />
               <Route path="/legal/privacy" element={<PrivacyScreen />} />
               <Route path="/legal/terms" element={<TermsScreen />} />
+              <Route path="/overlay/:token" element={<OverlayScreen />} />
               <Route element={<ProtectedLayout />}>
                 <Route path="/home" element={<HomeScreen />} />
                 <Route path="/onboarding" element={<OnboardingScreen />} />
@@ -63,6 +66,7 @@ export default function App() {
                 <Route path="/team" element={<TeamScreen />} />
                 <Route path="/creator" element={<CreatorScreen />} />
                 <Route path="/creator/admin" element={<CreatorAdminScreen />} />
+                <Route path="/safety/admin" element={<SafetyAdminScreen />} />
                 <Route path="/play" element={<PlayScreen />} />
                 <Route path="/play/invite/create" element={<InviteCreateScreen />} />
                 <Route path="/play/invite/:token" element={<InviteAcceptScreen />} />
