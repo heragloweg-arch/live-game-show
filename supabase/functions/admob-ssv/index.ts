@@ -2,6 +2,11 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), {
   status,
   headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -76,13 +81,13 @@ async function verifyCallback(url: URL): Promise<boolean> {
   const spki = key.base64
     ? decodeBase64(key.base64)
     : decodeBase64((key.pem || '').replace(/-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\s+/g, ''));
-  const publicKey = await crypto.subtle.importKey('spki', spki, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+  const publicKey = await crypto.subtle.importKey('spki', toArrayBuffer(spki), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
   const rawSignature = derEcdsaToP1363(signature);
   return await crypto.subtle.verify(
     { name: 'ECDSA', hash: 'SHA-256' },
     publicKey,
-    rawSignature,
-    new TextEncoder().encode(query.slice(0, signatureIndex)),
+    toArrayBuffer(rawSignature),
+    toArrayBuffer(new TextEncoder().encode(query.slice(0, signatureIndex))),
   );
 }
 
