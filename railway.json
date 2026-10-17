@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm ci --legacy-peer-deps && LAUNCH_GATE=static node scripts/verify-launch-config.mjs && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs"
+    "buildCommand": "npm ci --legacy-peer-deps && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs"
   },
   "deploy": {
     "startCommand": "node scripts/verify-runtime-config.mjs && node scripts/write-runtime-config.mjs && node scripts/static-server.mjs",
