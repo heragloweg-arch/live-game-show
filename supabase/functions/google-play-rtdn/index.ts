@@ -1,7 +1,7 @@
 /** Authenticated Google Play RTDN Pub/Sub push handler. */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { getSubscriptionPurchaseV2 } from '../_shared/googlePlay.ts';
+import { getSubscriptionPurchaseV2, acknowledgeSubscriptionPurchase } from '../_shared/googlePlay.ts';
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
@@ -115,6 +115,11 @@ serve(async (req) => {
   if (!Number.isFinite(expiryMs)) return json({ error: 'Play subscription expiry is missing' }, 503);
   const state = String(purchase.subscriptionState || '');
   const autoRenew = line.autoRenewingPlan?.autoRenewEnabled === true;
+  const acknowledgement = await acknowledgeSubscriptionPurchase(event.subscriptionId, event.purchaseToken, purchase);
+  if (!acknowledgement.ok) {
+    console.error('[google-play-rtdn] acknowledgement failed', acknowledgement.error || 'unknown');
+    return json({ error: 'Play purchase acknowledgement is pending; retry webhook' }, 503);
+  }
   let status: 'active' | 'grace' | 'expired' | 'cancelled';
   if (state === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD' && expiryMs > Date.now()) status = 'grace';
   else if (expiryMs <= Date.now() || state === 'SUBSCRIPTION_STATE_EXPIRED') status = 'expired';
