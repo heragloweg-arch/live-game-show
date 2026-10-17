@@ -168,10 +168,7 @@ serve(async (req) => {
     }
 
     if (action === 'report_result') {
-      // admin gate report_result
       // Non-admin result reporters are checked against match participants below.
-        return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
-      }
 
       const matchRowId = body.tournamentMatchId as string;
       const winnerId = body.winnerId as string;
