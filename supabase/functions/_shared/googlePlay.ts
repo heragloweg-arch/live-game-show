@@ -81,61 +81,30 @@ export async function verifySubscriptionPurchase(
   productId: string,
   purchaseToken: string
 ): Promise<PlayVerifyResult> {
-  const packageName = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
-  const saRaw = Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
-  if (!packageName || !saRaw) {
-    return { ok: false, error: 'GOOGLE_PLAY secrets missing' };
+  if (!productId || !purchaseToken || purchaseToken.length > 4096) {
+    return { ok: false, error: 'Invalid Google Play purchase details' };
   }
-
-  let sa: { client_email: string; private_key: string };
-  try {
-    sa = JSON.parse(saRaw);
-  } catch {
-    return { ok: false, error: 'Invalid GOOGLE_PLAY_SERVICE_ACCOUNT_JSON' };
+  const current = await getSubscriptionPurchaseV2(purchaseToken);
+  if (!current.ok || !current.purchase) return { ok: false, error: current.error || 'Play verification failed' };
+  const purchase = current.purchase as any;
+  const lineItems = Array.isArray(purchase.lineItems) ? purchase.lineItems : [];
+  const line = lineItems.find((item: any) => item?.productId === productId);
+  if (!line) return { ok: false, error: 'Purchase product does not match the requested product', raw: { subscriptionState: purchase.subscriptionState } };
+  const expiryText = typeof line.expiryTime === 'string' ? line.expiryTime : '';
+  const expiryMs = Date.parse(expiryText);
+  if (!Number.isFinite(expiryMs)) return { ok: false, error: 'Google Play did not return a valid subscription expiry' };
+  if (expiryMs <= Date.now()) return { ok: false, error: 'Subscription expired', expiryTimeMillis: String(expiryMs) };
+  const state = String(purchase.subscriptionState || '');
+  if (!['SUBSCRIPTION_STATE_ACTIVE', 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'SUBSCRIPTION_STATE_CANCELED'].includes(state)) {
+    return { ok: false, error: 'Subscription is not entitled in its current Play state', raw: { subscriptionState: state } };
   }
-
-  try {
-    const token = await getAccessToken(sa);
-    const url =
-      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
-      `${encodeURIComponent(packageName)}/purchases/subscriptions/` +
-      `${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}`;
-
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const body = await res.json();
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: body?.error?.message || `Play API ${res.status}`,
-        raw: body,
-      };
-    }
-
-    // paymentState: 1 = received, 2 = free trial, 0 = pending
-    const paymentState = body.paymentState as number | undefined;
-    const expiryTimeMillis = body.expiryTimeMillis as string | undefined;
-    const expired = expiryTimeMillis ? Number(expiryTimeMillis) < Date.now() : false;
-
-    if (expired) {
-      return { ok: false, error: 'Subscription expired', expiryTimeMillis, raw: body };
-    }
-    if (paymentState === 0) {
-      return { ok: false, error: 'Payment pending', paymentState, raw: body };
-    }
-
-    return {
-      ok: true,
-      expiryTimeMillis,
-      paymentState,
-      raw: body,
-    };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
+  return {
+    ok: true,
+    expiryTimeMillis: String(expiryMs),
+    paymentState: undefined,
+    raw: purchase,
+  };
 }
-
 
 export interface PlaySubscriptionV2Result {
   ok: boolean;
