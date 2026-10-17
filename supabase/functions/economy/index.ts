@@ -214,19 +214,28 @@ serve(async (req) => {
     }
 
     
-    if (action === 'ad_reward_claim') {
+    if (action === 'ad_reward_prepare') {
       const requestId = String(body.requestId || '');
       const placement = String(body.placement || 'rewarded_extra_coins');
-      if (!requestId) return json({ error: 'requestId required' }, 400);
-      const { data, error } = await supabase.rpc('claim_ad_reward_atomic', {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+        return json({ error: 'A valid reward request ID is required' }, 400);
+      }
+      if (placement !== 'rewarded_extra_coins') return json({ error: 'Unsupported ad reward placement' }, 400);
+      const { data, error } = await supabase.rpc('prepare_ad_reward_ssv_atomic', {
         p_user_id: user.id,
         p_request_id: requestId,
         p_placement: placement,
-        p_coins: 20,
         p_daily_cap: 12,
       });
-      if (error) return json({ error: error.message, code: /limit/i.test(error.message) ? 'CAPPED' : 'CLAIM_FAILED' }, /limit/i.test(error.message) ? 429 : 400);
-      return json(data);
+      if (error) {
+        const capped = /daily ad reward limit/i.test(error.message);
+        return json({ error: capped ? 'Daily ad reward limit reached' : 'Unable to prepare verified ad reward', code: capped ? 'CAPPED' : 'PREPARE_FAILED' }, capped ? 429 : 400);
+      }
+      return json({ ...(data ?? {}), userId: user.id });
+    }
+
+    if (action === 'ad_reward_claim') {
+      return json({ error: 'Client-side reward claims are disabled; a verified AdMob SSV callback is required', code: 'SSV_REQUIRED' }, 403);
     }
 
 return json({ error: 'Unknown action' }, 400);
