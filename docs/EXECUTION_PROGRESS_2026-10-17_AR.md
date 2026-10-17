@@ -7,7 +7,7 @@
 - أُنشئ الفرع `release/qaddaha-execution-2026-10-17` من `agent/room-challenge-readiness`.
 - أُضيف `.github/workflows/ci.yml` لتشغيل Node.js 22.22.0، وnpm ci، وtypecheck، وlint، وVitest، وVite build، وبوابة launch-config الساكنة، وبوابة إصدار المحتوى.
 - commit إضافة CI: `a43c57f93bd78277e932bba6f52872efd5a01fa3`.
-- تشغيل CI على commit `2ab2d0a167ac3536831617a2ecda63692b7e08f1` نجح في: npm ci، typecheck، ESLint، Vitest، Vite build، launch-config static، content release، `npm audit --omit=dev --audit-level=high`، وDeno check لجميع Edge Function entrypoints واختبارات regression الخاصة بمتحقق الإجابات. سجل التشغيل: https://github.com/heragloweg-arch/live-game-show/actions/runs/38988603619.
+- تشغيل CI على commit الشفرة `2ab2d0a167ac3536831617a2ecda63692b7e08f1` نجح في جميع البوابات المذكورة. بعد تحديث سجل الحالة، نجح التشغيل الكامل مرة أخرى على أحدث commit `c1116a9aa6dee01c627ee3a0964ba0a3ec96d4f2`، بما في ذلك npm ci وtypecheck وESLint وVitest وVite build وlaunch-config static وcontent release و`npm audit --omit=dev --audit-level=high` وDeno check واختبارات regression. سجل التشغيل: https://github.com/heragloweg-arch/live-game-show/actions/runs/38988680562.
 - لم تُعدّل `main` ولم تُحذف فروع.
 
 ## نتيجة مطابقة المصدر
