@@ -58,3 +58,6 @@ verify_jwt = true
 
 [functions.overlay]
 verify_jwt = false
+
+[functions.admob-ssv]
+verify_jwt = false
