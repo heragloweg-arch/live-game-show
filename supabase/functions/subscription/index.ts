@@ -9,7 +9,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { verifySubscriptionPurchase } from '../_shared/googlePlay.ts';
+import { verifySubscriptionPurchase, acknowledgeSubscriptionPurchase } from '../_shared/googlePlay.ts';
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -153,10 +153,19 @@ serve(async (req) => {
           verified_at: new Date().toISOString(),
         }).eq('provider', 'google_play').eq('purchase_token', purchaseToken).eq('user_id', user.id);
         if (receiptUpdateError) return json({ error: 'Verified receipt could not be recorded safely' }, 503);
-        return await activatePlan(
+        const activated = await activatePlan(
           supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
           new Date(Number(verified.expiryTimeMillis))
         );
+        if (activated.status >= 200 && activated.status < 300) {
+          const acknowledgement = await acknowledgeSubscriptionPurchase(
+            productId, purchaseToken, verified.raw as Record<string, unknown> | undefined
+          );
+          if (!acknowledgement.ok) {
+            console.error('[subscription] purchase acknowledgement pending', acknowledgement.error || 'unknown');
+          }
+        }
+        return activated;
       }
 
       return json({
@@ -193,7 +202,13 @@ serve(async (req) => {
             supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
             new Date(Number(verified.expiryTimeMillis))
           );
-          if (activated.status >= 200 && activated.status < 300) restored.push(catalogItem.plan);
+          if (activated.status >= 200 && activated.status < 300) {
+            const acknowledgement = await acknowledgeSubscriptionPurchase(
+              productId, purchaseToken, verified.raw as Record<string, unknown> | undefined
+            );
+            if (!acknowledgement.ok) console.error('[subscription] restore acknowledgement pending', acknowledgement.error || 'unknown');
+            restored.push(catalogItem.plan);
+          }
         }
       }
       return json({ ok: true, restored });
