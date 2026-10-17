@@ -154,7 +154,7 @@ serve(async (req) => {
 
     if (action === 'generate_bracket') {
       // admin gate generate_bracket
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -168,15 +168,12 @@ serve(async (req) => {
     }
 
     if (action === 'report_result') {
-      // admin gate report_result
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
-        return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
-      }
+      // Non-admin result reporters are checked against match participants below.
 
       const matchRowId = body.tournamentMatchId as string;
       const winnerId = body.winnerId as string;
       // Validate winner is one of the two players in this tournament match
-      const { data: tmCheck } = await supabase.from('tournament_matches').select('*').eq('id', body.matchId).single();
+      const { data: tmCheck } = await supabase.from('tournament_matches').select('*').eq('id', matchRowId).single();
       if (tmCheck && winnerId && winnerId !== tmCheck.player_a && winnerId !== tmCheck.player_b) {
         return json({ error: 'winnerId must be player_a or player_b' }, 400);
       }
@@ -269,7 +266,7 @@ serve(async (req) => {
 
     if (action === 'finalize') {
       // admin gate finalize
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -325,7 +322,7 @@ serve(async (req) => {
     }
     if (action === 'archive') {
       // admin gate archive
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -339,7 +336,7 @@ serve(async (req) => {
 
     if (action === 'create_next') {
       // admin gate create_next
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 

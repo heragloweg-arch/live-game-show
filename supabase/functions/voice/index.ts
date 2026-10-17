@@ -304,6 +304,23 @@ serve(async (req) => {
       const roomId = body.roomId as string;
       if (!roomId) return json({ error: 'roomId required' }, 400);
 
+      const { data: room } = await supabase
+        .from('rooms')
+        .select('host_id')
+        .eq('id', roomId)
+        .maybeSingle();
+      if (!room) return json({ error: 'Room not found' }, 404);
+
+      const { data: membership } = await supabase
+        .from('room_participants')
+        .select('user_id')
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (room.host_id !== user.id && !membership) {
+        return json({ error: 'Not a room participant' }, 403);
+      }
+
       const { data: rows } = await supabase
         .from('room_participants')
         .select('user_id, is_host, joined_at, profiles:user_id(username, display_name, avatar_url)')
