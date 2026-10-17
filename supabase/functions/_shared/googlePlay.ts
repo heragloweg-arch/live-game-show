@@ -137,3 +137,50 @@ export async function getSubscriptionPurchaseV2(purchaseToken: string): Promise<
     return { ok: false, error: error instanceof Error ? error.message : 'Google Play API request failed' };
   }
 }
+
+
+export interface PlayAcknowledgeResult {
+  ok: boolean;
+  alreadyAcknowledged?: boolean;
+  error?: string;
+}
+
+/** Acknowledge a verified subscription purchase so Google Play does not refund it for non-acknowledgement. */
+export async function acknowledgeSubscriptionPurchase(
+  productId: string,
+  purchaseToken: string,
+  currentPurchase?: Record<string, unknown>
+): Promise<PlayAcknowledgeResult> {
+  const packageName = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
+  const saRaw = Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
+  if (!packageName || !saRaw) return { ok: false, error: 'Google Play credentials are not configured' };
+  let purchase = currentPurchase;
+  if (!purchase) {
+    const current = await getSubscriptionPurchaseV2(purchaseToken);
+    if (!current.ok || !current.purchase) return { ok: false, error: current.error || 'Unable to read Play acknowledgement state' };
+    purchase = current.purchase;
+  }
+  if (purchase.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED') {
+    return { ok: true, alreadyAcknowledged: true };
+  }
+  let sa: { client_email: string; private_key: string };
+  try { sa = JSON.parse(saRaw); }
+  catch { return { ok: false, error: 'Invalid Google Play service-account JSON' }; }
+  try {
+    const token = await getAccessToken(sa);
+    const endpoint = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'
+      + encodeURIComponent(packageName) + '/purchases/subscriptions/'
+      + encodeURIComponent(productId) + '/tokens/' + encodeURIComponent(purchaseToken) + ':acknowledge';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (response.ok) return { ok: true };
+    const payload = await response.json().catch(() => ({}));
+    return { ok: false, error: typeof payload?.error?.message === 'string' ? payload.error.message : `Play acknowledgement API ${response.status}` };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Google Play acknowledgement failed' };
+  }
+}
