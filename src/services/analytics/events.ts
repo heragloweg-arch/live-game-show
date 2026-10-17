@@ -40,6 +40,7 @@ export type AnalyticsEvent =
   | 'ad_clicked'
   | 'ad_reward_claimed'
   | 'rewarded_complete'
+  | 'rewarded_pending'
   | 'ad_skipped'
   | 'ad_failed'
   | 'reward_claim'
