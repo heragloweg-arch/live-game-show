@@ -33,8 +33,9 @@ export function inferOpenSpeedRules(prompt: string): {
   const p = prompt || '';
   const rules: ReturnType<typeof inferOpenSpeedRules> = {};
 
-  const startM = p.match(/يبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يا-z])/i)
-    || p.match(/تبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يا-z])/i)
+  // Accept one Arabic letter or one English letter; keep the ranges separate.
+  const startM = p.match(/يبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يa-z])/i)
+    || p.match(/تبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يa-z])/i)
     || p.match(/بحرف\s*([أ-ي])/);
   if (startM) rules.startsWith = normalizeArabic(startM[1]).charAt(0);
 
