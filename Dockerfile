@@ -10,7 +10,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4173
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/scripts/verify-runtime-config.mjs ./scripts/verify-runtime-config.mjs
 COPY --from=build /app/scripts/write-runtime-config.mjs ./scripts/write-runtime-config.mjs
 COPY --from=build /app/scripts/static-server.mjs ./scripts/static-server.mjs
 EXPOSE 4173
-CMD ["sh", "-c", "node scripts/write-runtime-config.mjs && node scripts/static-server.mjs"]
+CMD ["sh", "-c", "node scripts/verify-runtime-config.mjs && node scripts/write-runtime-config.mjs && node scripts/static-server.mjs"]
