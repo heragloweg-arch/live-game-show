@@ -61,3 +61,6 @@ verify_jwt = false
 
 [functions.admob-ssv]
 verify_jwt = false
+
+[functions.google-play-rtdn]
+verify_jwt = false
