@@ -46,6 +46,9 @@ jobs:
       - name: Production web build
         run: npm run build
 
+      - name: Production artifact lock
+        run: npm run verify:production
+
       - name: Static launch configuration gate
         env:
           LAUNCH_GATE: static
