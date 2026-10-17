@@ -80,9 +80,21 @@ function json(data: unknown, status = 200) {
 
 function roomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = '';
-  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+  const random = new Uint8Array(6);
+  crypto.getRandomValues(random);
+  return Array.from(random, (byte) => chars[byte & 31]).join('');
+}
+
+async function hasBlockedRoomMember(supabase: any, roomId: string, userId: string): Promise<boolean> {
+  const { data: members, error: membersError } = await supabase.from('room_participants')
+    .select('user_id').eq('room_id', roomId).neq('user_id', userId);
+  if (membersError) throw new Error('Unable to validate room safety');
+  const otherIds = new Set((members ?? []).map((row: any) => String(row.user_id)));
+  if (!otherIds.size) return false;
+  const { data: blocks, error: blocksError } = await supabase.from('user_blocks')
+    .select('blocker_id,blocked_id').or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+  if (blocksError) throw new Error('Unable to validate room safety');
+  return (blocks ?? []).some((row: any) => otherIds.has(String(row.blocker_id) === userId ? String(row.blocked_id) : String(row.blocker_id)));
 }
 
 serve(async (req) => {
@@ -181,6 +193,7 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!room) return json({ error: 'الغرفة غير موجودة أو انتهت' }, 404);
+      if (await hasBlockedRoomMember(supabase, room.id, user.id)) return json({ error: 'لا يمكن الانضمام إلى غرفة تضم مستخدمًا محظورًا.' }, 403);
 
       const { count } = await supabase
         .from('room_participants')
@@ -232,6 +245,7 @@ serve(async (req) => {
       const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
       if (!room) return json({ error: 'Room not found' }, 404);
       if (room.host_id !== user.id) return json({ error: 'Only host' }, 403);
+      if (await hasBlockedRoomMember(supabase, roomId, user.id)) return json({ error: 'أزل المشاركين المرتبطين بحظر قبل بدء البث.' }, 403);
 
       await supabase
         .from('rooms')
@@ -268,6 +282,7 @@ serve(async (req) => {
       if (!membership && room.host_id !== user.id) {
         return json({ error: 'Not a room participant' }, 403);
       }
+      if (await hasBlockedRoomMember(supabase, roomId, user.id)) return json({ error: 'لا يمكن إصدار رمز صوت داخل غرفة تضم مستخدمًا محظورًا.' }, 403);
 
       const isHost = room.host_id === user.id || membership?.is_host === true;
   const canPublish = isHost; // client cannot escalate publish rights
