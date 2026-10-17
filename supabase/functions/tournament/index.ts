@@ -154,7 +154,7 @@ serve(async (req) => {
 
     if (action === 'generate_bracket') {
       // admin gate generate_bracket
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -169,7 +169,7 @@ serve(async (req) => {
 
     if (action === 'report_result') {
       // admin gate report_result
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      // Non-admin result reporters are checked against match participants below.
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -269,7 +269,7 @@ serve(async (req) => {
 
     if (action === 'finalize') {
       // admin gate finalize
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -325,7 +325,7 @@ serve(async (req) => {
     }
     if (action === 'archive') {
       // admin gate archive
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
@@ -339,7 +339,7 @@ serve(async (req) => {
 
     if (action === 'create_next') {
       // admin gate create_next
-      if (!isTournamentAdmin(user.id) && action !== 'report_result') {
+      if (!isTournamentAdmin(user.id)) {
         return json({ error: 'Admin only', code: 'FORBIDDEN' }, 403);
       }
 
