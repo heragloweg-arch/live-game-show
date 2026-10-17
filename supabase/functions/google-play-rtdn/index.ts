@@ -115,16 +115,19 @@ serve(async (req) => {
   if (!Number.isFinite(expiryMs)) return json({ error: 'Play subscription expiry is missing' }, 503);
   const state = String(purchase.subscriptionState || '');
   const autoRenew = line.autoRenewingPlan?.autoRenewEnabled === true;
-  const acknowledgement = await acknowledgeSubscriptionPurchase(event.subscriptionId, event.purchaseToken, purchase);
-  if (!acknowledgement.ok) {
-    console.error('[google-play-rtdn] acknowledgement failed', acknowledgement.error || 'unknown');
-    return json({ error: 'Play purchase acknowledgement is pending; retry webhook' }, 503);
-  }
   let status: 'active' | 'grace' | 'expired' | 'cancelled';
   if (state === 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD' && expiryMs > Date.now()) status = 'grace';
   else if (expiryMs <= Date.now() || state === 'SUBSCRIPTION_STATE_EXPIRED') status = 'expired';
   else if (state === 'SUBSCRIPTION_STATE_ACTIVE' || state === 'SUBSCRIPTION_STATE_CANCELED') status = 'active';
   else status = 'cancelled';
+
+  if (status === 'active' || status === 'grace') {
+    const acknowledgement = await acknowledgeSubscriptionPurchase(event.subscriptionId, event.purchaseToken, purchase);
+    if (!acknowledgement.ok) {
+      console.error('[google-play-rtdn] acknowledgement failed', acknowledgement.error || 'unknown');
+      return json({ error: 'Play purchase acknowledgement is pending; retry webhook' }, 503);
+    }
+  }
 
   const { data: result, error: reconcileError } = await supabase.rpc('reconcile_google_play_subscription_atomic', {
     p_purchase_token: event.purchaseToken,
