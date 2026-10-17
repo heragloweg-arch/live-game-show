@@ -267,6 +267,15 @@ async function create1v1Match(supabase: any, user: any, opponentId: string, diff
   return json({ match: await buildMatchState(supabase, match.id) });
 }
 
+async function isBlockedPair(supabase: any, userId: string, otherUserId: string): Promise<boolean> {
+  const { data, error } = await supabase.from('user_blocks')
+    .select('blocker_id')
+    .or(`and(blocker_id.eq.${userId},blocked_id.eq.${otherUserId}),and(blocker_id.eq.${otherUserId},blocked_id.eq.${userId})`)
+    .limit(1);
+  if (error) throw new Error('Unable to validate user safety relationship');
+  return (data ?? []).length > 0;
+}
+
 async function createRematch(supabase: any, user: any, previousMatchId: string, difficulty = 'normal') {
   if (!previousMatchId) return json({ error: 'matchId required' }, 400);
   const { data: previous } = await supabase.from('matches').select('id, mode, status').eq('id', previousMatchId).single();
@@ -277,6 +286,7 @@ async function createRematch(supabase: any, user: any, previousMatchId: string, 
   if (!(participants ?? []).some((p: any) => p.user_id === user.id)) return json({ error: 'You were not a participant in this match' }, 403);
   const opponent = (participants ?? []).find((p: any) => p.user_id && p.user_id !== user.id && !p.is_ai);
   if (!opponent) return json({ error: 'Opponent is no longer available' }, 409);
+  if (await isBlockedPair(supabase, user.id, opponent.user_id)) return json({ error: 'لا يمكن بدء إعادة مباراة مع مستخدم محظور.' }, 403);
   return create1v1Match(supabase, user, opponent.user_id, difficulty);
 }
 
@@ -321,8 +331,9 @@ async function acceptMatchInvite(supabase: any, user: any, token: string) {
     return json({ error: 'انتهت صلاحية الدعوة' }, 400);
   }
   if (inv.from_user === user.id) return json({ error: 'لا تقبل دعوتك' }, 400);
+  if (await isBlockedPair(supabase, user.id, inv.from_user)) return json({ error: 'لا يمكن قبول دعوة بين مستخدمين محظورين.' }, 403);
 
-    const now = new Date().toISOString();
+  const now = new Date().toISOString();
   const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, inv.difficulty || 'normal');
   if (challenges.length < TOTAL_ROUNDS) return json({ error: 'Not enough challenges' }, 500);
 
@@ -374,6 +385,7 @@ async function createCoupleMatch(supabase: any, user: any, difficulty: string) {
   }
 
   const partnerId = couple.user_a === user.id ? couple.user_b : couple.user_a;
+  if (await isBlockedPair(supabase, user.id, partnerId)) return json({ error: 'لا يمكن بدء مباراة مع شريك محظور.' }, 403);
   const { data: me } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', user.id).single();
   const { data: partner } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', partnerId).single();
 
