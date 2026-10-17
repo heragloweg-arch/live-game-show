@@ -123,19 +123,16 @@ serve(async (req) => {
 
       if (!catalogItem) return json({ error: 'Unknown product' }, 400);
 
-      // Store receipt as pending. It must not become verified before Play API validation.
-      await supabase.from('purchase_receipts').upsert(
-        {
-          user_id: user.id,
-          product_id: productId,
-          purchase_token: purchaseToken,
-          order_id: orderId,
-          provider: 'google_play',
-          status: 'pending',
-          verified_at: null,
-        },
-        { onConflict: 'provider,purchase_token' }
-      );
+      // Atomically reserve token ownership before calling Google Play. A token cannot be claimed by another account.
+      const { data: reservation, error: reservationError } = await supabase.rpc('reserve_google_play_receipt_atomic', {
+        p_user_id: user.id,
+        p_product_id: productId,
+        p_purchase_token: purchaseToken,
+        p_order_id: orderId,
+      });
+      if (reservationError || reservation?.ok !== true) {
+        return json({ error: 'Purchase token is already linked or could not be reserved', code: 'PURCHASE_TOKEN_CONFLICT' }, 409);
+      }
 
       const hasGoogleCreds = !!(
         Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') &&
@@ -144,33 +141,22 @@ serve(async (req) => {
 
       if (hasGoogleCreds) {
         const verified = await verifySubscriptionPurchase(productId, purchaseToken);
-        if (!verified.ok) {
-          await supabase.from('purchase_receipts').upsert({
-            user_id: user.id,
-            product_id: productId,
-            purchase_token: purchaseToken,
-            order_id: orderId,
-            provider: 'google_play',
+        if (!verified.ok || !verified.expiryTimeMillis) {
+          await supabase.from('purchase_receipts').update({
             status: 'rejected',
             verified_at: new Date().toISOString(),
-          }, { onConflict: 'provider,purchase_token' });
-          return json({ error: verified.error || 'Play verification failed', code: 'PLAY_VERIFY_FAILED' }, 402);
+          }).eq('provider', 'google_play').eq('purchase_token', purchaseToken).eq('user_id', user.id);
+          return json({ error: verified.error || 'Play did not return a valid expiry time', code: 'PLAY_VERIFY_FAILED' }, 402);
         }
-        await supabase.from('purchase_receipts').upsert({
-          user_id: user.id,
-          product_id: productId,
-          purchase_token: purchaseToken,
-          order_id: orderId,
-          provider: 'google_play',
+        const { error: receiptUpdateError } = await supabase.from('purchase_receipts').update({
           status: 'verified',
           verified_at: new Date().toISOString(),
-        }, { onConflict: 'provider,purchase_token' });
-        // Prefer Play expiry when present
-        const result = await activatePlan(
+        }).eq('provider', 'google_play').eq('purchase_token', purchaseToken).eq('user_id', user.id);
+        if (receiptUpdateError) return json({ error: 'Verified receipt could not be recorded safely' }, 503);
+        return await activatePlan(
           supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
-          verified.expiryTimeMillis ? new Date(Number(verified.expiryTimeMillis)) : undefined
+          new Date(Number(verified.expiryTimeMillis))
         );
-        return result;
       }
 
       return json({
@@ -193,13 +179,21 @@ serve(async (req) => {
           .maybeSingle();
         if (!catalogItem) continue;
         if (Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') && Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')) {
+          const { data: reservation, error: reservationError } = await supabase.rpc('reserve_google_play_receipt_atomic', {
+            p_user_id: user.id, p_product_id: productId, p_purchase_token: purchaseToken, p_order_id: null,
+          });
+          if (reservationError || reservation?.ok !== true) continue;
           const verified = await verifySubscriptionPurchase(productId, purchaseToken);
-          if (!verified.ok) continue;
-          await activatePlan(
+          if (!verified.ok || !verified.expiryTimeMillis) continue;
+          const { error: receiptUpdateError } = await supabase.from('purchase_receipts').update({
+            status: 'verified', verified_at: new Date().toISOString(),
+          }).eq('provider', 'google_play').eq('purchase_token', purchaseToken).eq('user_id', user.id);
+          if (receiptUpdateError) continue;
+          const activated = await activatePlan(
             supabase, user.id, catalogItem.plan, productId, purchaseToken, 'google_play',
-            verified.expiryTimeMillis ? new Date(Number(verified.expiryTimeMillis)) : undefined
+            new Date(Number(verified.expiryTimeMillis))
           );
-          restored.push(catalogItem.plan);
+          if (activated.status >= 200 && activated.status < 300) restored.push(catalogItem.plan);
         }
       }
       return json({ ok: true, restored });
@@ -248,48 +242,29 @@ async function activatePlan(
   provider: string,
   expiresOverride?: Date
 ) {
-  const days = PLAN_DAYS[plan] ?? 30;
   const starts = new Date();
-  const expires = expiresOverride ?? new Date(starts.getTime() + days * 86400000);
-
-  // End previous active
-  await supabase
-    .from('user_subscriptions')
-    .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .eq('status', 'active');
-
-  const { data: sub, error } = await supabase
-    .from('user_subscriptions')
-    .insert({
-      user_id: userId,
-      plan,
-      status: 'active',
-      provider,
-      provider_token: token,
-      product_id: productId,
-      starts_at: starts.toISOString(),
-      expires_at: expires.toISOString(),
-      auto_renew: true,
-    })
-    .select()
-    .single();
-
-  if (error) return json({ error: error.message }, 500);
-
-  await supabase
-    .from('profiles')
-    .update({
-      subscription_plan: plan,
-      subscription_expires_at: expires.toISOString(),
-    })
-    .eq('id', userId);
-
+  const expires = expiresOverride ?? new Date(starts.getTime() + (PLAN_DAYS[plan] ?? 30) * 86400000);
+  if (provider === 'google_play' && (!expiresOverride || !Number.isFinite(expiresOverride.getTime()) || expiresOverride.getTime() <= Date.now())) {
+    return json({ error: 'Google Play must provide a future verified expiry time' }, 402);
+  }
+  const { data, error } = await supabase.rpc('activate_subscription_atomic', {
+    p_user_id: userId,
+    p_plan: plan,
+    p_product_id: productId,
+    p_purchase_token: token,
+    p_provider: provider,
+    p_expires_at: expires.toISOString(),
+    p_auto_renew: true,
+  });
+  if (error || !data?.id) {
+    console.error('[subscription] atomic activation failed', error?.message ?? 'No subscription returned');
+    return json({ error: 'Subscription activation could not be completed safely' }, 503);
+  }
   return json({
     ok: true,
-    plan,
-    status: 'active',
-    expiresAt: expires.toISOString(),
-    subscription: sub,
+    plan: data.plan,
+    status: data.status,
+    expiresAt: data.expires_at,
+    subscription: data,
   });
 }
