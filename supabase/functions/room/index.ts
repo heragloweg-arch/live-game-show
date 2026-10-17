@@ -82,28 +82,32 @@ async function assertHost(supabase: any, roomId: string, userId: string) {
   if (!room) throw new Error('Room not found');
   if (room.host_id !== userId) throw new Error('Only host can do this');
   if (room.status === 'ended') throw new Error('Room ended');
+  const access = await isRoomParticipant(supabase, roomId, userId);
+  if (!access.allowed) throw new Error('Room safety check failed or membership unavailable');
   return room;
 }
 
 async function isRoomParticipant(supabase: any, roomId: string, userId: string) {
-  const { data: room } = await supabase
-    .from('rooms')
-    .select('host_id')
-    .eq('id', roomId)
-    .maybeSingle();
-  if (!room) return { exists: false, allowed: false };
+  const { data: room, error: roomError } = await supabase.from('rooms').select('host_id').eq('id', roomId).maybeSingle();
+  if (roomError || !room) return { exists: false, allowed: false };
+  const { data: participant, error: participantError } = await supabase.from('room_participants')
+    .select('user_id').eq('room_id', roomId).eq('user_id', userId).maybeSingle();
+  if (participantError) return { exists: true, allowed: false };
+  if (!isRoomMember(userId, room.host_id, participant?.user_id)) return { exists: true, allowed: false };
 
-  const { data: participant } = await supabase
-    .from('room_participants')
-    .select('user_id')
-    .eq('room_id', roomId)
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  return {
-    exists: true,
-    allowed: isRoomMember(userId, room.host_id, participant?.user_id),
-  };
+  const { data: members, error: membersError } = await supabase.from('room_participants')
+    .select('user_id').eq('room_id', roomId).neq('user_id', userId);
+  if (membersError) return { exists: true, allowed: false };
+  const otherIds = new Set((members ?? []).map((row: any) => String(row.user_id)));
+  if (!otherIds.size) return { exists: true, allowed: true };
+  const { data: blocks, error: blocksError } = await supabase.from('user_blocks')
+    .select('blocker_id,blocked_id').or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
+  if (blocksError) return { exists: true, allowed: false };
+  const hasBlockedPeer = (blocks ?? []).some((row: any) => {
+    const peer = String(row.blocker_id) === userId ? String(row.blocked_id) : String(row.blocker_id);
+    return otherIds.has(peer);
+  });
+  return { exists: true, allowed: !hasBlockedPeer };
 }
 
 async function startChallenge(supabase: any, userId: string, roomId: string) {
