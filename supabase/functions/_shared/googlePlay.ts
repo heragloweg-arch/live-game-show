@@ -129,3 +129,36 @@ export async function verifySubscriptionPurchase(
     return { ok: false, error: String(e) };
   }
 }
+
+
+export interface PlaySubscriptionV2Result {
+  ok: boolean;
+  error?: string;
+  purchase?: Record<string, unknown>;
+}
+
+/** Fetch authoritative current subscription state for RTDN reconciliation. */
+export async function getSubscriptionPurchaseV2(purchaseToken: string): Promise<PlaySubscriptionV2Result> {
+  const packageName = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
+  const saRaw = Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
+  if (!packageName || !saRaw) return { ok: false, error: 'Google Play server credentials are not configured' };
+  let sa: { client_email: string; private_key: string };
+  try { sa = JSON.parse(saRaw); }
+  catch { return { ok: false, error: 'Invalid Google Play service-account JSON' }; }
+  try {
+    const token = await getAccessToken(sa);
+    const endpoint = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'
+      + encodeURIComponent(packageName) + '/purchases/subscriptionsv2/tokens/' + encodeURIComponent(purchaseToken);
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      return { ok: false, error: typeof body?.error?.message === 'string' ? body.error.message : `Play API ${response.status}` };
+    }
+    return { ok: true, purchase: body as Record<string, unknown> };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Google Play API request failed' };
+  }
+}
