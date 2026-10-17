@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor } from 'lucide-react';
+import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor, Flag, Ban } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { updateProfile, fetchMatchHistory, fetchRecentOpponents, type RecentOpponent, type MatchHistoryRecord } from '../../services/profile/profileApi';
@@ -10,6 +10,7 @@ import { cn } from '../../utils/cn';
 import { bestTitle } from '../../services/cosmetics/titles';
 import { BottomAdBanner } from '../../components/ads/BottomAdBanner';
 import { useThemeStore, type ThemeMode } from '../../store/themeStore';
+import { blockUser, reportUser } from '../../services/api/safetyApi';
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -23,6 +24,8 @@ export function ProfileScreen() {
   const [opponents, setOpponents] = useState<RecentOpponent[]>([]);
   const [rematching, setRematching] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [safetyBusy, setSafetyBusy] = useState<string | null>(null);
+  const [safetyMessage, setSafetyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void loadWallet();
@@ -47,6 +50,35 @@ export function ProfileScreen() {
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'تعذر بدء الإعادة');
     } finally { setRematching(null); }
+  };
+
+  const reportOpponent = async (opponent: RecentOpponent) => {
+    const details = window.prompt(`سبب الإبلاغ عن ${opponent.displayName} (اختياري):`, '');
+    if (details === null) return;
+    setSafetyBusy(opponent.userId); setSafetyMessage(null);
+    try {
+      await reportUser(opponent.userId, 'other', details.trim());
+      setSafetyMessage('تم إرسال البلاغ للمراجعة. شكرًا لمساعدتنا في الحفاظ على مجتمع آمن.');
+    } catch (e) { setSafetyMessage(e instanceof Error ? e.message : 'تعذر إرسال البلاغ.'); }
+    finally { setSafetyBusy(null); }
+  };
+
+  const blockOpponent = async (opponent: RecentOpponent) => {
+    if (!window.confirm(`هل تريد حظر ${opponent.displayName}؟ سيمنع الحظر التفاعلات اللاحقة، وستتم محاولة إخراجه من غرف الصوت المشتركة الحالية.`)) return;
+    setSafetyBusy(opponent.userId); setSafetyMessage(null);
+    try {
+      const result = await blockUser(opponent.userId);
+      const kick = result.liveKitKick;
+      const voiceMessage = !kick || kick.status === 'not_configured'
+        ? ' لم يتأكد إخراجه من الصوت لأن إعداد LiveKit غير مكتمل.'
+        : kick.status === 'partial'
+          ? ` تمت محاولة إخراجه من ${kick.attempted} غرفة، ونجحت الإزالة من ${kick.removed}؛ يلزم التحقق من الغرف المتبقية.`
+          : kick.status === 'complete'
+            ? ` تمت إزالة مشاركته من ${kick.removed} غرفة صوت مشتركة.`
+            : ' لا توجد غرفة مشتركة نشطة تحتاج إلى الإزالة.';
+      setSafetyMessage(`تم حظر ${opponent.displayName}.${voiceMessage}`);
+    } catch (e) { setSafetyMessage(e instanceof Error ? e.message : 'تعذر حظر المستخدم.'); }
+    finally { setSafetyBusy(null); }
   };
 
   const save = async () => {
@@ -186,7 +218,7 @@ export function ProfileScreen() {
         )}
       </div>
 
-      {opponents.length > 0 && <div className="card mb-5 p-4"><div className="mb-3 flex items-center gap-2 text-sm font-medium"><Swords className="h-4 w-4 text-gold-400" />آخر المنافسين</div><div className="space-y-2">{opponents.map((opponent) => <div key={opponent.userId} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-400/15 font-bold text-violet-200">{opponent.displayName[0]}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{opponent.displayName}</p><p className="truncate text-[11px] text-white/35">@{opponent.username}</p></div><button type="button" onClick={() => void rematch(opponent)} disabled={rematching === opponent.userId} className="btn-secondary px-3 py-2 text-xs">{rematching === opponent.userId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'إعادة'}</button></div>)}</div></div>}
+      {opponents.length > 0 && <div className="card mb-5 p-4"><div className="mb-3 flex items-center gap-2 text-sm font-medium"><Swords className="h-4 w-4 text-gold-400" />آخر المنافسين</div><div className="space-y-2">{opponents.map((opponent) => <div key={opponent.userId} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-400/15 font-bold text-violet-200">{opponent.displayName[0]}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{opponent.displayName}</p><p className="truncate text-[11px] text-white/35">@{opponent.username}</p></div><button type="button" onClick={() => void rematch(opponent)} disabled={rematching === opponent.userId || safetyBusy === opponent.userId} className="btn-secondary px-3 py-2 text-xs">{rematching === opponent.userId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'إعادة'}</button><button type="button" aria-label={`الإبلاغ عن ${opponent.displayName}`} onClick={() => void reportOpponent(opponent)} disabled={safetyBusy === opponent.userId} className="btn-ghost px-2 py-2 text-xs text-amber-300"><Flag className="h-4 w-4" /><span className="sr-only">إبلاغ</span></button><button type="button" aria-label={`حظر ${opponent.displayName}`} onClick={() => void blockOpponent(opponent)} disabled={safetyBusy === opponent.userId} className="btn-ghost px-2 py-2 text-xs text-red-300"><Ban className="h-4 w-4" /><span className="sr-only">حظر</span></button></div>)}</div>{safetyMessage && <p role="status" className="mt-3 text-xs text-white/65">{safetyMessage}</p>}<p className="mt-2 text-[10px] leading-5 text-white/35">الإبلاغ يرسل الحالة للمراجعة. الحظر يمنع المسارات المدعومة على الخادم، وتُحاول الخدمة إزالة المستخدم المحظور من غرف الصوت المشتركة؛ يعتمد نجاح الإزالة الفورية على إعداد LiveKit وتحقق الخادم.</p></div>}
 
       <ThemePicker mode={themeMode} onChange={setThemeMode} />
 
