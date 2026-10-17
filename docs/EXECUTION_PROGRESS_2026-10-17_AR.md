@@ -7,13 +7,19 @@
 - أُنشئ الفرع `release/qaddaha-execution-2026-10-17` من `agent/room-challenge-readiness`.
 - أُضيف `.github/workflows/ci.yml` لتشغيل Node.js 22.22.0، وnpm ci، وtypecheck، وlint، وVitest، وVite build، وبوابة launch-config الساكنة، وبوابة إصدار المحتوى.
 - commit إضافة CI: `a43c57f93bd78277e932bba6f52872efd5a01fa3`.
-- لم تُسجل نتيجة تشغيل Actions لهذا commit عند الفحص؛ غياب السجل ليس دليل نجاح. يلزم التحقق من إعدادات Actions أو تشغيل workflow يدويًا من GitHub.
+- تشغيل CI على commit `2ab2d0a167ac3536831617a2ecda63692b7e08f1` نجح في: npm ci، typecheck، ESLint، Vitest، Vite build، launch-config static، content release، `npm audit --omit=dev --audit-level=high`، وDeno check لجميع Edge Function entrypoints واختبارات regression الخاصة بمتحقق الإجابات. سجل التشغيل: https://github.com/heragloweg-arch/live-game-show/actions/runs/38988603619.
 - لم تُعدّل `main` ولم تُحذف فروع.
 
 ## نتيجة مطابقة المصدر
 - المصدر المرفق Batch 7 يتضمن تغييرات ومهاجرات ليست موجودة كلها في فرع GitHub الحالي. لذلك لا يُعتبر الفرع الحالي نسخة كاملة من الحزمة المحلية.
 - يجب نقل التغييرات من الحزمة المعتمدة على دفعات قابلة للمراجعة، مع حل اختلافات المصدر بدل استبدال ملفات بعمياء.
 - توجد فروق معروفة في Supabase migration ledger مقابل ملفات المصدر؛ لا تُطبق migrations على الإنتاج قبل Staging والمطابقة.
+
+## ملاحظات الخدمات الحية — 17 أكتوبر 2026
+- Supabase migration ledger ما زال يعرض 27 migration فقط حتى `20260311000027_daily_letter_words`; لا تُطبق ملفات أحدث على الإنتاج قبل مطابقة schema والتاريخ.
+- Security Advisor: 8 جداول RLS مفعّل عليها دون policies (قد تكون default-deny ويجب مراجعة كل جدول)، و10 دوال SECURITY DEFINER قابلة للتنفيذ من أدوار العميل، و3 دوال ذات search_path متغير، وحماية كلمات المرور المسرّبة معطلة.
+- قائمة Edge Functions المنشورة لا تعرض `safety` أو `overlay`؛ لا يُفترض أن ميزات Batch 7 الخاصة بالبلاغات والحظر والطرد الفوري وOverlay مفعلة في الإنتاج.
+- لم تُطبق أي migrations ولم تُنشر وظائف جديدة إلى الإنتاج ضمن هذه الدفعة.
 
 ## بوابات الإصدار
 - المرحلة 0 — تثبيت المصدر وCI: PARTIAL.
