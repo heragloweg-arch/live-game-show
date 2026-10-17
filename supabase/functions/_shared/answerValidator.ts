@@ -33,10 +33,10 @@ export function inferOpenSpeedRules(prompt: string): {
   const p = prompt || '';
   const rules: ReturnType<typeof inferOpenSpeedRules> = {};
 
-  // Accept one Arabic letter or one English letter; keep the ranges separate.
-  const startM = p.match(/يبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يa-z])/i)
-    || p.match(/تبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يa-z])/i)
-    || p.match(/بحرف\s*([أ-ي])/);
+  // Arabic prompts may specify either an Arabic or Latin starting letter.
+  const startM = p.match(/يبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يA-Za-z])/i)
+    || p.match(/تبدأ\s*(?:ب(?:حرف)?|بحرف)\s*([أ-يA-Za-z])/i)
+    || p.match(/بحرف\s*([أ-يA-Za-z])/i);
   if (startM) rules.startsWith = normalizeArabic(startM[1]).charAt(0);
 
   const endM = p.match(/تنتهي\s*(?:ب(?:حرف)?|بحرف)?\s*([أ-ي])/i)
@@ -55,8 +55,8 @@ export function inferOpenSpeedRules(prompt: string): {
   return rules;
 }
 
-function onlyArabicLetters(s: string): string {
-  return normalizeArabic(s).replace(/[^ء-ي]/g, '');
+function onlyLetters(s: string): string {
+  return normalizeArabic(s).replace(/[^ء-يA-Za-z]/g, '');
 }
 
 export function validateOpenSpeed(
@@ -64,7 +64,7 @@ export function validateOpenSpeed(
   meta: ChallengeValidationMeta
 ): ValidateResult {
   const normalized = normalizeArabic(String(rawAnswer || ''));
-  const letters = onlyArabicLetters(normalized);
+  const letters = onlyLetters(normalized);
   if (letters.length < 2) {
     return { correct: false, method: 'open_rule', reason: 'too_short' };
   }
