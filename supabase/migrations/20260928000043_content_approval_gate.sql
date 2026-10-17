@@ -40,7 +40,7 @@ CREATE OR REPLACE FUNCTION public.approve_challenge_content(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_subtype TEXT;
