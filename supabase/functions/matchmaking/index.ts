@@ -72,50 +72,44 @@ function json(data: unknown, status = 200) {
 }
 
 async function joinQueue(supabase: any, user: any, difficulty: string, region: string) {
-  // Remove any existing queue entry
-  await supabase.from('matchmaking_queue').delete().eq('user_id', user.id);
+  const { error: clearError } = await supabase.from('matchmaking_queue').delete().eq('user_id', user.id);
+  if (clearError) return json({ error: 'تعذر تحديث طابور المطابقة بأمان.' }, 503);
 
-  // Try to find an opponent waiting
-  const { data: candidates } = await supabase
-    .from('matchmaking_queue')
-    .select('*')
-    .neq('user_id', user.id)
-    .eq('region', region)
-    .order('enqueued_at', { ascending: true })
-    .limit(5);
-
-  // Atomic claim with row lock (SKIP LOCKED) — prevents double-match race
   const { data: claimed, error: claimErr } = await supabase.rpc('claim_matchmaking_opponent', {
     p_user_id: user.id,
     p_region: region,
     p_difficulty: difficulty,
   });
-
   if (claimErr) {
-    console.error('[matchmaking] claim', claimErr);
-    // fallback to non-atomic path only if RPC missing
-  } else if (claimed) {
+    console.error('[matchmaking] atomic claim failed; fail closed', claimErr);
+    return json({ error: 'تعذر إتمام المطابقة بأمان. حاول مرة أخرى.' }, 503);
+  }
+
+  if (claimed) {
+    const { data: blockRows, error: blockError } = await supabase.from('user_blocks')
+      .select('blocker_id')
+      .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${claimed}),and(blocker_id.eq.${claimed},blocked_id.eq.${user.id})`)
+      .limit(1);
+    if (blockError || (blockRows ?? []).length > 0) {
+      const { error: restoreError } = await supabase.from('matchmaking_queue').upsert([
+        { user_id: user.id, difficulty, region, skill_mmr: 1000, status: 'queued' },
+        { user_id: claimed, difficulty, region, skill_mmr: 1000, status: 'queued' },
+      ], { onConflict: 'user_id' });
+      if (restoreError) console.error('[matchmaking] failed to restore queue after safety check', restoreError);
+      if (blockError || restoreError) return json({ error: 'تعذر التحقق من إعدادات الحظر؛ لم يتم إنشاء المباراة.' }, 503);
+      return json({ status: 'queued', message: 'تم تجاوز منافس غير متاح والبحث عن منافس آخر.' });
+    }
     const match = await create1v1(supabase, user.id, claimed);
     return json({ status: 'matched', match });
   }
 
-  if (!claimErr && candidates && candidates.length > 0) {
-    // Should not reach if RPC works; kept as soft fallback
-    const opponent = candidates[0];
-    await supabase.from('matchmaking_queue').delete().eq('user_id', user.id);
-    await supabase.from('matchmaking_queue').delete().eq('user_id', opponent.user_id);
-    const match = await create1v1(supabase, user.id, opponent.user_id);
-    return json({ status: 'matched', match });
+  const { error: enqueueError } = await supabase.from('matchmaking_queue').upsert({
+    user_id: user.id, difficulty, region, skill_mmr: 1000, status: 'queued',
+  }, { onConflict: 'user_id' });
+  if (enqueueError) {
+    console.error('[matchmaking] enqueue failed', enqueueError);
+    return json({ error: 'تعذر الانضمام إلى طابور المطابقة.' }, 503);
   }
-
-  // No opponent — enqueue
-  await supabase.from('matchmaking_queue').insert({
-    user_id: user.id,
-    difficulty,
-    region,
-    skill_mmr: 1000,
-  });
-
   return json({ status: 'queued', message: 'Waiting for opponent...' });
 }
 
@@ -125,6 +119,7 @@ async function checkStatus(supabase: any, userId: string) {
     .from('matchmaking_queue')
     .select('*')
     .eq('user_id', userId)
+    .eq('status', 'queued')
     .maybeSingle();
 
   if (queueRow) {
