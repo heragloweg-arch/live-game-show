@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, Mic, MicOff, Users, Play, Copy, Check,
-  Radio, Square, Loader2, Sparkles, Wifi, WifiOff,
+  Radio, Square, Loader2, Sparkles, Wifi, WifiOff, Link2,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import {
@@ -18,6 +18,7 @@ import {
 } from '../../components/host/HostShowDirector';
 import { track } from '../../services/analytics/events';
 import { startRoomRealtime } from '../../services/realtime/roomRealtime';
+import { createOverlayLink, revokeOverlayLink } from '../../services/api/overlayApi';
 
 type HostPhase = 'setup' | 'lobby' | 'live' | 'ended';
 
@@ -32,6 +33,11 @@ export function HostScreen() {
   const [err, setErr] = useState<string | null>(null);
   const activeRoomId = room?.id;
   const [showStage, setShowStage] = useState<ShowStage>('intro');
+  const [overlayId, setOverlayId] = useState<string | null>(null);
+  const [overlayUrl, setOverlayUrl] = useState<string | null>(null);
+  const [overlayExpiresAt, setOverlayExpiresAt] = useState<string | null>(null);
+  const [overlayBusy, setOverlayBusy] = useState(false);
+  const [overlayError, setOverlayError] = useState<string | null>(null);
 
   const voice = useLiveKitRoom();
 
@@ -65,6 +71,34 @@ export function HostScreen() {
   }, [phase, activeRoomId, refreshMembers]);
 
   // Soft gate: warn in UI; hard gate when server REQUIRE_HOST_PRO=true
+
+  const handleCreateOverlay = async () => {
+    if (!room) return;
+    setOverlayBusy(true); setOverlayError(null);
+    try {
+      const result = await createOverlayLink(room.id);
+      setOverlayId(result.overlayId);
+      setOverlayUrl(new URL('/overlay/' + result.token, window.location.origin).toString());
+      setOverlayExpiresAt(result.expiresAt);
+    } catch (e) { setOverlayError(e instanceof Error ? e.message : 'تعذر إنشاء رابط OBS.'); }
+    finally { setOverlayBusy(false); }
+  };
+
+  const handleCopyOverlay = async () => {
+    if (!overlayUrl) return;
+    try { await navigator.clipboard.writeText(overlayUrl); }
+    catch { setOverlayError('تعذر النسخ تلقائيًا؛ حدّد الرابط وانسخه يدويًا.'); }
+  };
+
+  const handleRevokeOverlay = async () => {
+    if (!room || !overlayId || !window.confirm('إبطال رابط OBS الحالي؟ لن يتمكن أي شخص يستخدم الرابط من فتحه بعد الإبطال.')) return;
+    setOverlayBusy(true); setOverlayError(null);
+    try {
+      await revokeOverlayLink(room.id, overlayId);
+      setOverlayId(null); setOverlayUrl(null); setOverlayExpiresAt(null);
+    } catch (e) { setOverlayError(e instanceof Error ? e.message : 'تعذر إبطال رابط OBS.'); }
+    finally { setOverlayBusy(false); }
+  };
 
   const handleCreate = async () => {
     setBusy(true);
@@ -353,6 +387,14 @@ export function HostScreen() {
                 )}
               </div>
             </div>
+
+            {(phase === 'live' || phase === 'lobby') && room && (
+              <section className="card space-y-3 p-4">
+                <div className="flex items-center gap-2"><Link2 className="h-4 w-4 text-violet-300" /><div><h2 className="text-sm font-bold">رابط OBS / العرض المباشر</h2><p className="text-[10px] text-white/40">رابط قراءة فقط، صالح لمدة 7 أيام، ويمكن إبطاله في أي وقت.</p></div></div>
+                {!overlayUrl ? <button type="button" onClick={() => void handleCreateOverlay()} disabled={overlayBusy} className="btn-secondary w-full gap-2 py-3 text-sm">{overlayBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}إنشاء رابط OBS</button> : <div className="space-y-2"><div className="break-all rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-violet-200" dir="ltr">{overlayUrl}</div><div className="flex gap-2"><button type="button" onClick={() => void handleCopyOverlay()} className="btn-primary flex-1 py-2.5 text-xs">نسخ الرابط</button><a href={overlayUrl} target="_blank" rel="noreferrer" className="btn-secondary flex-1 py-2.5 text-center text-xs">معاينة</a><button type="button" onClick={() => void handleRevokeOverlay()} disabled={overlayBusy} className="btn-secondary px-3 py-2.5 text-xs text-red-300">إبطال</button></div>{overlayExpiresAt && <p className="text-[10px] text-white/35">ينتهي: {new Date(overlayExpiresAt).toLocaleString('ar')}</p>}</div>}
+                {overlayError && <p role="status" className="mt-2 text-xs text-red-300">{overlayError}</p>}
+              </section>
+            )}
 
             {/* Live challenges */}
             {(phase === 'live' || phase === 'lobby') && room && (
