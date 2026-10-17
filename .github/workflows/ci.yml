@@ -18,9 +18,9 @@ concurrency:
 
 jobs:
   web-quality-gates:
-    name: Typecheck, lint, tests, build, release configuration
+    name: Typecheck, lint, tests, build, release configuration, dependency audit
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,3 +53,35 @@ jobs:
 
       - name: Content release gate
         run: node scripts/verify-content-release.mjs
+
+      - name: Production dependency vulnerability audit
+        run: npm audit --omit=dev --audit-level=high
+
+  supabase-edge-typecheck:
+    name: Supabase Edge Function typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck Edge Function entrypoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(supabase/functions/*/index.ts)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No Supabase Edge Function entrypoints found" >&2
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            echo "::group::deno check $file"
+            deno check "$file"
+            echo "::endgroup::"
+          done
