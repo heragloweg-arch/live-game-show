@@ -40,16 +40,21 @@ BEGIN
   IF has_table_privilege('anon','public.profiles','SELECT') THEN
     RAISE EXCEPTION 'Anonymous clients can read private base profile rows';
   END IF;
-  IF NOT has_table_privilege('anon','public.public_profiles','SELECT')
-     OR NOT has_table_privilege('authenticated','public.public_profiles','SELECT') THEN
-    RAISE EXCEPTION 'Public profile allow-list view is not readable by client roles';
+  IF has_table_privilege('anon','public.profiles','SELECT') THEN
+    RAISE EXCEPTION 'Anonymous clients can read the base profiles table';
   END IF;
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='public_profiles'
-      AND column_name IN ('coins','subscription_plan','subscription_expires_at','onboarding_done')
+  IF NOT has_function_privilege('anon','public.get_public_profiles(uuid[],integer)','EXECUTE')
+     OR NOT has_function_privilege('authenticated','public.get_public_profiles(uuid[],integer)','EXECUTE') THEN
+    RAISE EXCEPTION 'Public profile allow-list RPC is not executable by client roles';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND p.proname='get_public_profiles'
+      AND p.prosecdef
+      AND EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig,ARRAY[]::text[])) AS setting(value)
+                  WHERE setting.value='search_path=pg_catalog, public, pg_temp')
   ) THEN
-    RAISE EXCEPTION 'Public profile view exposes private economy/subscription columns';
+    RAISE EXCEPTION 'Public profile RPC is not SECURITY DEFINER with pinned search_path';
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_policies
