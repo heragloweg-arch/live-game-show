@@ -37,6 +37,28 @@ BEGIN
     RAISE EXCEPTION 'Client role can execute internal room membership helper';
   END IF;
 
+  IF has_table_privilege('anon','public.profiles','SELECT') THEN
+    RAISE EXCEPTION 'Anonymous clients can read private base profile rows';
+  END IF;
+  IF NOT has_table_privilege('anon','public.public_profiles','SELECT')
+     OR NOT has_table_privilege('authenticated','public.public_profiles','SELECT') THEN
+    RAISE EXCEPTION 'Public profile allow-list view is not readable by client roles';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='public_profiles'
+      AND column_name IN ('coins','subscription_plan','subscription_expires_at','onboarding_done')
+  ) THEN
+    RAISE EXCEPTION 'Public profile view exposes private economy/subscription columns';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname='public' AND tablename='profiles'
+      AND policyname='profiles_select_public_basic'
+  ) THEN
+    RAISE EXCEPTION 'Broad public profile SELECT policy still exists';
+  END IF;
+
   SELECT count(*) INTO bad_count
   FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
   WHERE n.nspname IN ('public','private') AND p.prosecdef
