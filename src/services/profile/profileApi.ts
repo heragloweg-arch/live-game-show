@@ -210,8 +210,18 @@ export async function fetchRecentOpponents(userId: string, limit = 5): Promise<R
   });
   if (profilesError) return [];
 
-  const publicProfiles = (profiles ?? []) as unknown as PublicProfileRow[];
-  const profileById = new Map<string, PublicProfileRow>(publicProfiles.map((profile) => [profile.id, profile]));
+  // The generated Supabase client may infer an empty object for an RPC whose
+  // return type is not present in the generated schema. Validate the array
+  // boundary and keep the row type explicit instead of allowing implicit any.
+  const publicProfiles: PublicProfileRow[] = Array.isArray(profiles)
+    ? (profiles as unknown as PublicProfileRow[])
+    : [];
+  const profileById = new Map<string, PublicProfileRow>();
+  for (const publicProfile of publicProfiles) {
+    if (publicProfile && typeof publicProfile.id === 'string') {
+      profileById.set(publicProfile.id, publicProfile);
+    }
+  }
   const seen = new Set<string>();
   const result: RecentOpponent[] = [];
   for (const row of others) {
