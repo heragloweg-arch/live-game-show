@@ -100,7 +100,7 @@
 - إضافة `supabase/functions/tiktok/index.ts` لتدفق Login Kit الرسمي.
 - `state` أحادي الاستخدام بمدة 10 دقائق لمقاومة CSRF.
 - حفظ access/refresh tokens في `tiktok_connections` الخادمية فقط.
-- `tiktok_oauth_states` و` tiktok_connections` مع RLS ومنح service role فقط.
+- `tiktok_connections` و`tiktok_oauth_states` مع RLS ومنح service role فقط.
 - بطاقة ربط وفصل TikTok داخل لوحة الحساب.
 - ربط اختياري للغرفة بحساب TikTok موثق من الخادم.
 - ضبط `TIKTOK_APP_ORIGIN` كأصل مستقل لرسالة العودة إلى popup؛ لا يتم افتراض أن أصل Supabase هو أصل التطبيق.
@@ -166,4 +166,9 @@
 
 ## الحزمة
 
-ستُنشأ الحزمة من هذا المستودع بعد commit تقرير التسليم النهائي، وتضم المصدر و`dist` وmanifest وchecksum، مع استبعاد `node_modules` و`.git` وأي `.env` حقيقي أو secret. وجود الحزمة أو نجاح البناء لا يعني أن الخدمات الخارجية مفعلة.
+أُنشئت الحزمة التالية من آخر commit مع المصدر و`dist` وmanifest وchecksum، مع استبعاد `node_modules` و`.git` وأي `.env` حقيقي أو secret:
+
+- `Qaddaha-Final-Source-Package-2026-10-18.zip`
+- قيمة SHA-256 النهائية موجودة في الملف المجاور للحزمة بالامتداد `.sha256`، وتُحسب بعد آخر commit دون إدخال checksum داخل محتوى الحزمة لتجنب حلقة ذاتية.
+
+وجود الحزمة أو نجاح البناء لا يعني أن الخدمات الخارجية مفعلة.
