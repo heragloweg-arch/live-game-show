@@ -128,12 +128,12 @@ export async function startRound(matchId: string): Promise<MatchState> {
   return data.match;
 }
 
-export async function nextRound(matchId: string): Promise<MatchState> {
-  const data = await invoke<{ match: MatchState }>('match', {
+export async function nextRound(matchId: string): Promise<MatchResponse> {
+  const data = await invoke<MatchResponse>('match', {
     action: 'next_round',
     matchId,
   });
-  return data.match;
+  return data;
 }
 
 export async function finishMatch(matchId: string): Promise<MatchResponse> {

@@ -10,7 +10,6 @@ import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
 import {
   assertMatchParticipant,
   assertMatchNotFinished,
-  canAdvanceRound,
 } from '../_shared/authz.ts';
 
 const TOTAL_ROUNDS = 5;
@@ -20,22 +19,6 @@ const WIN_XP = 50;
 const LOSS_XP = 20;
 
 const AI_ACCURACY: Record<string, number> = { easy: 0.45, normal: 0.68, hard: 0.88 };
-
-
-/** Team/multiplayer: never block forever — round ends when server_end_at passed */
-const FORCE_CLOSE_ON_TIMEOUT = true;
-
-async function closeActiveRoundIfExpired(supabase: any, matchId: string) {
-  const { data: round } = await supabase
-    .from('rounds')
-    .select('*')
-    .eq('match_id', matchId)
-    .eq('status', 'active')
-    .maybeSingle();
-  if (!round?.server_end_at) return;
-  if (new Date(round.server_end_at).getTime() > Date.now()) return;
-  await supabase.from('rounds').update({ status: 'finished', sequence: (round.sequence || 0) + 1 }).eq('id', round.id);
-}
 
 serve(async (req) => {
   const cors = handleCors(req);
@@ -82,8 +65,6 @@ serve(async (req) => {
       case 'start_round':
         return await startRound(supabase, body.matchId, user.id);
       case 'next_round':
-        if (FORCE_CLOSE_ON_TIMEOUT) await closeActiveRoundIfExpired(supabase, body.matchId || body.match_id);
-
         return await nextRound(supabase, body.matchId, user.id);
       case 'finish':
         return await finishMatch(supabase, body.matchId, user.id);
@@ -489,10 +470,10 @@ async function startRound(supabase: any, matchId: string, userId: string) {
   });
 }
 
-/** Apply AI points for the current round before advancing (solo only). */
-async function applyAiRoundScore(supabase: any, matchId: string, roundNumber: number) {
+/** Compute deterministic AI points; the advance RPC applies them idempotently. */
+async function calculateAiRoundScore(supabase: any, matchId: string, roundNumber: number): Promise<number> {
   const { data: match } = await supabase.from('matches').select('*').eq('id', matchId).single();
-  if (!match || (match.mode !== 'solo' && match.mode !== 'couple')) return;
+  if (!match || (match.mode !== 'solo' && match.mode !== 'couple')) return 0;
 
   const { data: ai } = await supabase
     .from('match_participants')
@@ -500,7 +481,7 @@ async function applyAiRoundScore(supabase: any, matchId: string, roundNumber: nu
     .eq('match_id', matchId)
     .eq('is_ai', true)
     .maybeSingle();
-  if (!ai) return;
+  if (!ai) return 0;
 
   const { data: round } = await supabase
     .from('rounds')
@@ -508,7 +489,7 @@ async function applyAiRoundScore(supabase: any, matchId: string, roundNumber: nu
     .eq('match_id', matchId)
     .eq('round_number', roundNumber)
     .maybeSingle();
-  if (!round) return;
+  if (!round) return 0;
 
   const difficulty = ai.ai_difficulty ?? match.difficulty ?? 'normal';
   const accuracy = AI_ACCURACY[difficulty] ?? 0.68;
@@ -527,12 +508,7 @@ async function applyAiRoundScore(supabase: any, matchId: string, roundNumber: nu
     config: DEFAULT_SCORING,
   });
 
-  if (score.total > 0) {
-    await supabase
-      .from('match_participants')
-      .update({ score: (ai.score ?? 0) + score.total })
-      .eq('id', ai.id);
-  }
+  return score.total;
 }
 
 async function nextRound(supabase: any, matchId: string, userId: string) {
@@ -543,55 +519,44 @@ async function nextRound(supabase: any, matchId: string, userId: string) {
   if (!notFin.ok) return json({ error: notFin.error }, notFin.status);
   const match = notFin.match;
 
-  const { data: round } = await supabase
-    .from('rounds')
-    .select('*')
-    .eq('match_id', matchId)
-    .eq('round_number', match.current_round)
-    .maybeSingle();
-  if (!round) return json({ error: 'Round not found' }, 404);
+  const aiScoreDelta = await calculateAiRoundScore(supabase, matchId, match.current_round);
+  const { data: result, error: advanceErr } = await supabase.rpc('advance_match_round', {
+    p_match_id: matchId,
+    p_expected_round: match.current_round,
+    p_ai_score_delta: aiScoreDelta,
+  });
+  if (advanceErr) {
+    console.error('[next_round] atomic advance', advanceErr);
+    return json({ error: 'تعذر تثبيت انتقال الجولة ذرياً، أعد المحاولة', code: 'ROUND_ADVANCE_UNAVAILABLE' }, 503);
+  }
 
-  // Gate: both humans answered OR time expired (solo: one answer)
-  const gate = await canAdvanceRound(supabase, matchId, round.id);
-  if (!gate.can) {
+  const row = Array.isArray(result) ? result[0] : result;
+  if (!row) return json({ error: 'تعذر قراءة نتيجة انتقال الجولة', code: 'ROUND_ADVANCE_EMPTY' }, 503);
+
+  if (!row.ok && row.code === 'ROUND_NOT_READY') {
     return json({
       error: 'لا يمكن الانتقال بعد — بانتظار الخصم أو انتهاء الوقت',
       code: 'ROUND_NOT_READY',
-      reason: gate.reason,
       match: await buildMatchState(supabase, matchId, userId),
     }, 409);
   }
 
-  // Close current round once
-  await applyAiRoundScore(supabase, matchId, match.current_round);
-  await supabase
-    .from('rounds')
-    .update({ status: 'finished' })
-    .eq('id', round.id)
-    .neq('status', 'finished');
-
-  const nextNum = match.current_round + 1;
-  if (nextNum > match.total_rounds) {
+  if (!row.ok && row.code === 'MATCH_FINISHED') {
     return await finishMatch(supabase, matchId, userId);
   }
 
-  const now = new Date().toISOString();
-  const { data: updated, error } = await supabase
-    .from('matches')
-    .update({
-      current_round: nextNum,
-      status: 'ROUND_STARTING',
-      sequence: (match.sequence ?? 0) + 1,
-      server_now: now,
-    })
-    .eq('id', matchId)
-    .eq('current_round', match.current_round) // optimistic concurrency
-    .select()
-    .maybeSingle();
+  if (!row.ok && ['STALE_ROUND', 'ROUND_ALREADY_FINISHED'].includes(String(row.code))) {
+    return json({
+      match: await buildMatchState(supabase, matchId, userId),
+      advanced: false,
+      alreadyAdvanced: true,
+    });
+  }
 
-  if (error) return json({ error: error.message }, 500);
-  // If concurrent next_round, still return current state
-  return json({ match: await buildMatchState(supabase, matchId, userId), advanced: !!updated });
+  if (!row.ok) return json({ error: 'لا يمكن الانتقال بهذه الحالة', code: row.code ?? 'ROUND_ADVANCE_REJECTED' }, 409);
+
+  if (row.code === 'MATCH_FINISHED') return await finishMatch(supabase, matchId, userId);
+  return json({ match: await buildMatchState(supabase, matchId, userId), advanced: true });
 }
 
 async function finishMatch(supabase: any, matchId: string, userId: string | null) {

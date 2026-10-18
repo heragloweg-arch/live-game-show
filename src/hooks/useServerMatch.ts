@@ -218,11 +218,12 @@ export function useServerMatch() {
 
     setError(null);
     try {
-      const next = await apiNextRound(current.matchId);
+      const nextResponse = await apiNextRound(current.matchId);
+      const next = nextResponse.match;
       setMatch(next);
 
       if (next.status === 'MATCH_FINISHED' || next.status === 'FINAL_RESULT') {
-        const settled = await apiFinishMatch(current.matchId);
+        const settled = nextResponse.rewards ? nextResponse : await apiFinishMatch(current.matchId);
         setMatch(settled.match);
         const applied = applyMatchRewards(settled.rewards);
         setLastRewards(applied ?? null);
