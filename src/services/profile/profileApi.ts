@@ -96,12 +96,10 @@ export async function updateProfile(
 }
 
 export async function fetchLeaderboard(limit = 20): Promise<UserProfile[]> {
-  const { data, error } = await supabase
-    .from('public_profiles')
-    .select('*')
-    .order('wins', { ascending: false })
-    .order('xp', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.rpc('get_public_profiles', {
+    p_ids: null,
+    p_limit: Math.min(Math.max(limit, 1), 100),
+  });
 
   if (error) {
     console.error('[profile] leaderboard', error.message);
@@ -190,10 +188,10 @@ export async function fetchRecentOpponents(userId: string, limit = 5): Promise<R
   if (othersError || !others?.length) return [];
 
   const opponentIds = [...new Set(others.map((row) => row.user_id))];
-  const { data: profiles, error: profilesError } = await supabase
-    .from('public_profiles')
-    .select('id, username, display_name, avatar_url')
-    .in('id', opponentIds);
+  const { data: profiles, error: profilesError } = await supabase.rpc('get_public_profiles', {
+    p_ids: opponentIds,
+    p_limit: Math.min(Math.max(opponentIds.length, 1), 100),
+  });
   if (profilesError) return [];
 
   const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
