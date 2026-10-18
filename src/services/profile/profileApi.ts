@@ -97,7 +97,7 @@ export async function updateProfile(
 
 export async function fetchLeaderboard(limit = 20): Promise<UserProfile[]> {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('public_profiles')
     .select('*')
     .order('wins', { ascending: false })
     .order('xp', { ascending: false })
@@ -176,20 +176,41 @@ export async function fetchRecentOpponents(userId: string, limit = 5): Promise<R
     .order('joined_at', { ascending: false })
     .limit(30);
   if (error) return [];
-  const matchIds = (mine ?? []).filter((row) => ['MATCH_FINISHED', 'FINAL_RESULT'].includes((row.matches as { status?: string } | null)?.status ?? '')).map((row) => row.match_id);
+
+  const matchIds = (mine ?? [])
+    .filter((row) => ['MATCH_FINISHED', 'FINAL_RESULT'].includes((row.matches as { status?: string } | null)?.status ?? ''))
+    .map((row) => row.match_id);
   if (!matchIds.length) return [];
-  const { data: others } = await supabase
+
+  const { data: others, error: othersError } = await supabase
     .from('match_participants')
-    .select('match_id, user_id, joined_at, profiles:user_id(id, username, display_name, avatar_url)')
+    .select('match_id, user_id, joined_at')
     .in('match_id', matchIds)
     .neq('user_id', userId);
+  if (othersError || !others?.length) return [];
+
+  const opponentIds = [...new Set(others.map((row) => row.user_id))];
+  const { data: profiles, error: profilesError } = await supabase
+    .from('public_profiles')
+    .select('id, username, display_name, avatar_url')
+    .in('id', opponentIds);
+  if (profilesError) return [];
+
+  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
   const seen = new Set<string>();
   const result: RecentOpponent[] = [];
-  for (const row of others ?? []) {
-    const profile = row.profiles as { id?: string; username?: string; display_name?: string; avatar_url?: string | null } | null;
-    if (!profile?.id || seen.has(profile.id)) continue;
+  for (const row of others) {
+    const profile = profileById.get(row.user_id);
+    if (!profile || seen.has(profile.id)) continue;
     seen.add(profile.id);
-    result.push({ userId: profile.id, username: profile.username ?? 'player', displayName: profile.display_name ?? 'لاعب قدها', avatarUrl: profile.avatar_url ?? null, lastMatchId: row.match_id, playedAt: row.joined_at });
+    result.push({
+      userId: profile.id,
+      username: profile.username ?? 'player',
+      displayName: profile.display_name ?? 'لاعب قدها',
+      avatarUrl: profile.avatar_url ?? null,
+      lastMatchId: row.match_id,
+      playedAt: row.joined_at,
+    });
     if (result.length >= limit) break;
   }
   return result;
