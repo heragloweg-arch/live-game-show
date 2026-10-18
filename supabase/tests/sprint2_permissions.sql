@@ -38,9 +38,6 @@ BEGIN
   END IF;
 
   IF has_table_privilege('anon','public.profiles','SELECT') THEN
-    RAISE EXCEPTION 'Anonymous clients can read private base profile rows';
-  END IF;
-  IF has_table_privilege('anon','public.profiles','SELECT') THEN
     RAISE EXCEPTION 'Anonymous clients can read the base profiles table';
   END IF;
   IF NOT has_function_privilege('anon','public.get_public_profiles(uuid[],integer)','EXECUTE')
