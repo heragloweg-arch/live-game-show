@@ -5,6 +5,22 @@
 import { supabase } from '../supabase/client';
 import type { UserProfile } from '../../types';
 
+interface PublicProfileRow {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+  level: number;
+  xp: number;
+  xp_to_next: number;
+  wins: number;
+  losses: number;
+  total_matches: number;
+  created_at: string;
+  is_creator: boolean;
+  creator_bio: string | null;
+}
+
 function mapRow(row: Record<string, unknown>): UserProfile {
   return {
     id: String(row.id),
@@ -194,7 +210,7 @@ export async function fetchRecentOpponents(userId: string, limit = 5): Promise<R
   });
   if (profilesError) return [];
 
-  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const publicProfiles = (profiles ?? []) as unknown as PublicProfileRow[];\n  const profileById = new Map<string, PublicProfileRow>(publicProfiles.map((profile) => [profile.id, profile]));
   const seen = new Set<string>();
   const result: RecentOpponent[] = [];
   for (const row of others) {
