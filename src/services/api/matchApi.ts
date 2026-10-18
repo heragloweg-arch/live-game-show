@@ -34,6 +34,18 @@ export interface MatchResponse {
   alreadySettled?: boolean;
 }
 
+export class MatchApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = 'MatchApiError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function getAccessToken(): Promise<string | null> {
   const {
     data: { session },
@@ -68,7 +80,11 @@ async function invoke<T>(fnName: string, body: Record<string, unknown>): Promise
   }
   if (!res.ok) {
     const msg = (data && (data.error || data.message)) || `Function ${fnName} failed (${res.status})`;
-    throw new Error(typeof msg === 'string' ? msg : `Function ${fnName} failed`);
+    throw new MatchApiError(
+      typeof msg === 'string' ? msg : `Function ${fnName} failed`,
+      res.status,
+      typeof data?.code === 'string' ? data.code : undefined
+    );
   }
   return data as T;
 }

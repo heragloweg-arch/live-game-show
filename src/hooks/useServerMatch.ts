@@ -15,6 +15,7 @@ import {
   submitAnswer as apiSubmitAnswer,
   getMatch,
   type MatchReward,
+  MatchApiError,
 } from '../services/api/matchApi';
 import { applyMatchRewards } from '../services/economy/matchSettlement';
 import { track } from '../services/analytics/events';
@@ -67,11 +68,12 @@ export function useServerMatch() {
       matchId,
       onState: (state) => {
         setMatch(state);
-        if (state.status === 'ROUND_ACTIVE') setAnswer('');
-      setPhase('playing');
-        if (state.status === 'ROUND_RESULT' || state.status === 'ANSWER_SUBMITTED') {
-          // keep playing until we explicitly show result after submit
+        if (state.status === 'ROUND_ACTIVE') {
+          setAnswer('');
+          setPhase('playing');
         }
+        // Preserve the local phase for ANSWER_SUBMITTED/ROUND_RESULT: the player may still be
+        // answering while the opponent submits, or may already be viewing the round result.
         if (
           state.status === 'MATCH_FINISHED' ||
           state.status === 'FINAL_RESULT'
@@ -214,6 +216,7 @@ export function useServerMatch() {
     const current = useMatchStore.getState().match;
     if (!current) return;
 
+    setError(null);
     try {
       const next = await apiNextRound(current.matchId);
       setMatch(next);
@@ -235,6 +238,18 @@ export function useServerMatch() {
       setPhase('playing');
       startLocalCountdown();
     } catch (e) {
+      if (e instanceof MatchApiError && e.code === 'ROUND_NOT_READY') {
+        try {
+          const refreshed = await getMatch(current.matchId);
+          setMatch(refreshed);
+          setError('بانتظار الخصم أو انتهاء الوقت — يمكنك المحاولة مرة أخرى.');
+          setPhase('round_result');
+        } catch (refreshError) {
+          setError(refreshError instanceof Error ? refreshError.message : String(refreshError));
+          setPhase('error');
+        }
+        return;
+      }
       setError(e instanceof Error ? e.message : String(e));
       setPhase('error');
     }

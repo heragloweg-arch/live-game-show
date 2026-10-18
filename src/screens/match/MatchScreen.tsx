@@ -330,6 +330,11 @@ export function MatchScreen() {
 
               {phase === 'round_result' && (
                 <div className="mt-2 text-center">
+                  {active.error && (
+                    <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      {active.error}
+                    </p>
+                  )}
                   <p
                     className={cn(
                       'mb-3 font-display text-2xl font-bold',
