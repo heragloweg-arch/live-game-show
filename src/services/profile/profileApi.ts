@@ -210,7 +210,8 @@ export async function fetchRecentOpponents(userId: string, limit = 5): Promise<R
   });
   if (profilesError) return [];
 
-  const publicProfiles = (profiles ?? []) as unknown as PublicProfileRow[];\n  const profileById = new Map<string, PublicProfileRow>(publicProfiles.map((profile) => [profile.id, profile]));
+  const publicProfiles = (profiles ?? []) as unknown as PublicProfileRow[];
+  const profileById = new Map<string, PublicProfileRow>(publicProfiles.map((profile) => [profile.id, profile]));
   const seen = new Set<string>();
   const result: RecentOpponent[] = [];
   for (const row of others) {
