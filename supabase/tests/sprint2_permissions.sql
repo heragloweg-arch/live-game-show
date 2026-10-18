@@ -40,7 +40,7 @@ BEGIN
   SELECT count(*) INTO bad_count
   FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
   WHERE n.nspname IN ('public','private') AND p.prosecdef
-    AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) cfg WHERE cfg LIKE 'search_path=%');
+    AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(p.proconfig, ARRAY[]::text[])) AS setting(value) WHERE setting.value LIKE 'search_path=%');
   IF bad_count <> 0 THEN
     RAISE EXCEPTION '% SECURITY DEFINER functions lack a pinned search_path', bad_count;
   END IF;
