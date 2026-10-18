@@ -1,6 +1,6 @@
 /**
  * Subscriptions & Billing verification
- * actions: catalog | status | verify_google | activate_dev | cancel
+ * actions: catalog | coin_catalog | status | verify_google | verify_google_coin | activate_dev | cancel
  *
  * Production: verify_google should call Google Play Developer API.
  * activate_dev is only for staging when VITE/ALLOW_DEV_BILLING is set server-side.
@@ -9,7 +9,12 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { verifySubscriptionPurchase, acknowledgeSubscriptionPurchase } from '../_shared/googlePlay.ts';
+import {
+  verifySubscriptionPurchase,
+  acknowledgeSubscriptionPurchase,
+  verifyProductPurchase,
+  acknowledgeProductPurchase,
+} from '../_shared/googlePlay.ts';
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -53,6 +58,16 @@ serve(async (req) => {
         .order('price_micros');
       if (error) return json({ error: error.message }, 500);
       return json({ catalog: data });
+    }
+
+    if (action === 'coin_catalog') {
+      const { data, error } = await supabase
+        .from('coin_catalog')
+        .select('pack_id, title, coins, price_micros, currency, google_product_id')
+        .eq('active', true)
+        .order('price_micros');
+      if (error) return json({ error: error.message }, 500);
+      return json({ catalog: data ?? [] });
     }
 
     if (action === 'status') {
@@ -171,6 +186,49 @@ serve(async (req) => {
       return json({
         code: 'PLAY_VERIFY_REQUIRED',
       }, 503);
+    }
+
+    if (action === 'verify_google_coin') {
+      const packId = String(body.packId ?? '');
+      const productId = String(body.productId ?? '');
+      const purchaseToken = String(body.purchaseToken ?? '');
+      const clientOrderId = body.orderId ? String(body.orderId) : null;
+      if (!packId || !productId || !purchaseToken) return json({ error: 'packId, productId and purchaseToken required' }, 400);
+      const { data: pack } = await supabase
+        .from('coin_catalog')
+        .select('pack_id, google_product_id, active')
+        .eq('pack_id', packId)
+        .eq('google_product_id', productId)
+        .eq('active', true)
+        .maybeSingle();
+      if (!pack) return json({ error: 'Unknown coin pack' }, 400);
+      const hasGoogleCreds = !!(
+        Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') &&
+        Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')
+      );
+      if (!hasGoogleCreds) return json({ error: 'Google Play verification is not configured', code: 'PLAY_VERIFY_REQUIRED' }, 503);
+      const verified = await verifyProductPurchase(productId, purchaseToken);
+      if (!verified.ok) return json({ error: verified.error ?? 'Play product verification failed', code: 'PLAY_VERIFY_FAILED' }, 402);
+      const { data: grant, error: grantError } = await supabase.rpc('grant_coin_purchase_atomic', {
+        p_user_id: user.id,
+        p_pack_id: packId,
+        p_product_id: productId,
+        p_purchase_token: purchaseToken,
+        p_order_id: verified.orderId ?? clientOrderId,
+      });
+      if (grantError) {
+        if (grantError.message.includes('PURCHASE_TOKEN_CONFLICT')) return json({ error: 'Purchase token is already linked to another account', code: 'PURCHASE_TOKEN_CONFLICT' }, 409);
+        return json({ error: 'Coin purchase could not be recorded safely', code: 'COIN_GRANT_FAILED' }, 503);
+      }
+      const acknowledgement = await acknowledgeProductPurchase(productId, purchaseToken);
+      if (!acknowledgement.ok) console.error('[subscription] coin acknowledgement pending', acknowledgement.error || 'unknown');
+      return json({
+        ok: true,
+        already: Boolean(grant?.already),
+        coins: Number(grant?.coins ?? 0),
+        awarded: Number(grant?.awarded ?? 0),
+        packId,
+      });
     }
 
     if (action === 'restore') {

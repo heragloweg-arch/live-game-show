@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor, Flag, Ban } from 'lucide-react';
+import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor, Flag, Ban, Link2, Unlink, Crown, WalletCards } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { updateProfile, fetchMatchHistory, fetchRecentOpponents, type RecentOpponent, type MatchHistoryRecord } from '../../services/profile/profileApi';
@@ -11,6 +11,11 @@ import { bestTitle } from '../../services/cosmetics/titles';
 import { BottomAdBanner } from '../../components/ads/BottomAdBanner';
 import { useThemeStore, type ThemeMode } from '../../store/themeStore';
 import { blockUser, reportUser } from '../../services/api/safetyApi';
+import { fetchLedger } from '../../services/economy/walletApi';
+import type { LedgerEntry } from '../../types/economy';
+import { fetchSubscriptionStatus } from '../../services/billing/subscriptionApi';
+import { fetchHostStatus, type HostStatus } from '../../services/livekit/voiceApi';
+import { disconnectTikTok, getTikTokStatus, startTikTokLink, type TikTokStatus } from '../../services/api/tiktokApi';
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -26,11 +31,36 @@ export function ProfileScreen() {
   const [err, setErr] = useState<string | null>(null);
   const [safetyBusy, setSafetyBusy] = useState<string | null>(null);
   const [safetyMessage, setSafetyMessage] = useState<string | null>(null);
+  const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string>('free');
+  const [hostStatus, setHostStatus] = useState<HostStatus | null>(null);
+  const [tiktok, setTikTok] = useState<TikTokStatus>({ connected: false, connection: null });
+  const [tiktokBusy, setTikTokBusy] = useState(false);
+  const [accountMessage, setAccountMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void loadWallet();
     void refreshProfile();
+    void fetchLedger(8).then(setLedger);
+    void fetchSubscriptionStatus().then((status) => setSubscriptionPlan(status.plan)).catch(() => undefined);
+    void fetchHostStatus().then(setHostStatus).catch(() => undefined);
+    void getTikTokStatus().then(setTikTok).catch(() => undefined);
   }, [loadWallet, refreshProfile]);
+
+  useEffect(() => {
+    const onTikTokMessage = (event: MessageEvent) => {
+      if (event.data?.source !== 'qaddaha:tiktok') return;
+      setTikTokBusy(false);
+      if (event.data.ok) {
+        setAccountMessage('تم ربط حساب TikTok بنجاح.');
+        void getTikTokStatus().then(setTikTok);
+      } else {
+        setAccountMessage(event.data.error ?? 'لم يكتمل ربط TikTok.');
+      }
+    };
+    window.addEventListener('message', onTikTokMessage);
+    return () => window.removeEventListener('message', onTikTokMessage);
+  }, []);
 
   useEffect(() => {
     setName(user?.displayName ?? '');
@@ -96,13 +126,36 @@ export function ProfileScreen() {
     }
   };
 
+  const connectTikTok = async () => {
+    setTikTokBusy(true); setAccountMessage(null);
+    try {
+      const authorizationUrl = await startTikTokLink();
+      const popup = window.open(authorizationUrl, 'qaddaha-tiktok-link', 'popup,width=520,height=720');
+      if (!popup) throw new Error('اسمح بالنوافذ المنبثقة لإكمال ربط TikTok.');
+    } catch (e) {
+      setTikTokBusy(false);
+      setAccountMessage(e instanceof Error ? e.message : 'تعذر بدء ربط TikTok.');
+    }
+  };
+
+  const unlinkTikTok = async () => {
+    if (!window.confirm('فصل حساب TikTok عن قدها؟')) return;
+    setTikTokBusy(true); setAccountMessage(null);
+    try {
+      await disconnectTikTok();
+      setTikTok({ connected: false, connection: null });
+      setAccountMessage('تم فصل حساب TikTok.');
+    } catch (e) { setAccountMessage(e instanceof Error ? e.message : 'تعذر فصل TikTok.'); }
+    finally { setTikTokBusy(false); }
+  };
+
   return (
     <div className="min-h-screen px-5 pb-10 pt-6">
       <header className="mb-8 flex items-center gap-3">
         <Link to="/home" className="btn-ghost -mr-2 p-2">
           <ArrowRight className="h-5 w-5" />
         </Link>
-        <h1 className="font-display text-2xl font-bold">الملف الشخصي</h1>
+        <h1 className="font-display text-2xl font-bold">لوحة حسابي</h1>
       </header>
 
       <div className="card mb-5 flex flex-col items-center gap-4 p-6">
@@ -182,6 +235,38 @@ export function ProfileScreen() {
         </div>
       </div>
 
+      <section className="card mb-5 space-y-4 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div><p className="eyebrow">بيانات الحساب</p><h2 className="mt-1 text-sm font-bold">الدخول والإمكانيات</h2></div>
+          <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[10px] text-emerald-200">حساب محمي</span>
+        </div>
+        <div className="grid gap-2 text-xs sm:grid-cols-2">
+          <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">البريد</span><strong className="mt-1 block truncate text-white/80">{user?.email ?? 'غير متاح'}</strong></div>
+          <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">طريقة التسجيل</span><strong className="mt-1 block text-white/80">{user?.authProvider === 'google' ? 'Google' : user?.authProvider === 'anonymous' ? 'جلسة مؤقتة' : 'البريد الإلكتروني'}</strong></div>
+          <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">الخطة</span><strong className="mt-1 block text-amber-100">{subscriptionPlan === 'host_pro' ? 'مضيف برو' : subscriptionPlan === 'plus_monthly' ? 'قدها بلس شهري' : subscriptionPlan === 'plus_yearly' ? 'قدها بلس سنوي' : 'مجاني'}</strong></div>
+          <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">تجربة المضيف</span><strong className="mt-1 block text-white/80">{hostStatus?.trialAvailable ? 'متاحة · 30 دقيقة' : 'استُخدمت'}</strong></div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/host" className="btn-secondary flex-1 gap-2 text-xs"><Crown className="h-4 w-4" />لوحة المضيف</Link>
+          <Link to="/subscription" className="btn-secondary flex-1 gap-2 text-xs"><Crown className="h-4 w-4" />الترقية</Link>
+          <Link to="/shop" className="btn-secondary flex-1 gap-2 text-xs"><WalletCards className="h-4 w-4" />شراء كوين</Link>
+        </div>
+      </section>
+
+      <section className="card mb-5 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-fuchsia-400/15 text-fuchsia-200"><Link2 className="h-5 w-5" /></div>
+          <div className="min-w-0 flex-1"><p className="eyebrow">Social connection</p><h2 className="font-bold">ربط TikTok</h2><p className="mt-1 text-xs text-white/45">ربط رسمي عبر Login Kit. نستخدم بيانات الحساب اللازمة فقط، ولا نتحكم في TikTok LIVE من دون صلاحية رسمية.</p></div>
+          {tiktok.connected ? <span className="rounded-full bg-emerald-400/10 px-2 py-1 text-[10px] text-emerald-200">مربوط</span> : <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/45">غير مربوط</span>}
+        </div>
+        {tiktok.connection && <p className="mt-3 rounded-xl bg-white/5 px-3 py-2 text-xs text-white/65">{tiktok.connection.display_name ?? 'حساب TikTok'} · جاهز للغرف المرتبطة</p>}
+        {accountMessage && <p role="status" className="mt-3 text-xs text-amber-100/80">{accountMessage}</p>}
+        <button type="button" onClick={() => void (tiktok.connected ? unlinkTikTok() : connectTikTok())} disabled={tiktokBusy} className={cn('mt-3 w-full gap-2 text-xs', tiktok.connected ? 'btn-secondary' : 'btn-primary')}>
+          {tiktokBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : tiktok.connected ? <Unlink className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+          {tiktokBusy ? 'جارٍ التنفيذ...' : tiktok.connected ? 'فصل TikTok' : 'ربط TikTok'}
+        </button>
+      </section>
+
       <div className="card mb-5 p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-medium">
           <History className="h-4 w-4 text-zatona-400" />
@@ -217,6 +302,11 @@ export function ProfileScreen() {
           </div>
         )}
       </div>
+
+      <section className="card mb-5 p-4">
+        <div className="mb-3 flex items-center gap-2 text-sm font-medium"><WalletCards className="h-4 w-4 text-amber-300" />سجل الكوين</div>
+        {ledger.length === 0 ? <p className="py-3 text-center text-xs text-white/35">لا توجد عمليات بعد</p> : <div className="space-y-2">{ledger.map((entry) => <div key={entry.id} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2 text-xs"><span className={cn('font-bold', entry.amount >= 0 ? 'text-emerald-200' : 'text-red-200')}>{entry.amount >= 0 ? '+' : ''}{entry.amount}</span><span className="flex-1 truncate text-white/60">{ledgerLabel(entry.type)}</span><span className="text-white/30">{new Date(entry.createdAt).toLocaleDateString('ar')}</span></div>)}</div>}
+      </section>
 
       {opponents.length > 0 && <div className="card mb-5 p-4"><div className="mb-3 flex items-center gap-2 text-sm font-medium"><Swords className="h-4 w-4 text-gold-400" />آخر المنافسين</div><div className="space-y-2">{opponents.map((opponent) => <div key={opponent.userId} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-400/15 font-bold text-violet-200">{opponent.displayName[0]}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{opponent.displayName}</p><p className="truncate text-[11px] text-white/35">@{opponent.username}</p></div><button type="button" onClick={() => void rematch(opponent)} disabled={rematching === opponent.userId || safetyBusy === opponent.userId} className="btn-secondary px-3 py-2 text-xs">{rematching === opponent.userId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'إعادة'}</button><button type="button" aria-label={`الإبلاغ عن ${opponent.displayName}`} onClick={() => void reportOpponent(opponent)} disabled={safetyBusy === opponent.userId} className="btn-ghost px-2 py-2 text-xs text-amber-300"><Flag className="h-4 w-4" /><span className="sr-only">إبلاغ</span></button><button type="button" aria-label={`حظر ${opponent.displayName}`} onClick={() => void blockOpponent(opponent)} disabled={safetyBusy === opponent.userId} className="btn-ghost px-2 py-2 text-xs text-red-300"><Ban className="h-4 w-4" /><span className="sr-only">حظر</span></button></div>)}</div>{safetyMessage && <p role="status" className="mt-3 text-xs text-white/65">{safetyMessage}</p>}<p className="mt-2 text-[10px] leading-5 text-white/35">الإبلاغ يرسل الحالة للمراجعة. الحظر يمنع المسارات المدعومة على الخادم، وتُحاول الخدمة إزالة المستخدم المحظور من غرف الصوت المشتركة؛ يعتمد نجاح الإزالة الفورية على إعداد LiveKit وتحقق الخادم.</p></div>}
 
@@ -255,4 +345,16 @@ function Stat({ label, value }: { label: string; value: number }) {
       <p className="text-xs text-white/45">{label}</p>
     </div>
   );
+}
+
+function ledgerLabel(type: string) {
+  const labels: Record<string, string> = {
+    match_reward: 'مكافأة مباراة',
+    daily_bonus: 'مكافأة يومية',
+    coin_purchase: 'شراء كوين',
+    host_room_charge: 'خصم استضافة',
+    ad_reward: 'مكافأة إعلان',
+    refund: 'استرداد',
+  };
+  return labels[type] ?? type;
 }

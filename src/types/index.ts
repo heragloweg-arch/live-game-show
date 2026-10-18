@@ -49,6 +49,8 @@ export type AnswerOutcome = 'correct' | 'wrong' | 'timeout' | 'invalid';
 
 export interface UserProfile {
   id: string;
+  email?: string | null;
+  authProvider?: string | null;
   username: string;
   displayName: string;
   avatarUrl: string | null;

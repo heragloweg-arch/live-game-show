@@ -35,6 +35,30 @@ export interface RoomInfo {
   title: string;
   status: 'waiting' | 'live' | 'ended';
   hostId: string;
+  accessMode?: 'trial' | 'subscription' | 'coins';
+  nextChargeAt?: string | null;
+  coinCost?: number;
+  intervalSeconds?: number;
+  socialProvider?: 'tiktok' | null;
+  socialAccountId?: string | null;
+  coins?: number;
+}
+
+export interface HostStatus {
+  trialAvailable: boolean;
+  trialMinutes: number;
+  coinCost: number;
+  intervalMinutes: number;
+  coins: number;
+  hostSubscription: boolean;
+  subscriptionExpiresAt: string | null;
+  tiktok: {
+    connected: boolean;
+    openId?: string;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+    connectedAt?: string;
+  };
 }
 
 export interface LiveKitCredentials {
@@ -59,6 +83,24 @@ export interface RoomParticipant {
 export async function createRoom(title: string): Promise<RoomInfo> {
   const data = await invoke<{ room: RoomInfo }>({ action: 'create_room', title });
   return data.room;
+}
+
+export async function createHostRoom(title: string, social?: { provider: 'tiktok'; accountId: string }): Promise<RoomInfo> {
+  const data = await invoke<{ room: RoomInfo }>({
+    action: 'create_room',
+    title,
+    socialProvider: social?.provider,
+    socialAccountId: social?.accountId,
+  });
+  return data.room;
+}
+
+export async function fetchHostStatus(): Promise<HostStatus> {
+  return invoke<HostStatus>({ action: 'host_status' });
+}
+
+export async function heartbeatHostRoom(roomId: string) {
+  return invoke<{ ok: boolean; billing: { active: boolean; reason?: string; charged?: number; next_charge_at?: string | null; coins?: number } }>({ action: 'host_heartbeat', roomId });
 }
 
 export async function joinRoom(code: string): Promise<RoomInfo> {

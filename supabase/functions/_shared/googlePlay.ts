@@ -184,3 +184,84 @@ export async function acknowledgeSubscriptionPurchase(
     return { ok: false, error: error instanceof Error ? error.message : 'Google Play acknowledgement failed' };
   }
 }
+
+export interface PlayProductVerifyResult {
+  ok: boolean;
+  error?: string;
+  purchaseState?: number;
+  acknowledgementState?: number;
+  orderId?: string;
+  raw?: Record<string, unknown>;
+}
+
+/** Verify a one-time in-app product purchase via Android Publisher API v3. */
+export async function verifyProductPurchase(
+  productId: string,
+  purchaseToken: string,
+): Promise<PlayProductVerifyResult> {
+  if (!productId || !purchaseToken || purchaseToken.length > 4096) {
+    return { ok: false, error: 'Invalid Google Play product details' };
+  }
+  const packageName = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
+  const saRaw = Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
+  if (!packageName || !saRaw) return { ok: false, error: 'Google Play server credentials are not configured' };
+  let sa: { client_email: string; private_key: string };
+  try { sa = JSON.parse(saRaw); }
+  catch { return { ok: false, error: 'Invalid Google Play service-account JSON' }; }
+  try {
+    const token = await getAccessToken(sa);
+    const endpoint = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'
+      + encodeURIComponent(packageName) + '/purchases/products/'
+      + encodeURIComponent(productId) + '/tokens/' + encodeURIComponent(purchaseToken);
+    const response = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    const body = await response.json();
+    if (!response.ok) {
+      return { ok: false, error: typeof body?.error?.message === 'string' ? body.error.message : `Play API ${response.status}` };
+    }
+    if (Number(body.purchaseState) !== 0) {
+      return { ok: false, error: 'Google Play product is not in a purchased state', raw: body };
+    }
+    return {
+      ok: true,
+      purchaseState: Number(body.purchaseState),
+      acknowledgementState: Number(body.acknowledgementState),
+      orderId: typeof body.orderId === 'string' ? body.orderId : undefined,
+      raw: body as Record<string, unknown>,
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Google Play product verification failed' };
+  }
+}
+
+/** Acknowledge a verified one-time product purchase. */
+export async function acknowledgeProductPurchase(
+  productId: string,
+  purchaseToken: string,
+): Promise<PlayAcknowledgeResult> {
+  const packageName = Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME');
+  const saRaw = Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON');
+  if (!packageName || !saRaw) return { ok: false, error: 'Google Play credentials are not configured' };
+  let sa: { client_email: string; private_key: string };
+  try { sa = JSON.parse(saRaw); }
+  catch { return { ok: false, error: 'Invalid Google Play service-account JSON' }; }
+  try {
+    const token = await getAccessToken(sa);
+    const endpoint = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/'
+      + encodeURIComponent(packageName) + '/purchases/products/'
+      + encodeURIComponent(productId) + '/tokens/' + encodeURIComponent(purchaseToken) + ':acknowledge';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (response.ok) return { ok: true };
+    const payload = await response.json().catch(() => ({}));
+    return { ok: false, error: typeof payload?.error?.message === 'string' ? payload.error.message : `Play acknowledgement API ${response.status}` };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : 'Google Play product acknowledgement failed' };
+  }
+}

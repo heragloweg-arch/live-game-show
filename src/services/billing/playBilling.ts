@@ -10,6 +10,7 @@ import {
   restorePurchases,
   type PlanId,
 } from './subscriptionApi';
+import { verifyGoogleCoinPurchase, type CoinPack } from './coinApi';
 import { track } from '../analytics/events';
 
 export interface PurchaseResult {
@@ -17,6 +18,13 @@ export interface PurchaseResult {
   message?: string;
   plan?: PlanId;
   expiresAt?: string;
+}
+
+export interface CoinPurchaseResult {
+  ok: boolean;
+  message?: string;
+  coins?: number;
+  awarded?: number;
 }
 
 const PRODUCT_BY_PLAN: Record<string, string> = {
@@ -137,6 +145,38 @@ export async function purchasePlan(plan: PlanId): Promise<PurchaseResult> {
     message:
       'الاشتراك عبر Google Play على تطبيق أندرويد فقط. للتجربة: VITE_ALLOW_DEV_BILLING=true مع ALLOW_DEV_BILLING على السيرفر.',
   };
+}
+
+export async function purchaseCoinPack(pack: CoinPack): Promise<CoinPurchaseResult> {
+  if (!Capacitor.isNativePlatform()) {
+    return { ok: false, message: 'شراء الكوين عبر Google Play على تطبيق أندرويد فقط.' };
+  }
+  const NP = await loadNativePurchases();
+  if (!NP?.purchaseProduct) return { ok: false, message: 'إضافة الشراء غير مثبتة. نفّذ npx cap sync android ثم أعد البناء.' };
+  try {
+    const purchase = await NP.purchaseProduct({
+      productIdentifier: pack.google_product_id,
+      productType: 'inapp',
+    });
+    const token = purchase?.purchaseToken || purchase?.transactionReceipt || purchase?.receipt || purchase?.token;
+    const orderId = purchase?.orderId || purchase?.transactionId;
+    if (!token) return { ok: false, message: 'لم يُرجع المتجر رمز شراء صالحًا.' };
+    const verified = await verifyGoogleCoinPurchase({
+      packId: pack.pack_id,
+      productId: pack.google_product_id,
+      purchaseToken: String(token),
+      orderId: orderId ? String(orderId) : undefined,
+    });
+    try {
+      if (NP.consumePurchase && token) await NP.consumePurchase({ purchaseToken: String(token) });
+      else if (NP.acknowledgePurchase && token) await NP.acknowledgePurchase({ purchaseToken: String(token) });
+    } catch { /* server acknowledgement remains authoritative */ }
+    return { ok: true, coins: verified.coins, awarded: verified.awarded };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/cancel/i.test(msg)) return { ok: false, message: 'تم إلغاء الشراء.' };
+    return { ok: false, message: msg };
+  }
 }
 
 export async function confirmNativePurchase(

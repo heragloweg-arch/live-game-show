@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowRight, Mic, MicOff, Users, Play, Copy, Check,
+  ArrowRight, Mic, MicOff, Users, Play, Copy, Check, Coins, Crown,
   Radio, Square, Loader2, Sparkles, Wifi, WifiOff, Link2,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import {
-  createRoom, goLive, endRoom, listParticipants,
+  createHostRoom, goLive, endRoom, listParticipants, fetchHostStatus, heartbeatHostRoom,
+  type HostStatus,
   type RoomInfo, type RoomParticipant,
 } from '../../services/livekit/voiceApi';
 import { useLiveKitRoom } from '../../hooks/useLiveKitRoom';
@@ -38,8 +39,11 @@ export function HostScreen() {
   const [overlayExpiresAt, setOverlayExpiresAt] = useState<string | null>(null);
   const [overlayBusy, setOverlayBusy] = useState(false);
   const [overlayError, setOverlayError] = useState<string | null>(null);
+  const [hostStatus, setHostStatus] = useState<HostStatus | null>(null);
+  const [linkTikTok, setLinkTikTok] = useState(false);
 
   const voice = useLiveKitRoom();
+  const disconnectVoice = voice.disconnect;
 
   const refreshMembers = useCallback(async () => {
     if (!room) return;
@@ -69,6 +73,28 @@ export function HostScreen() {
       };
     }
   }, [phase, activeRoomId, refreshMembers]);
+
+  useEffect(() => {
+    if (phase !== 'setup') return;
+    void fetchHostStatus().then(setHostStatus).catch((error) => setErr(error instanceof Error ? error.message : 'تعذر تحميل حالة الاستضافة.'));
+  }, [phase]);
+
+  useEffect(() => {
+    if (!activeRoomId || (phase !== 'lobby' && phase !== 'live')) return;
+    const check = async () => {
+      try {
+        const result = await heartbeatHostRoom(activeRoomId);
+        if (result.billing.next_charge_at) setRoom((previous) => previous ? { ...previous, nextChargeAt: result.billing.next_charge_at, coins: result.billing.coins } : previous);
+      } catch (error) {
+        setErr(error instanceof Error ? error.message : 'انتهت صلاحية الاستضافة.');
+        await disconnectVoice();
+        setPhase('ended');
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 30000);
+    return () => window.clearInterval(timer);
+  }, [activeRoomId, phase, disconnectVoice]);
 
   // Soft gate: warn in UI; hard gate when server REQUIRE_HOST_PRO=true
 
@@ -104,7 +130,11 @@ export function HostScreen() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await createRoom(title.trim() || 'تحدي قدها المباشر');
+      if (linkTikTok && !hostStatus?.tiktok.connected) throw new Error('اربط حساب TikTok أولاً أو أوقف خيار الربط الاجتماعي.');
+      const r = await createHostRoom(
+        title.trim() || 'تحدي قدها المباشر',
+        linkTikTok && hostStatus?.tiktok.openId ? { provider: 'tiktok', accountId: hostStatus.tiktok.openId } : undefined,
+      );
       setRoom(r);
       setPhase('lobby');
       track('host_create', { roomId: r.id });
@@ -253,6 +283,23 @@ export function HostScreen() {
                 placeholder="مثال: تحدي المعلومات العامة"
                 dir="rtl"
               />
+              {hostStatus && (
+                <div className="mb-5 space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs">
+                  <div className="flex items-center gap-2">
+                    {hostStatus.hostSubscription ? <Crown className="h-4 w-4 text-amber-300" /> : <Coins className="h-4 w-4 text-amber-300" />}
+                    <span className="font-semibold text-white/80">
+                      {hostStatus.hostSubscription ? 'مضيف برو: بدون خصم دوري' : hostStatus.trialAvailable ? 'تجربة مجانية: 30 دقيقة لمرة واحدة' : `الاستضافة: ${hostStatus.coinCost} كوين كل ${hostStatus.intervalMinutes} دقيقة`}
+                    </span>
+                  </div>
+                  <p className="text-white/45">الرصيد الحالي: {hostStatus.coins} كوين. الخصم يتم ذريًا على الخادم، وتتوقف الغرفة تلقائيًا عند انتهاء المدة أو الرصيد.</p>
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/8 bg-black/10 px-3 py-3">
+                    <input type="checkbox" checked={linkTikTok} onChange={(event) => setLinkTikTok(event.target.checked)} className="h-4 w-4 accent-fuchsia-400" />
+                    <span className="flex-1"><strong className="block text-white/80">ربط الغرفة بحساب TikTok</strong><small className="text-white/40">يضيف حسابك المصرح به إلى الغرفة لمشاركة الرابط. لا يدّعي هذا التحكم في TikTok LIVE.</small></span>
+                    <span className={cn('rounded-full px-2 py-1 text-[10px]', hostStatus.tiktok.connected ? 'bg-emerald-400/10 text-emerald-200' : 'bg-white/10 text-white/40')}>{hostStatus.tiktok.connected ? 'مربوط' : 'غير مربوط'}</span>
+                  </label>
+                  {!hostStatus.tiktok.connected && <Link to="/profile" className="inline-flex items-center gap-1 text-[11px] text-violet-200 underline">اربط TikTok من لوحة الحساب <Link2 className="h-3 w-3" /></Link>}
+                </div>
+              )}
               <button
                 onClick={handleCreate}
                 disabled={busy}
@@ -292,6 +339,13 @@ export function HostScreen() {
                   {room.code}
                 </p>
                 <p className="mt-2 text-sm text-white/40">{room.title}</p>
+                <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/55">
+                    {room.accessMode === 'trial' ? 'تجربة مجانية · 30 دقيقة' : room.accessMode === 'subscription' ? 'مضيف برو · بدون خصم' : `${room.coinCost ?? 50} كوين / 30 دقيقة`}
+                  </span>
+                  {room.nextChargeAt && <span className="rounded-full border border-amber-300/15 bg-amber-300/5 px-2.5 py-1 text-amber-100/70">المراجعة التالية {new Date(room.nextChargeAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}</span>}
+                  {room.socialProvider === 'tiktok' && <span className="rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-2.5 py-1 text-fuchsia-100">TikTok مربوط</span>}
+                </div>
               </div>
             </div>
 

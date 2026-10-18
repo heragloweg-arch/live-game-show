@@ -22,6 +22,14 @@ async function loadUserProfile(userId: string, meta?: { username?: string; displ
   return ensureProfile(userId, meta);
 }
 
+function withAccountMeta(profile: UserProfile, authUser: { email?: string; is_anonymous?: boolean; app_metadata?: Record<string, unknown>; identities?: Array<{ provider?: string }> }): UserProfile {
+  return {
+    ...profile,
+    email: authUser.email ?? null,
+    authProvider: authUser.is_anonymous ? 'anonymous' : String(authUser.app_metadata?.provider ?? authUser.identities?.[0]?.provider ?? 'email'),
+  };
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAnonymousSession: false,
@@ -42,7 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           username: session.user.user_metadata?.username,
           displayName: session.user.user_metadata?.display_name,
         });
-        set({ user: profile, isAnonymousSession: Boolean(session.user.is_anonymous), isAuthenticated: true, sessionLoading: false });
+        set({ user: withAccountMeta(profile, session.user), isAnonymousSession: Boolean(session.user.is_anonymous), isAuthenticated: true, sessionLoading: false });
       } else {
         set({ user: null, isAnonymousSession: false, isAuthenticated: false, sessionLoading: false });
       }
@@ -57,7 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error;
     if (data.user) {
       const profile = await loadUserProfile(data.user.id);
-      set({ user: profile, isAnonymousSession: true, isAuthenticated: true, sessionLoading: false });
+      set({ user: withAccountMeta(profile, data.user), isAnonymousSession: true, isAuthenticated: true, sessionLoading: false });
     }
   },
 
@@ -69,7 +77,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         username: data.user.user_metadata?.username,
         displayName: data.user.user_metadata?.display_name,
       });
-      set({ user: profile, isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
+      set({ user: withAccountMeta(profile, data.user), isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
     }
   },
 
@@ -85,7 +93,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (error) throw error;
     if (data.user && data.session) {
       const profile = await loadUserProfile(data.user.id, { displayName: displayName?.trim() });
-      set({ user: profile, isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
+      set({ user: withAccountMeta(profile, data.user), isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
     }
     return { needsEmailConfirmation: Boolean(data.user && !data.session) };
   },
@@ -107,7 +115,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const current = get().user;
     if (!current) return;
     const profile = await fetchProfile(current.id);
-    if (profile) set({ user: profile });
+    if (profile) {
+      const { data: { session } } = await supabase.auth.getSession();
+      set({ user: session?.user ? withAccountMeta(profile, session.user) : profile });
+    }
   },
 
   setUser: (user) => set({ user, isAuthenticated: !!user, isAnonymousSession: false }),

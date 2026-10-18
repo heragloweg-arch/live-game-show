@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Coins, Crown, Flame, Lock, Sparkles } from 'lucide-react';
 import { buyCosmetic, equipCosmetic, getCosmetics, type CosmeticItem } from '../../services/cosmetics/shopApi';
+import { fetchCoinCatalog, type CoinPack } from '../../services/billing/coinApi';
+import { purchaseCoinPack } from '../../services/billing/playBilling';
+import { formatPrice } from '../../services/billing/subscriptionApi';
 import { track } from '../../services/analytics/events';
 import { cn } from '../../utils/cn';
 import { BottomAdBanner } from '../../components/ads/BottomAdBanner';
@@ -16,12 +19,15 @@ export function ShopScreen() {
   const [filter, setFilter] = useState<CosmeticItem['kind'] | 'all' | 'owned' | 'equipped'>('all');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [coinPacks, setCoinPacks] = useState<CoinPack[]>([]);
+  const [coinBusy, setCoinBusy] = useState<string | null>(null);
 
   const load = async () => {
     try {
       const result = await getCosmetics();
       setItems(result.items); setCoins(result.coins);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'تعذر تحميل المتجر'); }
+    void fetchCoinCatalog().then((catalog) => setCoinPacks(catalog.catalog)).catch(() => setCoinPacks([]));
   };
   useEffect(() => { void load(); }, []);
   const visible = useMemo(() => filter === 'all' ? items : filter === 'owned' ? items.filter((x) => x.owned) : filter === 'equipped' ? items.filter((x) => x.equipped) : items.filter((x) => x.kind === filter), [filter, items]);
@@ -48,6 +54,19 @@ export function ShopScreen() {
     finally { setBusy(null); }
   };
 
+  const buyCoins = async (pack: CoinPack) => {
+    setCoinBusy(pack.pack_id); setMessage(null);
+    try {
+      const result = await purchaseCoinPack(pack);
+      if (result.ok) {
+        setCoins(result.coins ?? coins);
+        setMessage(`تمت إضافة ${result.awarded ?? pack.coins} كوين إلى حسابك.`);
+        track('shop_purchase', { productId: pack.google_product_id, coins: pack.coins });
+      } else setMessage(result.message ?? 'تعذر إتمام شراء الكوين.');
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'تعذر إتمام شراء الكوين.'); }
+    finally { setCoinBusy(null); }
+  };
+
   return <main className="screen-pad mx-auto min-h-screen max-w-2xl">
     <header className="mb-6 flex items-center gap-3">
       <Link to="/home" className="btn-ghost -mr-2 p-2" aria-label="العودة"><ArrowRight className="h-5 w-5" /></Link>
@@ -57,6 +76,11 @@ export function ShopScreen() {
     <section className="card-glow mb-5 p-5">
       <div className="relative z-10 flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300"><Crown className="h-7 w-7" /></div><div><p className="eyebrow">اقتصاد عادل</p><h2 className="font-display text-xl font-black">كل ما تشتريه تجميلي</h2><p className="mt-1 text-xs text-white/50">لا شراء لقوة أو إجابة أو وقت إضافي.</p></div></div>
     </section>
+    {coinPacks.length > 0 && <section className="mb-5 rounded-3xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+      <div className="mb-3 flex items-center justify-between"><div><p className="eyebrow">Google Play</p><h2 className="font-display text-xl font-black">اشحن رصيد الاستضافة</h2></div><Coins className="h-5 w-5 text-amber-300" /></div>
+      <p className="mb-4 text-xs leading-5 text-white/45">الكوين للاستخدامات التجميلية واستضافة الغرف فقط. كل عملية تُتحقق خادميًا وتُسجل مرة واحدة.</p>
+      <div className="grid gap-2 sm:grid-cols-3">{coinPacks.map((pack) => <article key={pack.pack_id} className="rounded-2xl border border-white/10 bg-black/10 p-3"><p className="text-sm font-bold text-white/80">{pack.title}</p><p className="mt-1 font-display text-2xl font-black text-amber-200">{pack.coins.toLocaleString('ar')}</p><p className="text-[10px] text-white/35">كوين</p><button type="button" onClick={() => void buyCoins(pack)} disabled={coinBusy === pack.pack_id} className="btn-gold mt-3 w-full text-xs">{coinBusy === pack.pack_id ? 'جارٍ التحقق...' : formatPrice(pack.price_micros, pack.currency)}</button></article>)}</div>
+    </section>}
     <div className="mb-5 flex gap-2 overflow-x-auto pb-1">{(['all', 'owned', 'equipped', 'frame', 'title', 'emote'] as const).map((key) => <button key={key} type="button" onClick={() => setFilter(key)} className={cn('chip whitespace-nowrap', filter === key && 'border-violet-300/40 bg-violet-500/20 text-white')}>{key === 'all' ? 'الكل' : key === 'owned' ? 'مملوك' : key === 'equipped' ? 'مجهز' : kindLabel[key]}</button>)}</div>
     {message && <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{message}</div>}
     <div className="grid gap-3 sm:grid-cols-2">{visible.map((item) => <article key={item.id} className={cn('card relative overflow-hidden p-4', item.equipped && 'border-emerald-300/40')}><div className="mb-4 flex items-start justify-between"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/25 to-amber-400/20 text-amber-200">{item.kind === 'title' ? <Crown className="h-6 w-6" /> : item.kind === 'emote' ? <Flame className="h-6 w-6" /> : <Sparkles className="h-6 w-6" />}</div><span className="chip">{kindLabel[item.kind]}</span></div><h3 className="font-display text-lg font-black">{item.title}</h3><p className="mt-1 min-h-10 text-xs leading-5 text-white/45">تخصيص ملفك وإظهار هويتك في عالم قدها.</p>{item.owned ? <button type="button" onClick={() => void equip(item)} disabled={busy === item.id} className={cn('btn-secondary mt-4 w-full text-sm', item.equipped && 'border-emerald-300/30 text-emerald-200')}>{item.equipped ? <><Check className="h-4 w-4" />مجهز</> : 'تجهيز'}</button> : <button type="button" onClick={() => void purchase(item)} disabled={busy === item.id || coins < item.price_coins} className="btn-gold mt-4 w-full text-sm">{coins < item.price_coins ? <Lock className="h-4 w-4" /> : <Coins className="h-4 w-4" />}{busy === item.id ? 'جارٍ التنفيذ...' : `${item.price_coins} عملة`}</button>}</article>)}</div>

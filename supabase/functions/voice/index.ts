@@ -3,9 +3,11 @@
  * Issues LiveKit access tokens. Backend never touches media.
  *
  * POST { action: 'token', roomId, roomCode?, canPublish?: boolean }
- * POST { action: 'create_room', title }
+ * POST { action: 'create_room', title, socialProvider?, socialAccountId? }
  * POST { action: 'join_room', code }
  * POST { action: 'end_room', roomId }
+ * POST { action: 'host_status' }
+ * POST { action: 'host_heartbeat', roomId }
  */
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
@@ -97,6 +99,30 @@ async function hasBlockedRoomMember(supabase: any, roomId: string, userId: strin
   return (blocks ?? []).some((row: any) => otherIds.has(String(row.blocker_id) === userId ? String(row.blocked_id) : String(row.blocker_id)));
 }
 
+async function billHostRoom(supabase: any, roomId: string) {
+  const { data, error } = await supabase.rpc('bill_host_room_period_atomic', { p_room_id: roomId });
+  if (error) throw new Error(error.message);
+  return data as {
+    active?: boolean;
+    reason?: string;
+    charged?: number;
+    access_mode?: string;
+    next_charge_at?: string | null;
+    coins?: number;
+  };
+}
+
+function hostBillingError(reason: string | undefined) {
+  const status = reason === 'INSUFFICIENT_COINS' ? 402 : 409;
+  const messages: Record<string, string> = {
+    INSUFFICIENT_COINS: 'رصيد الكوين غير كافٍ لاستمرار الغرفة. اشترِ كوين أو فعّل مضيف برو.',
+    TRIAL_EXPIRED: 'انتهت التجربة المجانية ذات الثلاثين دقيقة لهذه الغرفة.',
+    SUBSCRIPTION_EXPIRED: 'انتهى اشتراك مضيف برو؛ اشترِ كوين لاستمرار الاستضافة.',
+    ROOM_ENDED: 'الغرفة انتهت.',
+  };
+  return json({ error: messages[reason ?? ''] ?? 'لا يمكن استمرار فوترة الغرفة.', code: reason ?? 'HOST_BILLING_BLOCKED' }, status);
+}
+
 serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -144,40 +170,67 @@ serve(async (req) => {
     const LIVEKIT_API_KEY = Deno.env.get('LIVEKIT_API_KEY') ?? '';
     const LIVEKIT_API_SECRET = Deno.env.get('LIVEKIT_API_SECRET') ?? '';
 
+    // ── host_status ──────────────────────────────────────
+    if (action === 'host_status') {
+      const [{ data: hostProfile }, { data: hostSubscription }, { data: tiktok }] = await Promise.all([
+        supabase.from('profiles').select('coins, host_trial_used_at, subscription_plan, subscription_expires_at').eq('id', user.id).single(),
+        supabase.from('user_subscriptions').select('plan, status, expires_at').eq('user_id', user.id).eq('plan', 'host_pro').in('status', ['active', 'grace']).order('expires_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('tiktok_connections').select('open_id, display_name, avatar_url, created_at').eq('user_id', user.id).maybeSingle(),
+      ]);
+      const now = Date.now();
+      const profileSubscription = hostProfile?.subscription_plan === 'host_pro'
+        && (!hostProfile.subscription_expires_at || new Date(hostProfile.subscription_expires_at).getTime() > now);
+      const hasHostSubscription = Boolean(hostSubscription) || profileSubscription;
+      return json({
+        trialAvailable: !hostProfile?.host_trial_used_at,
+        trialMinutes: 30,
+        coinCost: 50,
+        intervalMinutes: 30,
+        coins: Number(hostProfile?.coins ?? 0),
+        hostSubscription: hasHostSubscription,
+        subscriptionExpiresAt: hostSubscription?.expires_at ?? hostProfile?.subscription_expires_at ?? null,
+        tiktok: tiktok ? { connected: true, openId: tiktok.open_id, displayName: tiktok.display_name, avatarUrl: tiktok.avatar_url, connectedAt: tiktok.created_at } : { connected: false },
+      });
+    }
+
     // ── create_room ──────────────────────────────────────
     if (action === 'create_room') {
       const title = (body.title as string)?.trim() || 'تحدي قدها المباشر';
       const code = roomCode();
-
-      const { data: room, error } = await supabase
-        .from('rooms')
-        .insert({
-          code,
-          host_id: user.id,
-          title,
-          status: 'waiting',
-          max_participants: 20,
-        })
-        .select()
-        .single();
-
-      if (error) return json({ error: error.message }, 500);
-
-      await supabase.from('room_participants').insert({
-        room_id: room.id,
-        user_id: user.id,
-        is_host: true,
+      const socialProvider = body.socialProvider === 'tiktok' ? 'tiktok' : null;
+      const socialAccountId = socialProvider === 'tiktok' ? String(body.socialAccountId ?? '') : null;
+      const { data, error } = await supabase.rpc('create_host_room_atomic', {
+        p_host_id: user.id,
+        p_code: code,
+        p_title: title,
+        p_social_provider: socialProvider,
+        p_social_account_id: socialAccountId,
+        p_coin_cost: 50,
+        p_interval_seconds: 1800,
       });
-
-      return json({
-        room: {
-          id: room.id,
-          code: room.code,
-          title: room.title,
-          status: room.status,
-          hostId: room.host_id,
-        },
-      });
+      if (error) {
+        const message = error.message ?? '';
+        if (message.includes('INSUFFICIENT_COINS')) return json({ error: 'رصيد الكوين غير كافٍ. اشترِ كوين أو فعّل مضيف برو.', code: 'INSUFFICIENT_COINS' }, 402);
+        if (message.includes('ACTIVE_HOST_ROOM_EXISTS')) return json({ error: 'لديك غرفة مضيف نشطة بالفعل. أنهِها قبل إنشاء غرفة جديدة.', code: 'ACTIVE_HOST_ROOM_EXISTS' }, 409);
+        if (message.includes('TIKTOK')) return json({ error: 'اربط حساب TikTok أولاً لتفعيل الربط الاجتماعي للغرفة.', code: message.includes('NOT_CONNECTED') ? 'TIKTOK_NOT_CONNECTED' : 'TIKTOK_ACCOUNT_REQUIRED' }, 409);
+        if (message.includes('ROOM_CODE_CONFLICT')) return json({ error: 'تعذر حجز رمز الغرفة. حاول مرة أخرى.', code: 'ROOM_CODE_CONFLICT' }, 409);
+        return json({ error: 'تعذر إنشاء الغرفة بأمان.', code: 'HOST_ROOM_CREATE_FAILED' }, 503);
+      }
+      const room = data as Record<string, unknown>;
+      return json({ room: {
+        id: String(room.room_id),
+        code: String(room.code),
+        title: String(room.title),
+        status: room.status as 'waiting',
+        hostId: String(room.host_id),
+        accessMode: String(room.access_mode),
+        nextChargeAt: (room.next_charge_at as string | null) ?? null,
+        coinCost: Number(room.coin_cost ?? 50),
+        intervalSeconds: Number(room.interval_seconds ?? 1800),
+        socialProvider: (room.social_provider as string | null) ?? null,
+        socialAccountId: (room.social_account_id as string | null) ?? null,
+        coins: Number(room.coins ?? 0),
+      } });
     }
 
     // ── join_room ────────────────────────────────────────
@@ -233,6 +286,7 @@ serve(async (req) => {
         .from('rooms')
         .update({ status: 'ended', ended_at: new Date().toISOString() })
         .eq('id', roomId);
+      await supabase.rpc('end_host_room_session', { p_room_id: roomId });
 
       return json({ ok: true });
     }
@@ -246,6 +300,8 @@ serve(async (req) => {
       if (!room) return json({ error: 'Room not found' }, 404);
       if (room.host_id !== user.id) return json({ error: 'Only host' }, 403);
       if (await hasBlockedRoomMember(supabase, roomId, user.id)) return json({ error: 'أزل المشاركين المرتبطين بحظر قبل بدء البث.' }, 403);
+      const billing = await billHostRoom(supabase, roomId);
+      if (!billing.active) return hostBillingError(billing.reason);
 
       await supabase
         .from('rooms')
@@ -253,6 +309,18 @@ serve(async (req) => {
         .eq('id', roomId);
 
       return json({ ok: true, status: 'live' });
+    }
+
+    // ── host_heartbeat ───────────────────────────────────
+    if (action === 'host_heartbeat') {
+      const roomId = String(body.roomId ?? '');
+      if (!roomId) return json({ error: 'roomId required' }, 400);
+      const { data: room } = await supabase.from('rooms').select('host_id').eq('id', roomId).maybeSingle();
+      if (!room) return json({ error: 'Room not found' }, 404);
+      if (room.host_id !== user.id) return json({ error: 'Only host' }, 403);
+      const billing = await billHostRoom(supabase, roomId);
+      if (!billing.active) return hostBillingError(billing.reason);
+      return json({ ok: true, billing });
     }
 
     // ── token ────────────────────────────────────────────
@@ -270,6 +338,11 @@ serve(async (req) => {
       const { data: room } = await supabase.from('rooms').select('*').eq('id', roomId).single();
       if (!room) return json({ error: 'Room not found' }, 404);
       if (room.status === 'ended') return json({ error: 'Room ended' }, 400);
+
+      if (room.host_id === user.id) {
+        const billing = await billHostRoom(supabase, roomId);
+        if (!billing.active) return hostBillingError(billing.reason);
+      }
 
       // Must be participant or host
       const { data: membership } = await supabase
