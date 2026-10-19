@@ -121,6 +121,8 @@ test('Railway build fingerprint accepts the official Git commit variable', () =>
   const buildInfo = readFileSync('scripts/write-build-info.mjs', 'utf8');
   const railwayGuide = readFileSync('docs/RAILWAY.md', 'utf8');
   assert.match(buildInfo, /RAILWAY_GIT_COMMIT_SHA/);
+  assert.match(buildInfo, /RAILWAY_DEPLOYMENT_ID/);
+  assert.match(buildInfo, /fingerprintSource/);
   assert.match(railwayGuide, /VITE_SUPABASE_URL/);
   assert.match(railwayGuide, /RAILWAY_GIT_COMMIT_SHA/);
 });
