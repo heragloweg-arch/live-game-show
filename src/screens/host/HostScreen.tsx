@@ -20,6 +20,7 @@ import {
 import { track } from '../../services/analytics/events';
 import { startRoomRealtime } from '../../services/realtime/roomRealtime';
 import { createOverlayLink, revokeOverlayLink } from '../../services/api/overlayApi';
+import QRCode from 'qrcode';
 
 type HostPhase = 'setup' | 'lobby' | 'live' | 'ended';
 
@@ -41,6 +42,7 @@ export function HostScreen() {
   const [overlayError, setOverlayError] = useState<string | null>(null);
   const [hostStatus, setHostStatus] = useState<HostStatus | null>(null);
   const [linkTikTok, setLinkTikTok] = useState(false);
+  const [joinQrDataUrl, setJoinQrDataUrl] = useState<string | null>(null);
 
   const voice = useLiveKitRoom();
   const disconnectVoice = voice.disconnect;
@@ -78,6 +80,18 @@ export function HostScreen() {
     if (phase !== 'setup') return;
     void fetchHostStatus().then(setHostStatus).catch((error) => setErr(error instanceof Error ? error.message : 'تعذر تحميل حالة الاستضافة.'));
   }, [phase]);
+
+  useEffect(() => {
+    if (!room?.code || (phase !== 'lobby' && phase !== 'live')) {
+      setJoinQrDataUrl(null);
+      return;
+    }
+    const joinUrl = new URL('/room/join', window.location.origin);
+    joinUrl.searchParams.set('code', room.code);
+    void QRCode.toDataURL(joinUrl.toString(), { width: 220, margin: 1, errorCorrectionLevel: 'M' })
+      .then(setJoinQrDataUrl)
+      .catch(() => setJoinQrDataUrl(null));
+  }, [room?.code, phase]);
 
   useEffect(() => {
     if (!activeRoomId || (phase !== 'lobby' && phase !== 'live')) return;
@@ -339,6 +353,7 @@ export function HostScreen() {
                   {room.code}
                 </p>
                 <p className="mt-2 text-sm text-white/40">{room.title}</p>
+                {joinQrDataUrl && <div className="mt-4 flex items-center gap-3 rounded-xl bg-white p-3"><img src={joinQrDataUrl} alt={`QR للانضمام إلى غرفة ${room.code}`} className="h-28 w-28 rounded-lg" /><div className="text-right text-xs text-surface-900"><strong className="block">امسح للانضمام</strong><span className="mt-1 block text-surface-900/60">يفتح شاشة الغرفة ويملأ الكود تلقائيًا.</span></div></div>}
                 <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                   <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/55">
                     {room.accessMode === 'trial' ? 'تجربة مجانية · 30 دقيقة' : room.accessMode === 'subscription' ? 'مضيف برو · بدون خصم' : `${room.coinCost ?? 50} كوين / 30 دقيقة`}

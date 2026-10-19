@@ -7,6 +7,29 @@ if (!existsSync(dist)) {
   process.exit(1);
 }
 
+const buildInfoPath = join(dist.pathname, 'build-info.json');
+const indexPath = join(dist.pathname, 'index.html');
+if (!existsSync(buildInfoPath) || !existsSync(indexPath)) {
+  console.error('Production lock failed: build-info.json or index.html is missing.');
+  process.exit(1);
+}
+let buildInfo;
+try {
+  buildInfo = JSON.parse(readFileSync(buildInfoPath, 'utf8'));
+} catch {
+  console.error('Production lock failed: build-info.json is invalid.');
+  process.exit(1);
+}
+if (!/^[0-9a-f]{7,40}$/i.test(String(buildInfo.commit ?? ''))) {
+  console.error('Production lock failed: build fingerprint is missing or invalid.');
+  process.exit(1);
+}
+const index = readFileSync(indexPath, 'utf8');
+if (!index.includes(`name="qaddaha-build" content="${buildInfo.commit}"`)) {
+  console.error('Production lock failed: index.html fingerprint does not match build-info.json.');
+  process.exit(1);
+}
+
 const files = readdirSync(dist, { recursive: true })
   .filter((file) => String(file).endsWith('.js'))
   .map((file) => join(dist.pathname, String(file)));

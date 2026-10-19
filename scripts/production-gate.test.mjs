@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const node = process.execPath;
 const run = (script, env) => spawnSync(node, [script], {
@@ -95,4 +96,23 @@ test('runtime gate rejects unsafe billing and simulated ads', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /VITE_ALLOW_DEV_BILLING must not be true/);
   assert.match(result.stderr, /VITE_ADMOB_APP_ID must contain a valid production AdMob ID/);
+});
+
+test('account deletion and server rate limiting are wired server-side', () => {
+  const read = (path) => readFileSync(path, 'utf8');
+  const account = read('supabase/functions/account/index.ts');
+  const rateLimit = read('supabase/functions/_shared/rateLimit.ts');
+  const migration = read('supabase/migrations/20261019050000_account_deletion_rate_limits.sql');
+  assert.match(account, /delete_account_data_atomic/);
+  assert.match(account, /auth\.admin\.deleteUser/);
+  assert.match(rateLimit, /consume_rate_limit_atomic/);
+  assert.match(migration, /delete_account_data_atomic/);
+  assert.match(migration, /consume_rate_limit_atomic/);
+});
+
+test('public deployment metadata is explicit and CORS is not wildcard', () => {
+  const cors = readFileSync('supabase/functions/_shared/cors.ts', 'utf8');
+  const routes = JSON.parse(readFileSync('public/manus-routes.json', 'utf8'));
+  assert.doesNotMatch(cors, /Access-Control-Allow-Origin['"]:\s*['"]\*['"]/);
+  assert.ok(Array.isArray(routes.routes) && routes.routes.some((route) => route.path === '/host'));
 });

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor, Flag, Ban, Link2, Unlink, Crown, WalletCards } from 'lucide-react';
+import { ArrowRight, LogOut, Coins, Pencil, Loader2, History, Swords, Sun, Moon, Monitor, Flag, Ban, Link2, Unlink, Crown, WalletCards, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { updateProfile, fetchMatchHistory, fetchRecentOpponents, type RecentOpponent, type MatchHistoryRecord } from '../../services/profile/profileApi';
@@ -16,6 +16,7 @@ import type { LedgerEntry } from '../../types/economy';
 import { fetchSubscriptionStatus } from '../../services/billing/subscriptionApi';
 import { fetchHostStatus, type HostStatus } from '../../services/livekit/voiceApi';
 import { disconnectTikTok, getTikTokStatus, startTikTokLink, type TikTokStatus } from '../../services/api/tiktokApi';
+import { deleteAccount } from '../../services/api/accountApi';
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ export function ProfileScreen() {
   const [tiktok, setTikTok] = useState<TikTokStatus>({ connected: false, connection: null });
   const [tiktokBusy, setTikTokBusy] = useState(false);
   const [accountMessage, setAccountMessage] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   useEffect(() => {
     void loadWallet();
@@ -147,6 +149,19 @@ export function ProfileScreen() {
       setAccountMessage('تم فصل حساب TikTok.');
     } catch (e) { setAccountMessage(e instanceof Error ? e.message : 'تعذر فصل TikTok.'); }
     finally { setTikTokBusy(false); }
+  };
+
+  const removeAccount = async () => {
+    if (!window.confirm('سيؤدي هذا إلى حذف بيانات حسابك وإغلاق تسجيل الدخول نهائيًا. لا يمكن التراجع. هل تريد المتابعة؟')) return;
+    if (window.prompt('اكتب DELETE_ACCOUNT للتأكيد النهائي:') !== 'DELETE_ACCOUNT') return;
+    setDeleteBusy(true); setAccountMessage(null);
+    try {
+      await deleteAccount();
+      await signOut();
+      navigate('/auth', { replace: true });
+    } catch (e) {
+      setAccountMessage(e instanceof Error ? e.message : 'تعذر حذف الحساب.');
+    } finally { setDeleteBusy(false); }
   };
 
   return (
@@ -311,6 +326,20 @@ export function ProfileScreen() {
       {opponents.length > 0 && <div className="card mb-5 p-4"><div className="mb-3 flex items-center gap-2 text-sm font-medium"><Swords className="h-4 w-4 text-gold-400" />آخر المنافسين</div><div className="space-y-2">{opponents.map((opponent) => <div key={opponent.userId} className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-400/15 font-bold text-violet-200">{opponent.displayName[0]}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{opponent.displayName}</p><p className="truncate text-[11px] text-white/35">@{opponent.username}</p></div><button type="button" onClick={() => void rematch(opponent)} disabled={rematching === opponent.userId || safetyBusy === opponent.userId} className="btn-secondary px-3 py-2 text-xs">{rematching === opponent.userId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'إعادة'}</button><button type="button" aria-label={`الإبلاغ عن ${opponent.displayName}`} onClick={() => void reportOpponent(opponent)} disabled={safetyBusy === opponent.userId} className="btn-ghost px-2 py-2 text-xs text-amber-300"><Flag className="h-4 w-4" /><span className="sr-only">إبلاغ</span></button><button type="button" aria-label={`حظر ${opponent.displayName}`} onClick={() => void blockOpponent(opponent)} disabled={safetyBusy === opponent.userId} className="btn-ghost px-2 py-2 text-xs text-red-300"><Ban className="h-4 w-4" /><span className="sr-only">حظر</span></button></div>)}</div>{safetyMessage && <p role="status" className="mt-3 text-xs text-white/65">{safetyMessage}</p>}<p className="mt-2 text-[10px] leading-5 text-white/35">الإبلاغ يرسل الحالة للمراجعة. الحظر يمنع المسارات المدعومة على الخادم، وتُحاول الخدمة إزالة المستخدم المحظور من غرف الصوت المشتركة؛ يعتمد نجاح الإزالة الفورية على إعداد LiveKit وتحقق الخادم.</p></div>}
 
       <ThemePicker mode={themeMode} onChange={setThemeMode} />
+
+      <section className="card mb-5 border-red-500/20 p-4">
+        <div className="flex items-start gap-3">
+          <Trash2 className="mt-0.5 h-5 w-5 shrink-0 text-red-300" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-red-100">حذف الحساب</h2>
+            <p className="mt-1 text-xs leading-5 text-white/45">نحذف بياناتك الشخصية ونسجل النتائج السابقة كمستخدم محذوف عند الحاجة للحفاظ على نزاهة السجلات.</p>
+            <button type="button" onClick={() => void removeAccount()} disabled={deleteBusy} className="btn-secondary mt-3 w-full gap-2 border-red-500/30 text-xs text-red-200">
+              {deleteBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              {deleteBusy ? 'جارٍ حذف الحساب...' : 'حذف حسابي نهائيًا'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <BottomAdBanner />
       <button

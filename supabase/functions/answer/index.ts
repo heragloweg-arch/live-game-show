@@ -10,6 +10,7 @@ import { normalizeArabic } from '../_shared/arabic.ts';
 import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
 import { assertMatchParticipant, assertMatchNotFinished } from '../_shared/authz.ts';
 import { validateAnswer } from '../_shared/answerValidator.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 serve(async (req) => {
   const cors = handleCors(req);
@@ -29,6 +30,8 @@ serve(async (req) => {
       authHeader.replace('Bearer ', '')
     );
     if (authErr || !user) return json({ error: 'Invalid token' }, 401);
+    const rate = await enforceRateLimit(supabase, user.id, 'answer', 60, 60);
+    if (!rate.allowed) return json({ error: 'تم تجاوز حد المحاولات، حاول بعد قليل.', code: 'RATE_LIMITED' }, 429);
 
     const body = await req.json();
     const { matchId, roundId, requestId, answer, clientTimestamp } = body;

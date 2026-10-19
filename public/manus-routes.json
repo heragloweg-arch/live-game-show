@@ -1,0 +1,33 @@
+{
+  "routes": [
+    { "path": "/", "title": "قدها" },
+    { "path": "/auth", "title": "تسجيل الدخول" },
+    { "path": "/legal/privacy", "title": "الخصوصية" },
+    { "path": "/legal/terms", "title": "الشروط" },
+    { "path": "/overlay/:token", "title": "البث" },
+    { "path": "/home", "title": "الرئيسية" },
+    { "path": "/onboarding", "title": "البداية" },
+    { "path": "/daily", "title": "التحدي اليومي" },
+    { "path": "/metrics", "title": "الإحصاءات" },
+    { "path": "/tournament", "title": "البطولات" },
+    { "path": "/tournament/:tournamentId", "title": "تفاصيل البطولة" },
+    { "path": "/subscription", "title": "الاشتراك" },
+    { "path": "/shop", "title": "المتجر" },
+    { "path": "/couple", "title": "تحدي الأزواج" },
+    { "path": "/team", "title": "الفرق" },
+    { "path": "/creator", "title": "المبدع" },
+    { "path": "/creator/admin", "title": "إدارة المبدع" },
+    { "path": "/safety/admin", "title": "إدارة السلامة" },
+    { "path": "/play", "title": "اللعب" },
+    { "path": "/play/invite/create", "title": "إنشاء دعوة" },
+    { "path": "/play/invite/:token", "title": "قبول الدعوة" },
+    { "path": "/play/difficulty", "title": "الصعوبة" },
+    { "path": "/play/matchmaking", "title": "البحث عن مباراة" },
+    { "path": "/match/:matchId", "title": "المباراة" },
+    { "path": "/host", "title": "لوحة المضيف" },
+    { "path": "/room/join", "title": "الانضمام لغرفة" },
+    { "path": "/room/:roomId", "title": "الغرفة" },
+    { "path": "/profile", "title": "الحساب" },
+    { "path": "/leaderboard", "title": "المتصدرون" }
+  ]
+}

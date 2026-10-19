@@ -11,6 +11,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -141,6 +142,8 @@ serve(async (req) => {
     const body = await req.json();
     const action = String(body.action ?? '');
     if (action === 'start') {
+      const rate = await enforceRateLimit(supabase, user.id, 'tiktok:start', 5, 600);
+      if (!rate.allowed) return json({ error: 'تم تجاوز محاولات ربط TikTok، حاول بعد قليل.', code: 'RATE_LIMITED' }, 429);
       const clientKey = Deno.env.get('TIKTOK_CLIENT_KEY') ?? '';
       const redirectUri = Deno.env.get('TIKTOK_REDIRECT_URI') ?? '';
       if (!clientKey || !Deno.env.get('TIKTOK_CLIENT_SECRET') || !redirectUri || !redirectUri.startsWith('https://')) {

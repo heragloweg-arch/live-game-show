@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 const categories = new Set(['harassment','hate','sexual_content','spam','cheating','unsafe_content','other']);
 const targetTypes = new Set(['user','match','room','challenge']);
@@ -80,6 +81,8 @@ serve(async (req) => {
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: { user }, error: authError } = await supabase.auth.getUser(bearer);
   if (authError || !user || user.is_anonymous) return json({ error: 'Valid signed-in account required' }, 401);
+  const rate = await enforceRateLimit(supabase, user.id, 'safety', 30, 60);
+  if (!rate.allowed) return json({ error: 'تم تجاوز حد عمليات السلامة، حاول بعد قليل.', code: 'RATE_LIMITED' }, 429);
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON body' }, 400); }
   const action = String(body.action ?? '');

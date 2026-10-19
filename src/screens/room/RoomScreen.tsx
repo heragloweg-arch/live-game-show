@@ -20,7 +20,8 @@ export function RoomScreen() {
   const [room, setRoom] = useState<RoomInfo | null>(null);
   const [members, setMembers] = useState<RoomParticipant[]>([]);
   const [phase, setPhase] = useState<'join' | 'connecting' | 'inside' | 'error'>('join');
-  const [codeInput, setCodeInput] = useState(roomId && roomId !== 'demo' && roomId !== 'join' ? roomId : '');
+  const queryCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('code') ?? '' : '';
+  const [codeInput, setCodeInput] = useState(roomId && roomId !== 'demo' && roomId !== 'join' ? roomId : queryCode);
   const [err, setErr] = useState<string | null>(null);
 
   const voice = useLiveKitRoom();
@@ -32,12 +33,14 @@ export function RoomScreen() {
   useEffect(() => {
     if (isUuid && roomId && roomId !== 'join') {
       handleJoinById(roomId);
+    } else if (roomId === 'join' && queryCode) {
+      void handleJoinByCode(queryCode);
     }
     return () => {
       voice.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId, queryCode]);
 
   useEffect(() => {
     if (phase !== 'inside' || !activeRoomId) return;
@@ -94,8 +97,8 @@ export function RoomScreen() {
     }
   }
 
-  async function handleJoinByCode() {
-    const code = codeInput.trim().toUpperCase();
+  async function handleJoinByCode(value = codeInput) {
+    const code = value.trim().toUpperCase();
     if (!code) return;
     setPhase('connecting');
     setErr(null);
@@ -145,7 +148,7 @@ export function RoomScreen() {
           )}
 
           <button
-            onClick={handleJoinByCode}
+            onClick={() => void handleJoinByCode()}
             disabled={!codeInput.trim()}
             className="btn-primary w-full gap-2 py-3.5"
           >

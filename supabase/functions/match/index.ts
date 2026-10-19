@@ -11,6 +11,7 @@ import {
   assertMatchParticipant,
   assertMatchNotFinished,
 } from '../_shared/authz.ts';
+import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 const TOTAL_ROUNDS = 5;
 const WIN_COINS = 50;
@@ -42,6 +43,8 @@ serve(async (req) => {
     await ensureProfile(supabase, user);
     const body = await req.json();
     const action = body.action as string;
+    const rate = await enforceRateLimit(supabase, user.id, `match:${action || 'unknown'}`, 30, 60);
+    if (!rate.allowed) return json({ error: 'تم تجاوز حد عمليات المباراة، حاول بعد قليل.', code: 'RATE_LIMITED' }, 429);
 
     switch (action) {
       case 'create_solo':
