@@ -34,3 +34,11 @@ VITE_ADS_SIMULATE=false
 - التشغيل ينفذ `scripts/verify-runtime-config.mjs` قبل إنشاء `dist/env-config.js` وتشغيل الخادم.
 - فشل التحقق يمنع بدء نسخة ناقصة الإعداد؛ نجاح النشر وحده ليس اختبارًا للوظائف الحية.
 - Health check الحالي هو `/`. بعد كل نشر، راجع Build/Deploy logs وحالة النسخة النشطة في Railway.
+
+## متغير بصمة البناء
+
+عند البناء من GitHub، يوفر Railway المتغير `RAILWAY_GIT_COMMIT_SHA`. يستخدمه `scripts/write-build-info.mjs` لتثبيت بصمة commit داخل `dist/build-info.json` ووسم HTML. لا يحتاج المشروع إلى تثبيت Git داخل صورة runtime. إذا كان النشر من مصدر غير GitHub، يجب تمرير `GIT_COMMIT_SHA` أو `COMMIT_SHA` صراحة؛ لا تستخدم قيمة عشوائية.
+
+## تشخيص شاشة الحماية
+
+إذا ظهر `Missing production variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY` فالمشكلة في Variables الخاصة بخدمة Railway وEnvironment النشطة، وليست في كود Supabase. أضف القيمتين العامتين الصحيحتين، ثم أعد Deploy. لا تضع `service_role` في `VITE_SUPABASE_ANON_KEY`.

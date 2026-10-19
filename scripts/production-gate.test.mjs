@@ -117,6 +117,14 @@ test('public deployment metadata is explicit and CORS is not wildcard', () => {
   assert.ok(Array.isArray(routes.routes) && routes.routes.some((route) => route.path === '/host'));
 });
 
+test('Railway build fingerprint accepts the official Git commit variable', () => {
+  const buildInfo = readFileSync('scripts/write-build-info.mjs', 'utf8');
+  const railwayGuide = readFileSync('docs/RAILWAY.md', 'utf8');
+  assert.match(buildInfo, /RAILWAY_GIT_COMMIT_SHA/);
+  assert.match(railwayGuide, /VITE_SUPABASE_URL/);
+  assert.match(railwayGuide, /RAILWAY_GIT_COMMIT_SHA/);
+});
+
 test('flag content is bundled and mixed challenge selection accepts choice questions', () => {
   const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
   const room = readFileSync('supabase/functions/room/index.ts', 'utf8');

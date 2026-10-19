@@ -21,6 +21,7 @@ const commit = firstValue(
   process.env.GIT_COMMIT_SHA,
   process.env.COMMIT_SHA,
   process.env.SOURCE_VERSION,
+  process.env.RAILWAY_GIT_COMMIT_SHA,
   gitCommit(),
 );
 
