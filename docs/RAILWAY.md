@@ -37,7 +37,7 @@ VITE_ADS_SIMULATE=false
 
 ## متغير بصمة البناء
 
-عند البناء من GitHub، يوفر Railway المتغير `RAILWAY_GIT_COMMIT_SHA`. يستخدمه `scripts/write-build-info.mjs` لتثبيت بصمة commit داخل `dist/build-info.json` ووسم HTML. لا يحتاج المشروع إلى تثبيت Git داخل صورة runtime. إذا كان النشر يدويًا بلا Git checkout، يستخدم السكربت بصمة مشتقة من `RAILWAY_DEPLOYMENT_ID` أو `RAILWAY_SNAPSHOT_ID` ويضع `fingerprintSource=railway-deployment` حتى لا يفشل البناء أو يدّعي أن البصمة commit.
+عند البناء من GitHub، يوفر Railway المتغير `RAILWAY_GIT_COMMIT_SHA`. يستخدمه `scripts/write-build-info.mjs` لتثبيت بصمة commit داخل `dist/build-info.json` ووسم HTML. لا يحتاج المشروع إلى تثبيت Git داخل صورة runtime. إذا كان النشر بلا Git checkout، يستخدم السكربت بصمة مشتقة من `RAILWAY_DEPLOYMENT_ID` أو `RAILWAY_SNAPSHOT_ID`. وإذا غابت متغيرات Railway كلها، يستخدم بصمة حتمية مشتقة من artifact نفسه مع `fingerprintSource=artifact-content`؛ هذا يمنع فشل البناء من أجل metadata مفقودة، مع عدم تسميتها commit.
 
 ## تشخيص شاشة الحماية
 

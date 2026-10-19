@@ -23,6 +23,8 @@ function deploymentFingerprint() {
 const root = resolve(new URL('..', import.meta.url).pathname);
 const dist = resolve(root, 'dist');
 const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
+const indexPath = resolve(dist, 'index.html');
+const index = await readFile(indexPath, 'utf8');
 const gitOrBuildCommit = firstValue(
   process.env.GIT_COMMIT_SHA,
   process.env.COMMIT_SHA,
@@ -30,11 +32,18 @@ const gitOrBuildCommit = firstValue(
   process.env.RAILWAY_GIT_COMMIT_SHA,
   gitCommit(),
 );
-const commit = gitOrBuildCommit || deploymentFingerprint();
-const fingerprintSource = gitOrBuildCommit ? 'git-commit' : (commit ? 'railway-deployment' : 'unavailable');
+const railwayCommit = deploymentFingerprint();
+const contentFingerprint = createHash('sha256')
+  .update(JSON.stringify({ package: packageJson, index }))
+  .digest('hex')
+  .slice(0, 40);
+const commit = gitOrBuildCommit || railwayCommit || contentFingerprint;
+const fingerprintSource = gitOrBuildCommit
+  ? 'git-commit'
+  : (railwayCommit ? 'railway-deployment' : 'artifact-content');
 
 if (!/^[0-9a-f]{7,40}$/i.test(commit)) {
-  throw new Error('Build fingerprint is missing. Set GIT_COMMIT_SHA, RAILWAY_GIT_COMMIT_SHA, or provide a Railway deployment context.');
+  throw new Error('Build fingerprint generation failed unexpectedly.');
 }
 
 const info = {
@@ -46,8 +55,6 @@ const info = {
 };
 
 await writeFile(resolve(dist, 'build-info.json'), `${JSON.stringify(info, null, 2)}\n`, 'utf8');
-const indexPath = resolve(dist, 'index.html');
-const index = await readFile(indexPath, 'utf8');
 const marker = `<meta name="qaddaha-build" content="${commit}">`;
 const nextIndex = index.includes('name="qaddaha-build"')
   ? index.replace(/<meta name="qaddaha-build" content="[^"]*"\s*\/?\s*>/, marker)
