@@ -60,7 +60,9 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           motion: ['framer-motion'],
-          supabase: ['@supabase/supabase-js']
+          supabase: ['@supabase/supabase-js'],
+          livekitClient: ['livekit-client'],
+          livekitComponents: ['@livekit/components-react']
         }
       }
     }
