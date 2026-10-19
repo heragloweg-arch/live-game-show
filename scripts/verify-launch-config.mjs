@@ -35,7 +35,7 @@ if (mode === 'static') {
     const start = 'scripts/verify-runtime-config.mjs && node scripts/write-runtime-config.mjs';
     if (!railwayJson.deploy?.startCommand?.includes(start)) fail('railway.json must validate runtime config before startup.');
     if (!railwayToml.includes(start)) fail('railway.toml must validate runtime config before startup.');
-    for (const token of ['npm ci', 'npm run typecheck', 'npm run lint', 'npm test', 'npm run build', 'scripts/verify-production.mjs']) {
+    for (const token of ['npm ci', 'npm run typecheck', 'npm run lint', 'npm test', 'npm run build', 'scripts/verify-production.mjs', 'verify:content-release']) {
       if (!railwayJson.build?.buildCommand?.includes(token)) fail('railway.json build command is missing: ' + token);
       if (!railwayToml.includes(token)) fail('railway.toml build command is missing: ' + token);
     }

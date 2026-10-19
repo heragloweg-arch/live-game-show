@@ -82,6 +82,18 @@ test('runtime gate accepts valid Supabase configuration and safe flags', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
+test('runtime gate accepts Railway public Supabase aliases', () => {
+  const result = run('scripts/verify-runtime-config.mjs', {
+    NODE_ENV: 'production',
+    SUPABASE_URL: 'https://qaddaha.supabase.co',
+    SUPABASE_ANON_KEY: 'sb_publishable_test_key_not_a_real_secret',
+    VITE_ALLOW_DEV_BILLING: 'false',
+    VITE_ENABLE_LOCAL_DEMO: 'false',
+    VITE_ADS_ENABLED: 'false',
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
 test('runtime gate rejects unsafe billing and simulated ads', () => {
   const result = run('scripts/verify-runtime-config.mjs', {
     NODE_ENV: 'production',
@@ -115,6 +127,12 @@ test('public deployment metadata is explicit and CORS is not wildcard', () => {
   const routes = JSON.parse(readFileSync('public/manus-routes.json', 'utf8'));
   assert.doesNotMatch(cors, /Access-Control-Allow-Origin['"]:\s*['"]\*['"]/);
   assert.ok(Array.isArray(routes.routes) && routes.routes.some((route) => route.path === '/host'));
+});
+
+test('content release gate passes the reviewed question bank', () => {
+  const result = run('scripts/verify-content-release.mjs', {});
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /968 audited rows/);
 });
 
 test('Railway build fingerprint accepts the official Git commit variable', () => {

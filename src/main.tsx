@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import './styles/index.css';
 
-const BUILD_ID = 'final-reviewed-content-20261006';
+const BUILD_ID = document.querySelector('meta[name="qaddaha-build"]')?.getAttribute('content') || 'runtime-unknown';
 const root = document.getElementById('root');
 
 function BootErrorScreen({ reason }: { reason: string }) {

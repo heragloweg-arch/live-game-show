@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm ci --legacy-peer-deps && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs"
+buildCommand = "npm ci --legacy-peer-deps && npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs && npm run verify:content-release"
 
 [deploy]
 startCommand = "node scripts/verify-runtime-config.mjs && node scripts/write-runtime-config.mjs && node scripts/static-server.mjs"

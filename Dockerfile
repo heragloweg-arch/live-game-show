@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
-RUN npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs
+RUN npm run typecheck && npm run lint && npm test -- --run && npm run build && node scripts/verify-production.mjs && npm run verify:content-release
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app

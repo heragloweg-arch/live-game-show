@@ -8,10 +8,11 @@ if (!production) {
 }
 
 const failures = [];
-for (const key of ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY']) {
-  if (!process.env[key]?.trim()) failures.push(`Missing required production variable: ${key}`);
-}
-const url = process.env.VITE_SUPABASE_URL;
+const first = (...values) => values.find((value) => typeof value === 'string' && value.trim())?.trim() || '';
+const url = first(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_URL, process.env.PUBLIC_SUPABASE_URL);
+const anonKey = first(process.env.VITE_SUPABASE_ANON_KEY, process.env.SUPABASE_ANON_KEY, process.env.SUPABASE_PUBLISHABLE_KEY, process.env.PUBLIC_SUPABASE_ANON_KEY);
+if (!url) failures.push('Missing required production variable: VITE_SUPABASE_URL (or SUPABASE_URL).');
+if (!anonKey) failures.push('Missing required production variable: VITE_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY).');
 if (url) {
   try {
     const parsed = new URL(url);
@@ -23,7 +24,6 @@ if (url) {
     }
   } catch { failures.push('VITE_SUPABASE_URL must be a valid URL.'); }
 }
-const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
 if (/your-anon-key|preview-anon-key|replace-me|placeholder/i.test(anonKey)) {
   failures.push('VITE_SUPABASE_ANON_KEY contains a placeholder value.');
 }

@@ -20,6 +20,15 @@ VITE_ALLOW_DEV_BILLING=false
 VITE_ADS_SIMULATE=false
 ```
 
+يقبل runtime أيضًا الأسماء العامة المكافئة إذا كانت لوحة Railway تستخدمها بدل بادئة `VITE_`:
+
+```dotenv
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
+```
+
+لا تستخدم `SUPABASE_SERVICE_ROLE_KEY` أو أي مفتاح إداري كبديل لمفتاح العميل.
+
 - استخدم عنوان Supabase الصحيح والمفتاح العام المخصص للعميل فقط؛ لا تستخدم `service_role` في العميل.
 - يفشل بدء خدمة الإنتاج إذا غاب عنوان Supabase أو المفتاح العام، أو كانت قيم العرض التجريبي/الفوترة غير الآمنة مفعلة.
 - اترك `VITE_ADS_ENABLED=false` حتى تصبح معرّفات الإنتاج متاحة ومراجعة. إذا فُعّلت الإعلانات، اضبط `VITE_ADMOB_APP_ID` و`VITE_ADMOB_BANNER_ID` و`VITE_ADMOB_INTERSTITIAL_ID` و`VITE_ADMOB_REWARDED_ID` مع `VITE_ADMOB_TEST=false` و`VITE_ADS_SIMULATE=false`.
