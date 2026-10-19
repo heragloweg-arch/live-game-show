@@ -116,3 +116,19 @@ test('public deployment metadata is explicit and CORS is not wildcard', () => {
   assert.doesNotMatch(cors, /Access-Control-Allow-Origin['"]:\s*['"]\*['"]/);
   assert.ok(Array.isArray(routes.routes) && routes.routes.some((route) => route.path === '/host'));
 });
+
+test('flag content is bundled and mixed challenge selection accepts choice questions', () => {
+  const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
+  const room = readFileSync('supabase/functions/room/index.ts', 'utf8');
+  const flagMigration = readFileSync('supabase/migrations/20261019070000_flag_identification_content.sql', 'utf8');
+  const choiceApproval = readFileSync('supabase/migrations/20261019070001_choice_content_approval.sql', 'utf8');
+  assert.doesNotMatch(match, /Array\.isArray\(c\.letter_pool\).*c\.letter_pool\.length/);
+  assert.doesNotMatch(room, /\.not\('letter_pool',\s*'is',\s*null\)/);
+  assert.match(match, /challenge_choices/);
+  assert.match(room, /challenge_choices/);
+  assert.match(flagMigration, /asset_path/);
+  assert.match(flagMigration, /false,'needs_review'/);
+  assert.match(choiceApproval, /challenge_choices/);
+  assert.match(choiceApproval, /playable_answer_contract_missing/);
+  assert.equal([...flagMigration.matchAll(/\/flags\/[a-z]{2}\.svg/g)].length, 12);
+});

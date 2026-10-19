@@ -7,6 +7,7 @@ import { formatCountdown } from '../../utils/time';
 import { AnswerHint } from '../game/AnswerHint';
 import { LetterPoolBoard } from '../game/LetterPoolBoard';
 import { hasPlayableAnswerContract } from '../../utils/challengeContract';
+import { ChallengeVisual } from '../game/ChallengeVisual';
 import {
   startRoomChallenge,
   getRoomChallengeState,
@@ -204,6 +205,7 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
             <h3 className="mb-4 text-center font-display text-lg font-bold leading-relaxed">
               {round.challenge.prompt}
             </h3>
+            <ChallengeVisual challenge={round.challenge} />
             <AnswerHint challenge={round.challenge} />
             {round.status === 'revealed' && round.challenge.acceptedAnswers?.length ? (
               <div className="mt-3 rounded-xl border border-zatona-500/20 bg-zatona-500/10 px-3 py-2 text-center text-sm">

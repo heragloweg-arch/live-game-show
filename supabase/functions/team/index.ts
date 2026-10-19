@@ -217,21 +217,24 @@ async function createTeamMatch(
   difficulty: string
 ) {
   const TOTAL = 5;
-  const ROUND_SEQUENCE = ['speed', 'knowledge', 'words', 'speed', 'mystery'];
+  const ROUND_SEQUENCE = ['speed', 'knowledge', 'words', 'knowledge', 'mystery'];
   const challenges: any[] = [];
   const used = new Set<string>();
   for (let i = 0; i < TOTAL; i++) {
     const desired = ROUND_SEQUENCE[i] === 'mystery' ? null : ROUND_SEQUENCE[i];
-    let q = supabase.from('challenges').select('id').eq('active', true).eq('qa_status', 'approved');
+    let q = supabase.from('challenges').select('id, type, subtype').eq('active', true).eq('qa_status', 'approved').eq('difficulty', difficulty);
     if (desired) q = q.eq('type', desired);
-    const { data } = await q.limit(40);
-    const pool = (data ?? []).filter((c: any) => !used.has(c.id));
-    if (!pool.length) continue;
-    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const { data } = await q.limit(120);
+    const unused = (data ?? []).filter((c: any) => !used.has(c.id));
+    const previous = challenges.at(-1)?.subtype;
+    const pool = unused.filter((c: any) => c.subtype !== previous);
+    const candidates = pool.length ? pool : unused;
+    if (!candidates.length) continue;
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
     used.add(pick.id);
     challenges.push(pick);
   }
-  while (challenges.length < TOTAL && challenges.length > 0) challenges.push(challenges[0]);
+  if (challenges.length < TOTAL) throw new Error('Not enough approved challenges for a mixed team match');
 
   const now = new Date().toISOString();
   const { data: match, error } = await supabase.from('matches').insert({

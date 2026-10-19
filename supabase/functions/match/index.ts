@@ -116,23 +116,22 @@ async function pickChallenges(supabase: any, count: number, difficulty?: string)
   for (let i = 0; i < count; i++) {
     let query = supabase
       .from('challenges')
-      .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, weight')
+      .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length, asset_path, weight')
       .eq('active', true)
-      .eq('qa_status', 'approved')
-      .neq('type', 'speed');
+      .eq('qa_status', 'approved');
     if (difficulty && ['easy', 'normal', 'hard'].includes(difficulty)) {
       query = query.eq('difficulty', difficulty);
     }
-    const { data } = await query.limit(80);
-    const pool = (data ?? []).filter((c: any) =>
-      !used.has(c.id) && Array.isArray(c.letter_pool) && c.letter_pool.length > 0 && c.subtype !== previousSubtype
-    );
-    if (!pool.length) continue;
-    // Weighted random: prefer higher weight (Speed/Words/Mystery)
-    const totalW = pool.reduce((s: number, c: any) => s + (Number(c.weight) || 10), 0);
+    const { data } = await query.limit(240);
+    const unused = (data ?? []).filter((c: any) => !used.has(c.id));
+    const pool = unused.filter((c: any) => c.subtype !== previousSubtype);
+    const candidates = pool.length ? pool : unused;
+    if (!candidates.length) continue;
+    // Weighted random while avoiding the same subtype in adjacent rounds.
+    const totalW = candidates.reduce((s: number, c: any) => s + (Number(c.weight) || 10), 0);
     let r = Math.random() * totalW;
-    let pick = pool[0];
-    for (const c of pool) {
+    let pick = candidates[0];
+    for (const c of candidates) {
       r -= Number(c.weight) || 10;
       if (r <= 0) { pick = c; break; }
     }
@@ -607,10 +606,14 @@ async function buildMatchState(supabase: any, matchId: string, viewerId?: string
 
   const { data: round } = await supabase
     .from('rounds')
-    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length)')
+    .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length, image_url, asset_path)')
     .eq('match_id', matchId)
     .eq('round_number', match.current_round)
     .maybeSingle();
+
+  const { data: roundChoices } = round?.challenge?.id
+    ? await supabase.from('challenge_choices').select('choice_id, label').eq('challenge_id', round.challenge.id).order('choice_id')
+    : { data: [] };
 
   let myLastAnswer = null;
   if (viewerId && round?.id) {
@@ -684,6 +687,9 @@ async function buildMatchState(supabase: any, matchId: string, viewerId?: string
             timeLimitMs: round.challenge?.time_limit_ms ?? 15000,
             letterPool: round.challenge?.letter_pool,
             maxLength: round.challenge?.max_length,
+            imageUrl: round.challenge?.image_url ?? null,
+            imageAssetPath: round.challenge?.asset_path ?? null,
+            choices: roundChoices.map((choice: any) => ({ id: choice.choice_id, label: choice.label })),
             version: 1,
           },
           status: round.status,

@@ -18,6 +18,7 @@ import { spendFiftyFifty } from '../../services/api/lifelineApi';
 import { MatchEndSummary } from '../../components/match/MatchEndSummary';
 import { AnswerHint } from '../../components/game/AnswerHint';
 import { hasPlayableAnswerContract } from '../../utils/challengeContract';
+import { ChallengeVisual } from '../../components/game/ChallengeVisual';
 
 async function shareMatchResult(text: string) {
   try {
@@ -237,6 +238,7 @@ export function MatchScreen() {
                 {match.round.challenge?.difficulty}
               </p>
 
+              <ChallengeVisual challenge={match.round.challenge} />
               {!hasPlayableAnswerContract(match.round.challenge) && <p className="content-warning mb-3 text-center">هذه الجولة غير متاحة حالياً لأن عقد الإجابة غير مكتمل.</p>}
               <h2 className="mb-3 text-center font-display text-xl font-bold leading-relaxed text-white">
                 {match.round.challenge?.prompt}

@@ -79,6 +79,8 @@ export interface Challenge {
   maxLength?: number;
   /** Optional HTTPS media; absence never blocks a playable challenge. */
   imageUrl?: string | null;
+  /** Bundled media path for deterministic rendering across phone platforms. */
+  imageAssetPath?: string | null;
   timeLimitMs: number;
   version: number;
 }

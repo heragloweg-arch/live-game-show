@@ -34,6 +34,8 @@ export interface RoomChallenge {
   timeLimitMs: number;
   letterPool?: string[];
   maxLength?: number;
+  imageUrl?: string | null;
+  imageAssetPath?: string | null;
   choices?: { id: string; label: string }[];
   acceptedAnswers?: string[];
 }
