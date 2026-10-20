@@ -1,7 +1,7 @@
 # حالة الإطلاق الحية — قدها
 
 **آخر تحديث:** 20 أكتوبر 2026
-**المرجع المعتمد:** `main` / `b23fa3d027cda4da11cecbec6d5b7532df6db718`
+**المرجع المعتمد:** `main` / `d9473ddaf577f73811f19f629b9167e754167412`
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
 ## القرار الحالي
@@ -29,7 +29,7 @@
 بصمة الـartifact:
 
 ```text
-commit: b23fa3d027cda4da11cecbec6d5b7532df6db718
+commit: d9473ddaf577f73811f19f629b9167e754167412
 sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb08dc865e32
 ```
 
