@@ -146,6 +146,15 @@ test('Railway build fingerprint accepts the official Git commit variable', () =>
   assert.match(railwayGuide, /RAILWAY_GIT_COMMIT_SHA/);
 });
 
+test('runtime config is a synchronous script before the app module', () => {
+  const html = readFileSync('index.html', 'utf8');
+  const runtimeIndex = html.indexOf('src="/env-config.js"');
+  const appIndex = html.indexOf('src="/src/main.tsx"');
+  assert.ok(runtimeIndex >= 0, 'env-config.js must be loaded');
+  assert.ok(appIndex > runtimeIndex, 'runtime config must appear before the app module');
+  assert.doesNotMatch(html.slice(runtimeIndex - 30, runtimeIndex + 40), /type="module"/);
+});
+
 test('flag content is bundled and mixed challenge selection accepts choice questions', () => {
   const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
   const room = readFileSync('supabase/functions/room/index.ts', 'utf8');
