@@ -1,18 +1,8 @@
-# حالة المراحل — قدها (محدّث)
+# حالة المراحل — ملف تاريخي
 
-## منجز برمجياً
-- P0 أمان ومحرك (settle / AI / Couple / Letters / Invite)
-- Realtime غرف (Supabase Channels) + fallback
-- Smart polling طلب واحد لكل tick
-- Atomic daily + atomic answer
-- Host Pro UI + server gate
-- دعوة 1v1 إنشاء/قبول من الواجهة
-- PWA robots + apple-touch
-- Vitest: scoring + arabic + settlement
-- Migrations حتى **000021**
+هذا الملف لم يعد مصدر الحالة التشغيلية. المرجع الحي الوحيد هو:
 
-## عليك تشغيلياً
-npm ci · db push · deploy · Console · APK · Beta
+- [LAUNCH_STATUS.md](./LAUNCH_STATUS.md)
+- [تقرير فجوات الجاهزية العالمية](./GLOBAL_READINESS_GAP_AUDIT_2026-10-20_AR.md)
 
-## مؤجل عمداً
-Teams مباراة · Creator · TikTok عميق · اشتراكات إضافية
+سبب التغيير: كانت هذه الوثيقة تحتوي حالات قديمة لا تعكس migrations وFunctions والإصلاحات اللاحقة، ولذلك يمنع استخدامها لإعلان PASS أو GO.
