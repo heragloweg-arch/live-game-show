@@ -155,6 +155,17 @@ test('runtime config is a synchronous script before the app module', () => {
   assert.doesNotMatch(html.slice(runtimeIndex - 30, runtimeIndex + 40), /type="module"/);
 });
 
+test('auth cannot remain pending forever and mobile auth is width-safe', () => {
+  const authStore = readFileSync('src/store/authStore.ts', 'utf8');
+  const styles = readFileSync('src/styles/index.css', 'utf8');
+  assert.match(authStore, /AUTH_REQUEST_TIMEOUT_MS\s*=\s*15_000/);
+  assert.match(authStore, /Promise\.race/);
+  assert.match(authStore, /profile bootstrap deferred/);
+  assert.match(styles, /\*\s*,\s*\*::before\s*,\s*\*::after\s*\{ box-sizing: border-box; \}/);
+  assert.match(styles, /\.auth-card \{ position: relative; width: 100%; max-width: 470px/);
+  assert.match(styles, /\.auth-page \{ place-items: start center; padding:/);
+});
+
 test('flag content is bundled and mixed challenge selection accepts choice questions', () => {
   const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
   const room = readFileSync('supabase/functions/room/index.ts', 'utf8');

@@ -18,8 +18,49 @@ interface AuthState {
   setUser: (user: UserProfile | null) => void;
 }
 
+const AUTH_REQUEST_TIMEOUT_MS = 15_000;
+
+async function withAuthTimeout<T>(request: PromiseLike<T>, operation: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(request),
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`انتهت مهلة ${operation}. تحقق من اتصال الإنترنت ثم حاول مرة أخرى.`)), AUTH_REQUEST_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function fallbackProfile(userId: string, meta?: { username?: string; displayName?: string }): UserProfile {
+  const now = new Date().toISOString();
+  return {
+    id: userId,
+    username: meta?.username ?? `player_${userId.slice(0, 8)}`,
+    displayName: meta?.displayName ?? 'لاعب قدها',
+    avatarUrl: null,
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 100,
+    wins: 0,
+    losses: 0,
+    totalMatches: 0,
+    coins: 0,
+    onboardingDone: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 async function loadUserProfile(userId: string, meta?: { username?: string; displayName?: string }) {
-  return ensureProfile(userId, meta);
+  try {
+    return await withAuthTimeout(ensureProfile(userId, meta), 'تحميل ملف الحساب');
+  } catch (error) {
+    console.warn('[Auth] profile bootstrap deferred', error);
+    return fallbackProfile(userId, meta);
+  }
 }
 
 function withAccountMeta(profile: UserProfile, authUser: { email?: string; is_anonymous?: boolean; app_metadata?: Record<string, unknown>; identities?: Array<{ provider?: string }> }): UserProfile {
@@ -70,7 +111,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithPassword: async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error } = await withAuthTimeout(
+      supabase.auth.signInWithPassword({ email: email.trim(), password }),
+      'تسجيل الدخول',
+    );
     if (error) throw error;
     if (data.user) {
       const profile = await loadUserProfile(data.user.id, {
@@ -82,14 +126,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signUpWithPassword: async (email, password, displayName) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: { display_name: displayName?.trim() || undefined },
-        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
-      },
-    });
+    const { data, error } = await withAuthTimeout(
+      supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { display_name: displayName?.trim() || undefined },
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
+        },
+      }),
+      'إنشاء الحساب',
+    );
     if (error) throw error;
     if (data.user && data.session) {
       const profile = await loadUserProfile(data.user.id, { displayName: displayName?.trim() });
@@ -99,10 +146,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithGoogle: async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
-    });
+    const { error } = await withAuthTimeout(
+      supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined },
+      }),
+      'تسجيل الدخول بحساب Google',
+    );
     if (error) throw error;
   },
 

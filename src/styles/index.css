@@ -17,9 +17,12 @@
     text-rendering: optimizeLegibility;
   }
 
+  *, *::before, *::after { box-sizing: border-box; }
+
   body {
     @apply h-full bg-surface-900 text-white font-arabic antialiased;
     overscroll-behavior: none;
+    overflow-x: hidden;
     background-image:
       radial-gradient(ellipse 120% 80% at 50% -20%, rgba(124, 58, 237, 0.18), transparent 50%),
       radial-gradient(ellipse 80% 50% at 100% 50%, rgba(34, 197, 94, 0.06), transparent 40%),
@@ -419,6 +422,7 @@ html.theme-light .border-white\/15 { border-color: var(--app-border-strong) !imp
 /* Qaddaha production surface 2026 — unified auth/play/responsive layer */
 .auth-page, .play-page {
   position: relative;
+  width: 100%;
   min-height: 100svh;
   overflow: hidden;
   padding: calc(24px + var(--safe-top)) 20px calc(28px + var(--safe-bottom));
@@ -429,7 +433,7 @@ html.theme-light .border-white\/15 { border-color: var(--app-border-strong) !imp
 .auth-ambient { position: fixed; pointer-events: none; width: 34rem; height: 34rem; border-radius: 50%; filter: blur(80px); opacity: .18; }
 .auth-ambient-one { inset: -16rem auto auto -12rem; background: #8b5cf6; }
 .auth-ambient-two { inset: auto -14rem -18rem auto; background: #22d3ee; }
-.auth-card { position: relative; width: min(100%, 470px); border: 1px solid var(--app-border, rgba(255,255,255,.12)); border-radius: 32px; padding: 28px; background: rgba(17,24,39,.82); box-shadow: 0 30px 90px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: blur(24px); }
+.auth-card { position: relative; width: 100%; max-width: 470px; border: 1px solid var(--app-border, rgba(255,255,255,.12)); border-radius: 32px; padding: 28px; background: rgba(17,24,39,.82); box-shadow: 0 30px 90px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06); backdrop-filter: blur(24px); }
 .auth-brand { display:flex; align-items:center; gap:11px; margin-bottom:28px; }
 .auth-brand .brand-mark { width:48px; height:48px; border-radius:16px; }
 .auth-brand strong { display:block; margin-top:2px; font-size:20px; font-weight:900; }
@@ -507,6 +511,12 @@ html.theme-light .play-hero { box-shadow:0 20px 45px rgba(67,56,80,.16); }
   .play-hero { min-height:180px; }
 }
 @media (max-width: 560px) {
+  .auth-page { place-items: start center; padding: calc(16px + var(--safe-top)) 12px calc(20px + var(--safe-bottom)); overflow-x: hidden; }
+  .auth-card { max-width: none; padding: 20px 16px; border-radius: 24px; }
+  .auth-brand { margin-bottom: 20px; }
+  .auth-heading h1 { font-size: clamp(1.55rem, 8vw, 2rem); }
+  .auth-heading p { font-size: 12px; }
+  .auth-tabs { margin-top: 18px; }
   .play-mode-grid { grid-template-columns:1fr; }
   .play-mode-card { min-height:78px; }
 }
