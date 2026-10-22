@@ -1,12 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Bot, CalendarDays, Crown, Swords, Users, Zap } from 'lucide-react';
+import { ArrowRight, CalendarDays, Crown, Leaf, Swords, Users, Zap } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const modes = [
   { icon: Swords, title: 'مباراة سريعة', description: 'خصم حقيقي الآن', tone: 'violet', primary: true, action: '/play/matchmaking?diff=normal' },
   { icon: CalendarDays, title: 'التحدي اليومي', description: '3 محطات ومكافأة اليوم', tone: 'gold', action: '/daily' },
-  { icon: Bot, title: 'رحلة Solo', description: 'شجرة مراحل بأسئلة متجددة', tone: 'cyan', action: '/play/difficulty' },
+  { icon: Leaf, title: 'رحلة Solo', description: 'شجرة مراحل بأسئلة متجددة', tone: 'cyan', action: '/play/difficulty' },
   { icon: Users, title: 'غرفة الأصدقاء', description: 'كود أو رابط دعوة', tone: 'cyan', action: '/room/join' },
   { icon: Users, title: 'معركة الفرق', description: 'تنافسوا كمجموعة', tone: 'pink', action: '/team' },
   { icon: Crown, title: 'استضف تحدياً', description: 'أدر الجولة مباشرة', tone: 'gold', action: '/host' },
