@@ -27,6 +27,7 @@ const PLAN_DAYS: Record<string, number> = {
   plus_monthly: 30,
   plus_yearly: 365,
   host_pro: 30,
+  host_max: 30,
 };
 
 serve(async (req) => {
@@ -106,7 +107,7 @@ serve(async (req) => {
 
       const effectivePlan = sub?.plan ?? profile?.subscription_plan ?? 'free';
       let dailyGrant = null;
-      if (['plus_monthly', 'plus_yearly', 'host_pro'].includes(effectivePlan) && (!sub?.expires_at || new Date(sub.expires_at) >= new Date())) {
+      if (['plus_monthly', 'plus_yearly', 'host_pro', 'host_max'].includes(effectivePlan) && (!sub?.expires_at || new Date(sub.expires_at) >= new Date())) {
         // Plus multiplier applies only to the cosmetic daily grant, never to match score or XP.
         const { data: grant } = await supabase.rpc('claim_subscription_daily_atomic', { p_user_id: user.id, p_plan: effectivePlan, p_coins: 50 });
         dailyGrant = grant ?? null;

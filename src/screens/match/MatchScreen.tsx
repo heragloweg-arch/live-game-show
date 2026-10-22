@@ -84,9 +84,19 @@ export function MatchScreen() {
       : answer.trim();
     if (!value) return;
     active.submitAnswer(value);
-    setAnswer('');
+    if (!match?.round?.challenge?.letterPool?.length) setAnswer('');
     setSelectedChoice(null);
   };
+
+  useEffect(() => {
+    const challenge = match?.round?.challenge;
+    if (phase !== 'playing' || !challenge?.letterPool?.length || !challenge.maxLength) return;
+    if (answer.replace(/\s/g, '').length !== challenge.maxLength) return;
+    const timer = window.setTimeout(handleSubmit, 120);
+    return () => window.clearTimeout(timer);
+    // handleSubmit is intentionally scoped to the current round state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answer, match?.round?.challenge, phase]);
 
   const handleNext = () => {
     server.goNextRound();
@@ -245,7 +255,7 @@ export function MatchScreen() {
               </h2>
               <AnswerHint challenge={match.round.challenge} />
 
-              {phase === 'playing' && hasPlayableAnswerContract(match.round.challenge) && (
+              {(phase === 'playing' || phase === 'round_result') && hasPlayableAnswerContract(match.round.challenge) && (
                 <div className="mb-5">
                   <div className="mb-1.5 flex justify-between text-xs text-white/40">
                     <span>الوقت</span>
@@ -271,13 +281,14 @@ export function MatchScreen() {
                 </div>
               )}
 
-              {phase === 'playing' && (
+              {(phase === 'playing' || phase === 'round_result') && (
                 <>
                   {match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0 ? (
                     <LetterPoolBoard
                       letters={match.round.challenge.letterPool}
                       maxLength={match.round.challenge.maxLength}
-                      disabled={false}
+                      disabled={phase !== 'playing'}
+                      feedback={phase === 'round_result' ? (match.lastAnswerResult?.outcome === 'correct' ? 'correct' : 'wrong') : null}
                       onChange={setAnswer}
                     />
                   ) : match.round.challenge?.choices && match.round.challenge.choices.length > 0 ? (
@@ -285,6 +296,7 @@ export function MatchScreen() {
                       {match.round.challenge.choices.filter((c) => !removedChoices.includes(c.id)).map((c) => (
                         <button
                           key={c.id}
+                          disabled={phase !== 'playing'}
                           onClick={() => setSelectedChoice(c.id)}
                           className={cn(
                             'rounded-xl border px-4 py-3 text-right transition-all',
@@ -301,6 +313,7 @@ export function MatchScreen() {
                     <input
                       type="text"
                       value={active.answer ?? answer}
+                      disabled={phase !== 'playing'}
                       onChange={(e) => { setAnswer(e.target.value); active.setAnswer(e.target.value); }}
                       onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
                       placeholder="اكتب إجابتك هنا..."
@@ -314,7 +327,7 @@ export function MatchScreen() {
                       {lifelineBusy ? 'جاري استخدام المساعدة...' : '50:50 · حذف إجابتين'}
                     </button>
                   )}
-                  <button
+                  {phase === 'playing' && <button
                     onClick={handleSubmit}
                     disabled={
                       match.round.challenge?.choices ? !selectedChoice : !(active.answer ?? answer).trim()
@@ -322,7 +335,7 @@ export function MatchScreen() {
                     className="btn-primary mt-4 w-full"
                   >
                     إرسال الإجابة
-                  </button>
+                  </button>}
                 </>
               )}
 

@@ -1,6 +1,6 @@
 import { useAuthStore } from '../../store/authStore';
 
-export type PlanId = 'free' | 'plus_monthly' | 'plus_yearly' | 'host_pro' | string;
+export type PlanId = 'free' | 'plus_monthly' | 'plus_yearly' | 'host_pro' | 'host_max' | string;
 
 function profileFromStore() {
   const state = useAuthStore.getState() as any;
@@ -18,11 +18,11 @@ export function getActivePlan(): PlanId {
 
 export function isPlusActive(): boolean {
   const plan = getActivePlan();
-  return plan === 'plus_monthly' || plan === 'plus_yearly' || plan === 'host_pro';
+  return plan === 'plus_monthly' || plan === 'plus_yearly' || plan === 'host_pro' || plan === 'host_max';
 }
 
 export function isHostProActive(): boolean {
-  return getActivePlan() === 'host_pro';
+  return getActivePlan() === 'host_pro' || getActivePlan() === 'host_max';
 }
 
 export function shouldShowAds(): boolean {

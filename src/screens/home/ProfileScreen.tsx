@@ -258,7 +258,7 @@ export function ProfileScreen() {
         <div className="grid gap-2 text-xs sm:grid-cols-2">
           <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">البريد</span><strong className="mt-1 block truncate text-white/80">{user?.email ?? 'غير متاح'}</strong></div>
           <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">طريقة التسجيل</span><strong className="mt-1 block text-white/80">{user?.authProvider === 'google' ? 'Google' : user?.authProvider === 'anonymous' ? 'جلسة مؤقتة' : 'البريد الإلكتروني'}</strong></div>
-          <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">الخطة</span><strong className="mt-1 block text-amber-100">{subscriptionPlan === 'host_pro' ? 'مضيف برو' : subscriptionPlan === 'plus_monthly' ? 'قدها بلس شهري' : subscriptionPlan === 'plus_yearly' ? 'قدها بلس سنوي' : 'مجاني'}</strong></div>
+          <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">الخطة</span><strong className="mt-1 block text-amber-100">{subscriptionPlan === 'host_max' ? 'محترف' : subscriptionPlan === 'host_pro' ? 'مبدع' : subscriptionPlan === 'plus_monthly' ? 'قدها بلس شهري' : subscriptionPlan === 'plus_yearly' ? 'قدها بلس سنوي' : 'مجاني'}</strong></div>
           <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">تجربة المضيف</span><strong className="mt-1 block text-white/80">{hostStatus?.trialAvailable ? 'متاحة · 30 دقيقة' : 'استُخدمت'}</strong></div>
         </div>
         <div className="flex flex-wrap gap-2">

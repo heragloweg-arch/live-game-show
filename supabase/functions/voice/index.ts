@@ -174,11 +174,11 @@ serve(async (req) => {
     if (action === 'host_status') {
       const [{ data: hostProfile }, { data: hostSubscription }, { data: tiktok }] = await Promise.all([
         supabase.from('profiles').select('coins, host_trial_used_at, subscription_plan, subscription_expires_at').eq('id', user.id).single(),
-        supabase.from('user_subscriptions').select('plan, status, expires_at').eq('user_id', user.id).eq('plan', 'host_pro').in('status', ['active', 'grace']).order('expires_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('user_subscriptions').select('plan, status, expires_at').eq('user_id', user.id).in('plan', ['host_pro', 'host_max']).in('status', ['active', 'grace']).order('expires_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('tiktok_connections').select('open_id, display_name, avatar_url, created_at').eq('user_id', user.id).maybeSingle(),
       ]);
       const now = Date.now();
-      const profileSubscription = hostProfile?.subscription_plan === 'host_pro'
+      const profileSubscription = ['host_pro', 'host_max'].includes(hostProfile?.subscription_plan)
         && (!hostProfile.subscription_expires_at || new Date(hostProfile.subscription_expires_at).getTime() > now);
       const hasHostSubscription = Boolean(hostSubscription) || profileSubscription;
       return json({

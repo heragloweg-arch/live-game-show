@@ -147,7 +147,9 @@ async function pickChallenges(supabase: any, count: number, difficulty?: string)
 
 async function createSoloMatch(supabase: any, user: any, difficulty: string) {
   const now = new Date().toISOString();
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, difficulty);
+  // Solo is a journey, not a fixed difficulty selector. Keep the legacy request
+  // field for old clients, but sample the approved bank without a difficulty filter.
+  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
   if (challenges.length < TOTAL_ROUNDS) {
     return json({ error: 'Not enough challenges in bank. Run seed migrations.' }, 500);
   }
@@ -157,7 +159,7 @@ async function createSoloMatch(supabase: any, user: any, difficulty: string) {
     .insert({
       mode: 'solo',
       status: 'VS',
-      difficulty,
+      difficulty: 'normal',
       current_round: 1,
       total_rounds: TOTAL_ROUNDS,
       sequence: 1,
@@ -189,8 +191,8 @@ async function createSoloMatch(supabase: any, user: any, difficulty: string) {
       side: 'ai',
       score: 0,
       is_ai: true,
-      ai_difficulty: difficulty,
-      username: 'AI (' + difficulty + ')',
+      ai_difficulty: 'normal',
+      username: 'خصم قدها',
     },
   ]);
 

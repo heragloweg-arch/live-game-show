@@ -7,12 +7,21 @@ interface Props {
   maxLength?: number;
   onChange: (value: string) => void;
   disabled?: boolean;
+  feedback?: 'correct' | 'wrong' | null;
 }
 
-export function LetterPoolBoard({ letters, maxLength, onChange, disabled }: Props) {
+const DISTRACTORS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
+
+export function LetterPoolBoard({ letters, maxLength, onChange, disabled, feedback = null }: Props) {
   const lettersKey = letters.join('|');
   const shuffled = useMemo(() => {
-    const arr = [...letters];
+    const base = [...letters];
+    const extras: string[] = [];
+    for (const ch of DISTRACTORS) {
+      if (!base.includes(ch) && !extras.includes(ch)) extras.push(ch);
+      if (extras.length === 5) break;
+    }
+    const arr = [...base, ...extras];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -60,8 +69,8 @@ export function LetterPoolBoard({ letters, maxLength, onChange, disabled }: Prop
         {Array.from({ length: maxLength ?? Math.max(picked.length, 1) }).map((_, index) => {
           const id = picked[index];
           const ch = id ? shuffled.find((s) => s.id === id)?.ch : '';
-          return (
-            <motion.span key={`${id ?? 'empty'}-${index}`} layout className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 font-display text-lg font-bold text-white">
+              return (
+                <motion.span key={`${id ?? 'empty'}-${index}`} layout className="flex h-10 w-10 items-center justify-center rounded-xl border border-dashed border-white/20 bg-white/5 font-display text-lg font-bold text-white">
               {ch || <span className="text-white/35">_</span>}
             </motion.span>
           );
@@ -76,7 +85,9 @@ export function LetterPoolBoard({ letters, maxLength, onChange, disabled }: Prop
             onClick={() => pick(x.id)}
             className={cn(
               'flex h-12 w-12 items-center justify-center rounded-xl border border-white/15 bg-white/10 font-display text-lg font-bold',
-              'active:scale-95 hover:bg-white/20 disabled:opacity-40'
+              'active:scale-95 hover:bg-white/20 disabled:opacity-40',
+              feedback === 'wrong' && picked.includes(x.id) && 'border-red-400 bg-red-500/25 text-red-200',
+              feedback === 'correct' && picked.includes(x.id) && 'border-emerald-300 bg-emerald-500/25 text-emerald-100'
             )}
           >
             {x.ch}
@@ -84,6 +95,9 @@ export function LetterPoolBoard({ letters, maxLength, onChange, disabled }: Prop
         ))}
       </div>
       <div className="flex justify-center gap-2">
+        <button type="button" className="btn-ghost text-xs text-gold-300" onClick={() => onChange(letters[0] ?? '')} disabled={disabled || !letters.length}>
+          تلميح: كشف حرف
+        </button>
         <button type="button" className="btn-ghost text-xs" onClick={undo} disabled={disabled}>
           تراجع
         </button>

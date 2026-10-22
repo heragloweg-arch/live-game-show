@@ -31,12 +31,14 @@ const PRODUCT_BY_PLAN: Record<string, string> = {
   plus_monthly: 'qaddaha_plus_monthly',
   plus_yearly: 'qaddaha_plus_yearly',
   host_pro: 'qaddaha_host_pro',
+  host_max: 'qaddaha_host_max_monthly',
 };
 
 const PLAN_BY_PRODUCT: Record<string, PlanId> = {
   qaddaha_plus_monthly: 'plus_monthly',
   qaddaha_plus_yearly: 'plus_yearly',
   qaddaha_host_pro: 'host_pro',
+  qaddaha_host_max_monthly: 'host_max',
 };
 
 async function loadNativePurchases(): Promise<any | null> {

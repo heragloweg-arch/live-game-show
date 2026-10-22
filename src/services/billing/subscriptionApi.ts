@@ -22,7 +22,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
-export type PlanId = 'free' | 'plus_monthly' | 'plus_yearly' | 'host_pro';
+export type PlanId = 'free' | 'plus_monthly' | 'plus_yearly' | 'host_pro' | 'host_max';
 
 export interface CatalogItem {
   plan: PlanId;
@@ -72,10 +72,11 @@ export async function cancelSubscription() {
   return invoke<{ ok: boolean }>({ action: 'cancel' });
 }
 
-export function formatPrice(micros: number, currency = 'SAR') {
+export function formatPrice(micros: number, currency = 'USD') {
   const value = micros / 1_000_000;
   try {
-    return new Intl.NumberFormat('ar-SA', {
+    const locale = typeof navigator !== 'undefined' ? navigator.language || 'ar' : 'ar';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       maximumFractionDigits: 2,

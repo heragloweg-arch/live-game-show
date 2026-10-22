@@ -214,7 +214,7 @@ serve(async (req) => {
       if (correct) {
         const { data: prof } = await supabase.from('profiles').select('subscription_plan, subscription_expires_at').eq('id', user.id).single();
         let mult = 1;
-        if (prof?.subscription_plan && ['plus_monthly','plus_yearly','host_pro'].includes(prof.subscription_plan)) {
+        if (prof?.subscription_plan && ['plus_monthly','plus_yearly','host_pro','host_max'].includes(prof.subscription_plan)) {
           const exp = prof.subscription_expires_at ? new Date(prof.subscription_expires_at) : null;
           if (!exp || exp.getTime() > Date.now()) mult = 2;
         }

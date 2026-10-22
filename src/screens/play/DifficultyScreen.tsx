@@ -1,142 +1,71 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Check, Leaf, Loader2, LockKeyhole, Sparkles, TreePine } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Bot, Flame, Shield, Zap, Loader2 } from 'lucide-react';
-import type { Difficulty } from '../../types';
-import { cn } from '../../utils/cn';
 import { createSoloMatch } from '../../services/api/matchApi';
 
-const LEVELS: {
-  id: Difficulty;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  color: string;
-  border: string;
-  accuracy: string;
-}[] = [
-  {
-    id: 'easy',
-    title: 'سهل',
-    subtitle: 'مناسب للمبتدئين · دقة AI منخفضة',
-    icon: <Shield className="h-7 w-7" />,
-    color: 'text-emerald-400',
-    border: 'border-emerald-500/40 hover:border-emerald-400',
-    accuracy: '45%',
-  },
-  {
-    id: 'normal',
-    title: 'متوسط',
-    subtitle: 'توازن جيد · التحدي الحقيقي يبدأ هنا',
-    icon: <Zap className="h-7 w-7" />,
-    color: 'text-zatona-400',
-    border: 'border-zatona-500/50 hover:border-zatona-400 shadow-glow',
-    accuracy: '68%',
-  },
-  {
-    id: 'hard',
-    title: 'صعب',
-    subtitle: 'AI قوي وسريع · للاعبين المحترفين',
-    icon: <Flame className="h-7 w-7" />,
-    color: 'text-orange-400',
-    border: 'border-orange-500/40 hover:border-orange-400',
-    accuracy: '88%',
-  },
-];
+const BRANCHES = Array.from({ length: 6 }, (_, branchIndex) => ({
+  number: branchIndex + 1,
+  title: ['البداية', 'المعرفة', 'المغامرة', 'السرعة', 'الأبطال', 'القمة'][branchIndex],
+  leaves: Array.from({ length: 8 }, (_, leafIndex) => ({
+    number: leafIndex + 1,
+    unlocked: branchIndex === 0 && leafIndex < 3,
+    completed: branchIndex === 0 && leafIndex < 1,
+  })),
+}));
 
 export function DifficultyScreen() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState<Difficulty | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const start = async (diff: Difficulty) => {
+  const start = async (branchNumber: number, leafNumber: number) => {
+    const key = `${branchNumber}-${leafNumber}`;
     setError(null);
-    setLoading(diff);
-
-    // Production path: server match
+    setLoading(key);
     try {
-      const match = await createSoloMatch(diff);
-      navigate(`/match/${match.matchId}`, { replace: true });
-      return;
+      // Solo uses server-selected mixed progression; difficulty is intentionally hidden.
+      const match = await createSoloMatch('normal');
+      navigate(`/match/${match.matchId}?branch=${branchNumber}&leaf=${leafNumber}`, { replace: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(
-        msg.includes('Not authenticated') || msg.includes('authenticated')
-          ? 'يجب تسجيل الدخول أولاً. أعد فتح التطبيق.'
-          : `تعذر بدء المباراة على السيرفر: ${msg}`
-      );
+      setError(msg.includes('authenticated') ? 'يجب تسجيل الدخول أولاً.' : `تعذر بدء الغصن: ${msg}`);
       setLoading(null);
     }
   };
 
   return (
-    <div className="min-h-screen px-5 pb-10 pt-6">
-      <header className="mb-8 flex items-center gap-3">
-        <Link to="/play" className="btn-ghost -mr-2 p-2">
-          <ArrowRight className="h-5 w-5" />
-        </Link>
-        <div>
-          <h1 className="font-display text-2xl font-bold">اختر مستوى الصعوبة</h1>
-          <p className="text-sm text-white/45">ضد الكمبيوتر · 5 جولات · سيرفر</p>
-        </div>
+    <main className="min-h-screen px-5 pb-12 pt-6">
+      <header className="mb-6 flex items-center gap-3">
+        <Link to="/play" className="btn-ghost -mr-2 p-2" aria-label="العودة"><ArrowRight className="h-5 w-5" /></Link>
+        <div className="flex-1"><p className="eyebrow">رحلة قدها</p><h1 className="font-display text-2xl font-black text-gradient">شجرة التحدي</h1><p className="text-xs text-white/45">فروع كثيرة، وأوراق أسئلة تتدرج تلقائياً</p></div>
+        <TreePine className="h-7 w-7 text-emerald-300" />
       </header>
 
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-white/5 bg-surface-800/60 p-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zatona-500/15">
-          <Bot className="h-6 w-6 text-zatona-400" />
-        </div>
-        <div>
-          <p className="font-medium text-white">الخصم: ذكاء اصطناعي</p>
-          <p className="text-xs text-white/45">المباراة تُدار من السيرفر · لا Demo للمستخدم</p>
-        </div>
-      </div>
+      {error && <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>}
 
-      {error && (
-        <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+      <section className="card-glow mb-5 p-5 text-center">
+        <div className="relative z-10"><TreePine className="mx-auto h-12 w-12 text-emerald-300" /><h2 className="mt-2 font-display text-xl font-black">كل إجابة تنبت مرحلة جديدة</h2><p className="mt-1 text-xs leading-5 text-white/50">لا توجد مستويات ثابتة؛ الخادم يخلط المعرفة والسرعة والأنواع المختلفة في كل غصن.</p></div>
+      </section>
 
-      <div className="flex flex-col gap-3">
-        {LEVELS.map((level, i) => (
-          <motion.button
-            key={level.id}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08 }}
-            whileTap={{ scale: 0.98 }}
-            disabled={!!loading}
-            onClick={() => start(level.id)}
-            className={cn(
-              'card flex items-center gap-4 p-5 text-right transition-all',
-              level.border,
-              loading && loading !== level.id && 'opacity-50'
-            )}
-          >
-            <div
-              className={cn(
-                'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/5',
-                level.color
-              )}
-            >
-              {loading === level.id ? (
-                <Loader2 className="h-7 w-7 animate-spin" />
-              ) : (
-                level.icon
-              )}
+      <div className="relative space-y-5 before:absolute before:bottom-4 before:right-6 before:top-4 before:w-px before:bg-emerald-300/20">
+        {BRANCHES.map((branch) => (
+          <section key={branch.number} className="relative pr-12">
+            <div className="absolute right-0 top-1 flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-300/25 bg-emerald-400/10 text-emerald-200"><span className="font-display text-lg font-black">{branch.number}</span></div>
+            <div className="mb-2 flex items-center gap-2"><Sparkles className="h-4 w-4 text-gold-300" /><h2 className="font-display text-lg font-black">غصن {branch.title}</h2></div>
+            <div className="grid grid-cols-4 gap-2">
+              {branch.leaves.map((leaf) => {
+                const key = `${branch.number}-${leaf.number}`;
+                const disabled = !leaf.unlocked || !!loading;
+                return <motion.button key={key} type="button" whileTap={{ scale: .92 }} disabled={disabled} onClick={() => void start(branch.number, leaf.number)} className={`relative flex min-h-16 flex-col items-center justify-center rounded-2xl border text-center transition ${leaf.completed ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-200' : leaf.unlocked ? 'border-violet-300/30 bg-violet-400/10 text-violet-100 hover:bg-violet-400/20' : 'border-white/5 bg-white/[.03] text-white/25'}`}>
+                  {loading === key ? <Loader2 className="h-5 w-5 animate-spin" /> : leaf.completed ? <Check className="h-4 w-4" /> : leaf.unlocked ? <Leaf className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
+                  <span className="mt-1 text-[10px] font-bold">ورقة {leaf.number}</span>
+                </motion.button>;
+              })}
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-bold text-white">{level.title}</h2>
-                <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs text-white/50">
-                  دقة {level.accuracy}
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-white/50">{level.subtitle}</p>
-            </div>
-          </motion.button>
+          </section>
         ))}
       </div>
-    </div>
+    </main>
   );
 }

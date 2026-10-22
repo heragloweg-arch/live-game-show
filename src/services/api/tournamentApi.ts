@@ -39,7 +39,21 @@ export interface Tournament {
 }
 
 export async function listTournaments() {
-  return invoke<{ tournaments: Tournament[] }>({ action: 'list' });
+  try {
+    return await invoke<{ tournaments: Tournament[] }>({ action: 'list' });
+  } catch (error) {
+    if (!(error instanceof Error) || !/unknown action/i.test(error.message)) throw error;
+    // Compatibility path for an older deployed function. RLS permits public
+    // tournament reads; joining and prize operations remain server-authoritative.
+    const { data, error: queryError } = await supabase
+      .from('tournaments')
+      .select('*')
+      .in('status', ['registration', 'active', 'completed'])
+      .order('starts_at', { ascending: false })
+      .limit(20);
+    if (queryError) throw new Error(queryError.message);
+    return { tournaments: (data ?? []) as Tournament[] };
+  }
 }
 
 export async function getTournament(tournamentId: string) {
