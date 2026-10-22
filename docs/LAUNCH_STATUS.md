@@ -1,7 +1,7 @@
 # حالة الإطلاق الحية — قدها
 
-**آخر تحديث:** 20 أكتوبر 2026
-**المرجع المعتمد:** `main` / `d9473ddaf577f73811f19f629b9167e754167412`
+**آخر تحديث:** 22 أكتوبر 2026
+**المرجع المعتمد:** `main` / `22306ba945544915b22be368971385b0fd3fdd01`
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
 ## القرار الحالي
@@ -42,9 +42,16 @@ sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb0
 
 ## T1 — Staging وSupabase وRLS
 
-**الحالة: BLOCKED_EXTERNAL.**
+**الحالة: PARTIAL — Supabase Production deployed / E2E Staging still pending.**
 
-يلزم من المالك أو من بيئة متصلة بصلاحية Supabase:
+تم تنفيذ الجزء التالي فعليًا في 22 أكتوبر:
+
+- ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
+- تطبيق migrations حتى `20261021050002` باستخدام `--include-all`.
+- نشر جميع Edge Functions الموجودة وظهورها بحالة `ACTIVE`.
+- ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.
+
+ما زال يلزم:
 
 1. إنشاء أو تحديد مشروع Staging منفصل.
 2. أخذ backup قبل التطبيق.
@@ -55,7 +62,7 @@ sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb0
 7. تنفيذ مصفوفة anon/authenticated/host/member/blocked/admin/service_role.
 8. حفظ نتائج النجاح والرفض مع deployment IDs منزوعة الأسرار.
 
-لا يوجد في هذا المستودع دليل اتصال أو نتيجة Staging حقيقية، لذلك لا أسجل PASS.
+لا يُسجل T1 كـPASS كاملًا قبل backup موثق، مصفوفة RLS/Auth، واختبارات حسابات حقيقية على Staging/Production. التفاصيل في `docs/SUPABASE_DEPLOYMENT_REPORT_2026-10-22_AR.md`.
 
 ## T2 — حلقة اللعب الحية
 

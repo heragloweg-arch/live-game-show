@@ -1,0 +1,3 @@
+-- Historical migration already applied on the linked Supabase project before it
+-- was present in this repository. This no-op file preserves migration history
+-- alignment and must not be used to infer or recreate the original SQL.
