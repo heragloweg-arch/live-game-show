@@ -179,7 +179,7 @@ serve(async (req) => {
       ]);
       const now = Date.now();
       const profileSubscription = ['host_pro', 'host_max'].includes(hostProfile?.subscription_plan)
-        && (!hostProfile.subscription_expires_at || new Date(hostProfile.subscription_expires_at).getTime() > now);
+        && (!hostProfile?.subscription_expires_at || new Date(hostProfile.subscription_expires_at).getTime() > now);
       const hasHostSubscription = Boolean(hostSubscription) || profileSubscription;
       return json({
         trialAvailable: !hostProfile?.host_trial_used_at,
