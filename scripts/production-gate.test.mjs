@@ -122,6 +122,17 @@ test('account deletion and server rate limiting are wired server-side', () => {
   assert.match(migration, /consume_rate_limit_atomic/);
 });
 
+test('T1b RLS hardening blocks client writes to authoritative state', () => {
+  const rls = readFileSync('supabase/migrations/20261023050001_rls_role_hardening.sql', 'utf8');
+  assert.match(rls, /profiles_insert_own/);
+  assert.match(rls, /GRANT INSERT \(id, username, display_name\)/);
+  assert.match(rls, /GRANT UPDATE \(username, display_name, avatar_url\)/);
+  assert.match(rls, /REVOKE INSERT, UPDATE, DELETE ON public\.wallet_ledger/);
+  assert.match(rls, /REVOKE INSERT, UPDATE, DELETE ON public\.user_subscriptions/);
+  assert.match(rls, /REVOKE INSERT, UPDATE, DELETE ON public\.rooms/);
+  assert.match(rls, /GRANT ALL ON public\.matches/);
+});
+
 test('public deployment metadata is explicit and CORS is not wildcard', () => {
   const cors = readFileSync('supabase/functions/_shared/cors.ts', 'utf8');
   const routes = JSON.parse(readFileSync('public/manus-routes.json', 'utf8'));

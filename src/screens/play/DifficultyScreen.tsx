@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Leaf, Loader2, LockKeyhole, Sparkles, TreePine } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { createSoloMatch } from '../../services/api/matchApi';
+import { createSoloMatch, getSoloJourneyProgress } from '../../services/api/matchApi';
 import { useAuthStore } from '../../store/authStore';
-import { getSoloJourney } from '../../services/game/soloJourneyProgress';
+import { completeSoloLeaf, getSoloJourney } from '../../services/game/soloJourneyProgress';
 
 const BRANCHES = Array.from({ length: 6 }, (_, branchIndex) => ({
   number: branchIndex + 1,
@@ -17,7 +17,20 @@ export function DifficultyScreen() {
   const userId = useAuthStore((s) => s.user?.id);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progressVersion, setProgressVersion] = useState(0);
   const journey = userId ? getSoloJourney(userId) : null;
+
+  useEffect(() => {
+    if (!userId) return;
+    void getSoloJourneyProgress()
+      .then((progress) => {
+        progress.forEach((leaf) => completeSoloLeaf(userId, leaf.branch_number, leaf.leaf_number));
+        setProgressVersion((version) => version + 1);
+      })
+      .catch(() => { /* local cache remains available during a temporary network failure */ });
+  }, [userId]);
+
+  void progressVersion;
 
   const start = async (branchNumber: number, leafNumber: number) => {
     const key = `${branchNumber}-${leafNumber}`;
@@ -25,7 +38,7 @@ export function DifficultyScreen() {
     setLoading(key);
     try {
       // Solo uses server-selected mixed progression; difficulty is intentionally hidden.
-      const match = await createSoloMatch('normal');
+      const match = await createSoloMatch('normal', { branch: branchNumber, leaf: leafNumber });
       navigate(`/match/${match.matchId}?branch=${branchNumber}&leaf=${leafNumber}`, { replace: true });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

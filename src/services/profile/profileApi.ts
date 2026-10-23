@@ -101,7 +101,7 @@ export async function updateProfile(
   userId: string,
   patch: { displayName?: string; username?: string; avatarUrl?: string | null }
 ): Promise<UserProfile | null> {
-  const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  const payload: Record<string, unknown> = {};
   if (patch.displayName !== undefined) payload.display_name = patch.displayName;
   if (patch.username !== undefined) payload.username = patch.username;
   if (patch.avatarUrl !== undefined) payload.avatar_url = patch.avatarUrl;

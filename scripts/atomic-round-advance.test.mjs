@@ -32,3 +32,25 @@ test('match Edge Function delegates next_round to the atomic RPC', () => {
   assert.match(nextRound, /ROUND_NOT_READY/);
   assert.match(nextRound, /STALE_ROUND/);
 });
+
+const soloMigration = await readFile(
+  new URL('../supabase/migrations/20261023050000_solo_journey_server_progress.sql', import.meta.url),
+  'utf8'
+);
+
+test('Solo journey progress is server-authoritative and idempotent', () => {
+  assert.match(soloMigration, /CREATE TABLE IF NOT EXISTS public\.solo_journey_progress/);
+  assert.match(soloMigration, /PRIMARY KEY \(user_id, branch_number, leaf_number\)/);
+  assert.match(soloMigration, /CREATE POLICY solo_journey_progress_select_own/);
+  assert.match(soloMigration, /ON CONFLICT \(user_id, branch_number, leaf_number\) DO NOTHING/);
+  assert.match(soloMigration, /complete_solo_journey_leaf/);
+  assert.match(soloMigration, /REVOKE ALL ON FUNCTION public\.complete_solo_journey_leaf/);
+});
+
+test('Solo match carries the journey stage and records it after settlement', () => {
+  assert.match(handler, /case 'solo_progress'/);
+  assert.match(handler, /journeyBranch/);
+  assert.match(handler, /journeyLeaf/);
+  assert.match(handler, /JOURNEY_STAGE_LOCKED/);
+  assert.match(handler, /complete_solo_journey_leaf/);
+});

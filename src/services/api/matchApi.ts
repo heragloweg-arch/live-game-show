@@ -89,12 +89,28 @@ async function invoke<T>(fnName: string, body: Record<string, unknown>): Promise
   return data as T;
 }
 
-export async function createSoloMatch(difficulty: Difficulty = 'normal'): Promise<MatchState> {
+export async function createSoloMatch(
+  difficulty: Difficulty = 'normal',
+  journey?: { branch: number; leaf: number },
+): Promise<MatchState> {
   const data = await invoke<{ match: MatchState }>('match', {
     action: 'create_solo',
     difficulty,
+    journeyBranch: journey?.branch,
+    journeyLeaf: journey?.leaf,
   });
   return data.match;
+}
+
+export interface SoloJourneyProgressRow {
+  branch_number: number;
+  leaf_number: number;
+  completed_at: string;
+}
+
+export async function getSoloJourneyProgress(): Promise<SoloJourneyProgressRow[]> {
+  const data = await invoke<{ progress: SoloJourneyProgressRow[] }>('match', { action: 'solo_progress' });
+  return data.progress;
 }
 
 export async function create1v1Match(opponentId: string): Promise<MatchState> {

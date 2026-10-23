@@ -48,7 +48,15 @@ serve(async (req) => {
 
     switch (action) {
       case 'create_solo':
-        return await createSoloMatch(supabase, user, body.difficulty ?? 'normal');
+        return await createSoloMatch(
+          supabase,
+          user,
+          body.difficulty ?? 'normal',
+          Number(body.journeyBranch),
+          Number(body.journeyLeaf),
+        );
+      case 'solo_progress':
+        return await getSoloProgress(supabase, user.id);
       case 'create_couple':
         return await createCoupleMatch(supabase, user, body.difficulty ?? 'normal');
       case 'create_invite':
@@ -145,13 +153,39 @@ async function pickChallenges(supabase: any, count: number, difficulty?: string)
   return challenges;
 }
 
-async function createSoloMatch(supabase: any, user: any, difficulty: string) {
+async function createSoloMatch(
+  supabase: any,
+  user: any,
+  difficulty: string,
+  journeyBranch?: number,
+  journeyLeaf?: number,
+) {
   const now = new Date().toISOString();
   // Solo is a journey, not a fixed difficulty selector. Keep the legacy request
   // field for old clients, but sample the approved bank without a difficulty filter.
   const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
   if (challenges.length < TOTAL_ROUNDS) {
     return json({ error: 'Not enough challenges in bank. Run seed migrations.' }, 500);
+  }
+
+  const hasJourneyStage = journeyBranch !== undefined && journeyLeaf !== undefined
+    && Number.isInteger(journeyBranch) && Number.isInteger(journeyLeaf)
+    && journeyBranch >= 1 && journeyBranch <= 6 && journeyLeaf >= 1 && journeyLeaf <= 8;
+  if ((journeyBranch || journeyLeaf) && !hasJourneyStage) {
+    return json({ error: 'مرحلة الشجرة غير صالحة', code: 'INVALID_JOURNEY_STAGE' }, 400);
+  }
+  if (hasJourneyStage && !(journeyBranch === 1 && journeyLeaf === 1)) {
+    const previousIndex = (journeyBranch! * 8) + journeyLeaf! - 1;
+    const previousBranch = Math.floor((previousIndex - 1) / 8) + 1;
+    const previousLeaf = ((previousIndex - 1) % 8) + 1;
+    const { data: previous } = await supabase
+      .from('solo_journey_progress')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('branch_number', previousBranch)
+      .eq('leaf_number', previousLeaf)
+      .maybeSingle();
+    if (!previous) return json({ error: 'أكمل الورقة السابقة أولاً', code: 'JOURNEY_STAGE_LOCKED' }, 409);
   }
 
   const { data: match, error: matchErr } = await supabase
@@ -164,6 +198,7 @@ async function createSoloMatch(supabase: any, user: any, difficulty: string) {
       total_rounds: TOTAL_ROUNDS,
       sequence: 1,
       server_now: now,
+      config_snapshot: hasJourneyStage ? { journeyBranch, journeyLeaf } : null,
     })
     .select()
     .single();
@@ -207,6 +242,17 @@ async function createSoloMatch(supabase: any, user: any, difficulty: string) {
   );
 
   return json({ match: await buildMatchState(supabase, match.id) });
+}
+
+async function getSoloProgress(supabase: any, userId: string) {
+  const { data, error } = await supabase
+    .from('solo_journey_progress')
+    .select('branch_number, leaf_number, completed_at')
+    .eq('user_id', userId)
+    .order('branch_number', { ascending: true })
+    .order('leaf_number', { ascending: true });
+  if (error) return json({ error: 'تعذر قراءة تقدم الشجرة', code: 'JOURNEY_PROGRESS_UNAVAILABLE' }, 503);
+  return json({ progress: data ?? [] });
 }
 
 async function create1v1Match(supabase: any, user: any, opponentId: string, difficulty = 'normal') {
@@ -574,8 +620,28 @@ async function finishMatch(supabase: any, matchId: string, userId: string | null
     console.error('[finish] atomic settlement failed', settleErr?.message ?? settled);
     return json({ error: 'تعذر تثبيت نتيجة المباراة ذرياً، أعد المحاولة', code: 'SETTLEMENT_UNAVAILABLE' }, 503);
   }
+  let journeyProgress = null;
+  if (userId) {
+    const { data: journeyMatch } = await supabase
+      .from('matches')
+      .select('mode, config_snapshot')
+      .eq('id', matchId)
+      .maybeSingle();
+    const branch = Number(journeyMatch?.config_snapshot?.journeyBranch);
+    const leaf = Number(journeyMatch?.config_snapshot?.journeyLeaf);
+    if (journeyMatch?.mode === 'solo' && Number.isInteger(branch) && Number.isInteger(leaf)) {
+      const { data: progress, error: progressError } = await supabase.rpc('complete_solo_journey_leaf', {
+        p_user_id: userId,
+        p_branch_number: branch,
+        p_leaf_number: leaf,
+        p_match_id: matchId,
+      });
+      if (progressError) console.error('[finish] solo journey progress', progressError);
+      journeyProgress = Array.isArray(progress) ? progress[0] ?? null : progress;
+    }
+  }
   const state = await buildMatchState(supabase, matchId, userId ?? undefined);
-  return json({ match: state, rewards: settled.rewards, alreadySettled: !!settled.already });
+  return json({ match: state, rewards: settled.rewards, journeyProgress, alreadySettled: !!settled.already });
 
 }
 
