@@ -152,8 +152,8 @@ export interface MatchState {
     username: string;
     avatarUrl: string | null;
     score: number;
-    side: 'opponent' | 'ai' | 'team_b';
-    isAi: boolean;
+    side: 'opponent' | 'virtual' | 'team_b';
+    isVirtualOpponent: boolean;
   };
   /** Team modes */
   teamScoreA?: number;
