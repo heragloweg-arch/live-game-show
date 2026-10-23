@@ -1,7 +1,7 @@
 # حالة الإطلاق الحية — قدها
 
-**آخر تحديث:** 22 أكتوبر 2026
-**المرجع المعتمد:** `main` / `22306ba945544915b22be368971385b0fd3fdd01`
+**آخر تحديث:** 23 أكتوبر 2026
+**المرجع المعتمد:** `main` / `ce12786fa305828f5c4d0d301c889246b8742a27`
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
 ## القرار الحالي
@@ -17,8 +17,8 @@
 - `npm ci --legacy-peer-deps --no-audit --no-fund`
 - `npm run typecheck`
 - `npm run lint`
-- `npm test -- --run` — 7 ملفات و19 اختبارًا ناجحًا.
-- `npm run test:production-gates` — 17/17 ناجحًا.
+- `npm test -- --run` — 8 ملفات و21 اختبارًا ناجحًا.
+- `npm run test:production-gates` — 22/22 ناجحًا.
 - `npm run build`
 - `node scripts/verify-production.mjs`
 - `node scripts/verify-launch-config.mjs`
@@ -36,7 +36,7 @@ sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb0
 ملاحظات T0:
 
 - الـSandbox يعمل Node `22.13.0`، بينما `package.json` يطلب `>=22.22.0`. CI يستخدم Node `22.22.0`; يجب تنفيذ البناء النهائي وAAB على Node مطابق أو أحدث.
-- Deno غير مثبت في الـSandbox، لذلك لم يتم تسجيل PASS لفحص Edge Functions هنا. يجب تشغيله في CI أو جهاز يحوي Deno.
+- فحص Deno لكل Edge Functions متاح محليًا ونجح في هذه الدفعة.
 - `npm audit --omit=dev --audit-level=high` لا يمنع البناء، لكنه أظهر ثغرتين Moderate في React Router، وإصلاح npm المقترح يتضمن breaking change. لا يطبق تلقائيًا قبل اختبار توافق التطبيق.
 - بقي تحذير LiveKit chunk كبيرًا، وهو بند P1 وليس فشلًا مخفيًا.
 
@@ -47,22 +47,24 @@ sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb0
 تم تنفيذ الجزء التالي فعليًا في 22 أكتوبر:
 
 - ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
-- تطبيق migrations حتى `20261021050002` باستخدام `--include-all`.
-- نشر جميع Edge Functions الموجودة وظهورها بحالة `ACTIVE`.
+- تطبيق migrations حتى `20261021050002` باستخدام `--include-all`، ثم تطبيق `20261023050000` و`20261023050001`.
+- نشر جميع Edge Functions الموجودة وظهورها بحالة `ACTIVE`، ثم نشر `match` من commit `ce12786` كإصدار 12.
 - ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.
+- تطبيق RLS role hardening ومنع الكتابة المباشرة إلى الحالة السلطوية.
+- نقل تقدم Solo إلى جدول خادمي وRPC idempotent مع فرض تسلسل المراحل.
 
 ما زال يلزم:
 
 1. إنشاء أو تحديد مشروع Staging منفصل.
 2. أخذ backup قبل التطبيق.
-3. تطبيق migrations حتى أحدث ملف.
+3. تطبيق migrations حتى أحدث ملف — تم على Production، وما زال Staging منفصلًا مطلوبًا.
 4. مطابقة `schema_migrations` مع Git.
-5. نشر جميع Edge Functions من نفس commit.
+5. نشر جميع Edge Functions من نفس commit — وظائف Production الحالية ACTIVE، وStaging ما زال مطلوبًا.
 6. ضبط secrets الخادمية و`CORS_ALLOWED_ORIGIN`.
 7. تنفيذ مصفوفة anon/authenticated/host/member/blocked/admin/service_role.
 8. حفظ نتائج النجاح والرفض مع deployment IDs منزوعة الأسرار.
 
-لا يُسجل T1 كـPASS كاملًا قبل backup موثق، مصفوفة RLS/Auth، واختبارات حسابات حقيقية على Staging/Production. التفاصيل في `docs/SUPABASE_DEPLOYMENT_REPORT_2026-10-22_AR.md`.
+لا يُسجل T1 كـPASS كاملًا قبل backup موثق، مصفوفة RLS/Auth، واختبارات حسابات حقيقية على Staging/Production. التفاصيل في `docs/SUPABASE_DEPLOYMENT_REPORT_2026-10-22_AR.md` و`docs/T1B_SOLO_RLS_DEPLOYMENT_REPORT_2026-10-23_AR.md`.
 
 ## T2 — حلقة اللعب الحية
 
