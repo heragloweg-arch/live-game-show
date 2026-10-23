@@ -133,6 +133,14 @@ test('T1b RLS hardening blocks client writes to authoritative state', () => {
   assert.match(rls, /GRANT ALL ON public\.matches/);
 });
 
+test('Solo UI cache is updated only from the server settlement result', () => {
+  const matchScreen = readFileSync('src/screens/match/MatchScreen.tsx', 'utf8');
+  const matchHook = readFileSync('src/hooks/useServerMatch.ts', 'utf8');
+  assert.doesNotMatch(matchScreen, /completeSoloLeaf/);
+  assert.match(matchHook, /settled\.journeyProgress/);
+  assert.match(matchHook, /completeSoloLeaf\(/);
+});
+
 test('public deployment metadata is explicit and CORS is not wildcard', () => {
   const cors = readFileSync('supabase/functions/_shared/cors.ts', 'utf8');
   const routes = JSON.parse(readFileSync('public/manus-routes.json', 'utf8'));

@@ -31,6 +31,11 @@ export interface MatchReward {
 export interface MatchResponse {
   match: MatchState;
   rewards?: MatchReward[];
+  journeyProgress?: {
+    branch_number: number;
+    leaf_number: number;
+    completed_at: string;
+  } | null;
   alreadySettled?: boolean;
 }
 

@@ -29,6 +29,7 @@ import { startMatchRealtime } from '../services/realtime/matchRealtime';
 import { useMatchStore } from '../store/matchStore';
 import type { Difficulty, MatchState } from '../types';
 import { remainingMs } from '../utils/time';
+import { completeSoloLeaf } from '../services/game/soloJourneyProgress';
 
 export type ServerMatchPhase =
   | 'idle'
@@ -225,6 +226,13 @@ export function useServerMatch() {
       if (next.status === 'MATCH_FINISHED' || next.status === 'FINAL_RESULT') {
         const settled = nextResponse.rewards ? nextResponse : await apiFinishMatch(current.matchId);
         setMatch(settled.match);
+        if (settled.journeyProgress && settled.match.mode === 'solo' && settled.match.player?.id) {
+          completeSoloLeaf(
+            settled.match.player.id,
+            settled.journeyProgress.branch_number,
+            settled.journeyProgress.leaf_number,
+          );
+        }
         const applied = applyMatchRewards(settled.rewards);
         setLastRewards(applied ?? null);
         clearActiveMatch();

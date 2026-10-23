@@ -19,7 +19,6 @@ import { MatchEndSummary } from '../../components/match/MatchEndSummary';
 import { AnswerHint } from '../../components/game/AnswerHint';
 import { hasPlayableAnswerContract } from '../../utils/challengeContract';
 import { ChallengeVisual } from '../../components/game/ChallengeVisual';
-import { completeSoloLeaf } from '../../services/game/soloJourneyProgress';
 
 async function shareMatchResult(text: string) {
   try {
@@ -78,14 +77,6 @@ export function MatchScreen() {
     }, 1200);
     return () => window.clearTimeout(t);
   }, [phase, finishedMatchId, finishedMatchMode]);
-
-  useEffect(() => {
-    const branch = Number(search.get('branch'));
-    const leaf = Number(search.get('leaf'));
-    if (phase === 'finished' && match?.mode === 'solo' && match.player?.id && branch > 0 && leaf > 0) {
-      completeSoloLeaf(match.player.id, branch, leaf);
-    }
-  }, [phase, match?.mode, match?.player?.id, search]);
 
   const handleSubmit = () => {
     const value = match?.round?.challenge?.choices
