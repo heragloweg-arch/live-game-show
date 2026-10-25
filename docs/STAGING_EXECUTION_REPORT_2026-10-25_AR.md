@@ -62,7 +62,7 @@ kernel=active
 engines=14
 ```
 
-أما `/ready` فما زال يعيد `HTTP 404`، لذلك لا يُعتبر readiness التشغيلي مثبتاً من Railway. هذا لا يلغي نجاح Supabase migrations أو نشر الوظائف، لكنه يمنع تسجيل جاهزية الخدمة الكاملة.
+تمت إضافة `/ready` و`/health` و`/healthz` إلى خادم الملفات، وتم توحيد `railway.json` و`railway.toml` على `/ready`. يلزم نشر commit الحالي على Railway ثم إعادة الفحص الحي؛ قبل ذلك لا تُسجل Railway readiness كـPASS.
 
 ## حدود ما لم يُنفذ
 
@@ -73,6 +73,6 @@ engines=14
 - Supabase Staging migrations: **PASS**.
 - Edge Functions deployment: **PASS — 19/19 ACTIVE**.
 - Source quality and build gates: **PASS**.
-- Railway readiness: **BLOCKED — `/ready` غير منشور**.
+- Railway readiness: **CODE FIXED — ينتظر نشر Railway وإعادة فحص حي**.
 - Android/store/E2E external gates: **BLOCKED_EXTERNAL**.
 - قرار الإطلاق العام: **NO-GO** إلى أن تُغلق بوابات الجهاز والمتجر والخدمات الخارجية.

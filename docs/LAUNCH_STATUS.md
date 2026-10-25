@@ -1,7 +1,7 @@
 # حالة الإطلاق الحية — قدها
 
-**آخر تحديث:** 23 أكتوبر 2026
-**المرجع المعتمد:** `main` / `ce12786fa305828f5c4d0d301c889246b8742a27`
+**آخر تحديث:** 25 أكتوبر 2026
+**المرجع المعتمد:** `main` / `32477255beb214b64730bc1b75e66e75928c4ffc`
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
 ## القرار الحالي
@@ -18,7 +18,7 @@
 - `npm run typecheck`
 - `npm run lint`
 - `npm test -- --run` — 8 ملفات و21 اختبارًا ناجحًا.
-- `npm run test:production-gates` — 22/22 ناجحًا.
+- `npm run test:production-gates` — 23/23 ناجحًا.
 - `npm run build`
 - `node scripts/verify-production.mjs`
 - `node scripts/verify-launch-config.mjs`
@@ -42,27 +42,26 @@ sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb0
 
 ## T1 — Staging وSupabase وRLS
 
-**الحالة: PARTIAL — Supabase Production deployed / E2E Staging still pending.**
+**الحالة: PASS للمزامنة والنشر الإداري — E2E Staging والأدوار الحية ما زالا BLOCKED_EXTERNAL.**
 
-تم تنفيذ الجزء التالي فعليًا في 22 أكتوبر:
+تم تنفيذ الجزء التالي فعليًا حتى 25 أكتوبر:
 
 - ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
-- تطبيق migrations حتى `20261021050002` باستخدام `--include-all`، ثم تطبيق `20261023050000` و`20261023050001`.
-- نشر جميع Edge Functions الموجودة وظهورها بحالة `ACTIVE`، ثم نشر `match` من commit `ce12786` كإصدار 12.
+- تطبيق `db push --include-all`؛ والنتيجة `Remote database is up to date`.
+- مطابقة سجل migrations المحلي والبعيد حتى `20261023050001`.
+- إعادة نشر جميع Edge Functions وعددها 19 من رأس `main` وظهورها بحالة `ACTIVE`.
+- حفظ دليل التنفيذ في `docs/STAGING_EXECUTION_REPORT_2026-10-25_AR.md`.
 - ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.
 - تطبيق RLS role hardening ومنع الكتابة المباشرة إلى الحالة السلطوية.
 - نقل تقدم Solo إلى جدول خادمي وRPC idempotent مع فرض تسلسل المراحل.
 
 ما زال يلزم:
 
-1. إنشاء أو تحديد مشروع Staging منفصل.
-2. أخذ backup قبل التطبيق.
-3. تطبيق migrations حتى أحدث ملف — تم على Production، وما زال Staging منفصلًا مطلوبًا.
-4. مطابقة `schema_migrations` مع Git.
-5. نشر جميع Edge Functions من نفس commit — وظائف Production الحالية ACTIVE، وStaging ما زال مطلوبًا.
-6. ضبط secrets الخادمية و`CORS_ALLOWED_ORIGIN`.
-7. تنفيذ مصفوفة anon/authenticated/host/member/blocked/admin/service_role.
-8. حفظ نتائج النجاح والرفض مع deployment IDs منزوعة الأسرار.
+1. تحديد مشروع Production منفصل عن Staging وإثبات العزل.
+2. أخذ backup موثق قبل أي migration تغيّرية.
+3. ضبط secrets الخادمية و`CORS_ALLOWED_ORIGIN` في البيئة المستهدفة.
+4. تنفيذ مصفوفة anon/authenticated/host/member/blocked/admin/service_role بحسابات اختبار حقيقية.
+5. حفظ نتائج النجاح والرفض مع deployment IDs منزوعة الأسرار.
 
 لا يُسجل T1 كـPASS كاملًا قبل backup موثق، مصفوفة RLS/Auth، واختبارات حسابات حقيقية على Staging/Production. التفاصيل في `docs/SUPABASE_DEPLOYMENT_REPORT_2026-10-22_AR.md` و`docs/T1B_SOLO_RLS_DEPLOYMENT_REPORT_2026-10-23_AR.md`.
 

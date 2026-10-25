@@ -6,7 +6,7 @@
   },
   "deploy": {
     "startCommand": "node scripts/verify-runtime-config.mjs && node scripts/write-runtime-config.mjs && node scripts/static-server.mjs",
-    "healthcheckPath": "/",
+    "healthcheckPath": "/ready",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5

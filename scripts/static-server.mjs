@@ -43,10 +43,39 @@ async function fileExists(path) {
   try { await access(path); return true; } catch { return false; }
 }
 
+function jsonResponse(res, status, payload) {
+  const body = JSON.stringify(payload);
+  res.writeHead(status, {
+    ...headers('application/json; charset=utf-8', 'no-store'),
+    'Content-Length': Buffer.byteLength(body),
+  });
+  res.end(body);
+}
+
 const server = createServer(async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405, { Allow: 'GET, HEAD' });
     res.end('Method Not Allowed');
+    return;
+  }
+
+  const pathname = (req.url || '/').split('?')[0];
+  if (pathname === '/health' || pathname === '/healthz') {
+    jsonResponse(res, 200, { status: 'ok', service: 'qaddaha-web' });
+    return;
+  }
+  if (pathname === '/ready') {
+    const [indexReady, buildInfoReady, runtimeConfigReady] = await Promise.all([
+      fileExists(join(root, 'index.html')),
+      fileExists(join(root, 'build-info.json')),
+      fileExists(join(root, 'env-config.js')),
+    ]);
+    const ready = indexReady && buildInfoReady && runtimeConfigReady;
+    jsonResponse(res, ready ? 200 : 503, {
+      status: ready ? 'ready' : 'not_ready',
+      service: 'qaddaha-web',
+      checks: { index: indexReady, buildInfo: buildInfoReady, runtimeConfig: runtimeConfigReady },
+    });
     return;
   }
 
