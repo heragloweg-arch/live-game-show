@@ -1,9 +1,9 @@
 # E2E Launch Checklist — قدها
 
-**Stack:** React + Vite + Capacitor · targetSdk **36** · Migrations **000001 → 000021**
+**Stack:** React + Vite + Capacitor · targetSdk **36** · Node **>=22.22.0** · migrations حتى `20261023050001`
 
 ## Build
-- [ ] Node >= 22.22
+- [x] Node >= 22.22 — CI مثبت على 22.22.0
 - [ ] `npm ci`
 - [ ] `npm run typecheck`
 - [ ] `npm run test`
@@ -12,7 +12,7 @@
 
 ## Database
 - [ ] `npx supabase db push` (clean project)
-- [ ] Functions deploy: match answer economy daily room voice matchmaking tournament subscription team metrics
+- [x] Functions deploy: 19 وظائف ACTIVE من رأس main — E2E يحتاج تشغيل حي
 
 ## Secrets
 - [ ] LiveKit
@@ -43,4 +43,6 @@
 ## Release
 - [ ] keystore + AAB
 - [ ] Data Safety
-- [ ] Beta 50 players
+- [ ] Beta 50 players — يتطلب Soft Launch خارجي موثق
+
+السجل التنفيذي التفصيلي للسيناريوهات العشرة موجود في `docs/E2E_EXECUTION_LOG_AR.md`، ولا يُملأ `PASS` قبل تشغيل الأجهزة فعلياً.

@@ -1,7 +1,7 @@
 # حالة الإطلاق الحية — قدها
 
 **آخر تحديث:** 25 أكتوبر 2026
-**المرجع المعتمد:** `main` / `32477255beb214b64730bc1b75e66e75928c4ffc`
+**المرجع المعتمد:** `main`؛ بصمة الإصدار الحية تُقرأ دائماً من `dist/build-info.json` بعد البناء.
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
 ## القرار الحالي
@@ -26,16 +26,11 @@
 - فحص أسرار Android — PASS.
 - `dist/build-info.json` يطابق commit الحالي.
 
-بصمة الـartifact:
-
-```text
-commit: d9473ddaf577f73811f19f629b9167e754167412
-sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb08dc865e32
-```
+بصمة الـartifact ليست قيمة ثابتة داخل هذا الملف؛ مصدر الحقيقة هو `dist/build-info.json` الناتج من نفس commit. يمنع ذلك استمرار عرض بصمة قديمة بعد أي إصلاح لاحق.
 
 ملاحظات T0:
 
-- الـSandbox يعمل Node `22.13.0`، بينما `package.json` يطلب `>=22.22.0`. CI يستخدم Node `22.22.0`; يجب تنفيذ البناء النهائي وAAB على Node مطابق أو أحدث.
+- Node المطلوب للبناء وAAB هو `>=22.22.0`، وCI مثبت على Node `22.22.0`.
 - فحص Deno لكل Edge Functions متاح محليًا ونجح في هذه الدفعة.
 - `npm audit --omit=dev --audit-level=high` لا يمنع البناء، لكنه أظهر ثغرتين Moderate في React Router، وإصلاح npm المقترح يتضمن breaking change. لا يطبق تلقائيًا قبل اختبار توافق التطبيق.
 - بقي تحذير LiveKit chunk كبيرًا، وهو بند P1 وليس فشلًا مخفيًا.
@@ -63,13 +58,13 @@ sha256(build-info.json): 7ff1145dd344953b118790bc08a7b68d66972b76d6d3717aa44eeb0
 4. تنفيذ مصفوفة anon/authenticated/host/member/blocked/admin/service_role بحسابات اختبار حقيقية.
 5. حفظ نتائج النجاح والرفض مع deployment IDs منزوعة الأسرار.
 
-لا يُسجل T1 كـPASS كاملًا قبل backup موثق، مصفوفة RLS/Auth، واختبارات حسابات حقيقية على Staging/Production. التفاصيل في `docs/SUPABASE_DEPLOYMENT_REPORT_2026-10-22_AR.md` و`docs/T1B_SOLO_RLS_DEPLOYMENT_REPORT_2026-10-23_AR.md`.
+لا يُسجل T1 كـPASS كاملًا قبل backup موثق، مصفوفة RLS/Auth، واختبارات حسابات حقيقية على Staging/Production. المصفوفة الموحدة في `docs/STAGING_ROLE_MATRIX_AR.md`، والتفاصيل في `docs/SUPABASE_DEPLOYMENT_REPORT_2026-10-22_AR.md` و`docs/T1B_SOLO_RLS_DEPLOYMENT_REPORT_2026-10-23_AR.md`.
 
 ## T2 — حلقة اللعب الحية
 
 **الحالة: BLOCKED_EXTERNAL.**
 
-الكود والاختبارات المحلية موجودة، لكن إغلاق المرحلة يحتاج جهازين أو محاكيين، شبكة فعلية، وStaging يعمل. السيناريوهات الإلزامية هي Solo و1v1 والانتظار وidempotency وانقطاع الشبكة والخلفية وRoom/Host trial/pro/coins/heartbeat وOverlay/QR والحظر وحذف الحساب وRate Limit.
+الكود والاختبارات المحلية موجودة، لكن إغلاق المرحلة يحتاج جهازين أو محاكيين، شبكة فعلية، وStaging يعمل. السيناريوهات الإلزامية موحدة في `docs/E2E_EXECUTION_LOG_AR.md` وتشمل Solo و1v1 والانتظار وidempotency وانقطاع الشبكة والخلفية وRoom/Host trial/pro/coins/heartbeat وOverlay/QR والحظر وحذف الحساب وRate Limit.
 
 معيار PASS: سجل E2E يحوي request IDs ولا توجد مضاعفة إجابة أو مكافأة.
 

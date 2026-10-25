@@ -117,18 +117,29 @@ async function ensureProfile(supabase: any, user: any) {
   }
 }
 
-async function pickChallenges(supabase: any, count: number, difficulty?: string) {
+type Difficulty = 'easy' | 'normal' | 'hard';
+
+function soloDifficultyPlan(branch?: number, leaf?: number): Difficulty[] | undefined {
+  if (!branch || !leaf) return undefined;
+  const stageIndex = ((branch - 1) * 8) + leaf;
+  const baseTier = stageIndex <= 16 ? 0 : stageIndex <= 40 ? 1 : 2;
+  const tiers: Difficulty[] = ['easy', 'normal', 'hard'];
+  return [0, 1, 2, 3, 4].map((round) => tiers[Math.min(2, baseTier + Math.floor(round / 2))]);
+}
+
+async function pickChallenges(supabase: any, count: number, difficulty?: string, difficultyPlan?: Difficulty[]) {
   const challenges: any[] = [];
   const used = new Set<string>();
   let previousSubtype: string | null = null;
   for (let i = 0; i < count; i++) {
+    const requestedDifficulty = difficultyPlan?.[i] ?? difficulty;
     let query = supabase
       .from('challenges')
       .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length, asset_path, weight')
       .eq('active', true)
       .eq('qa_status', 'approved');
-    if (difficulty && ['easy', 'normal', 'hard'].includes(difficulty)) {
-      query = query.eq('difficulty', difficulty);
+    if (requestedDifficulty && ['easy', 'normal', 'hard'].includes(requestedDifficulty)) {
+      query = query.eq('difficulty', requestedDifficulty);
     }
     const { data } = await query.limit(240);
     const unused = (data ?? []).filter((c: any) => !used.has(c.id));
@@ -161,9 +172,10 @@ async function createSoloMatch(
   journeyLeaf?: number,
 ) {
   const now = new Date().toISOString();
-  // Solo is a journey, not a fixed difficulty selector. Keep the legacy request
-  // field for old clients, but sample the approved bank without a difficulty filter.
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS);
+  const difficultyPlan = soloDifficultyPlan(journeyBranch, journeyLeaf);
+  // Solo progression is server-owned: stage bands and round ramp are persisted
+  // in the match snapshot so monitoring can verify the intended difficulty.
+  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, undefined, difficultyPlan);
   if (challenges.length < TOTAL_ROUNDS) {
     return json({ error: 'Not enough challenges in bank. Run seed migrations.' }, 500);
   }
@@ -198,7 +210,7 @@ async function createSoloMatch(
       total_rounds: TOTAL_ROUNDS,
       sequence: 1,
       server_now: now,
-      config_snapshot: hasJourneyStage ? { journeyBranch, journeyLeaf } : null,
+      config_snapshot: hasJourneyStage ? { journeyBranch, journeyLeaf, difficultyPlan } : null,
     })
     .select()
     .single();

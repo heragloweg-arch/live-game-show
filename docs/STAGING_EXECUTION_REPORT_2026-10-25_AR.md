@@ -28,6 +28,8 @@ Remote database is up to date.
 
 تمت إعادة نشر جميع وظائف Edge Functions الموجودة في `supabase/functions/` من رأس `main` الحالي. عدد الوظائف المنشورة: **19**، وجميعها ظهرت بحالة `ACTIVE`.
 
+بعد إضافة تدرج Solo الخادمي، أُعيد نشر `match` وظهر بحالة `ACTIVE` بالإصدار **17**.
+
 الوظائف المنشورة هي:
 
 `account`, `admob-ssv`, `answer`, `couple`, `creator`, `daily`, `economy`, `google-play-rtdn`, `match`, `matchmaking`, `metrics`, `overlay`, `room`, `safety`, `subscription`, `team`, `tiktok`, `tournament`, `voice`.
@@ -66,7 +68,7 @@ engines=14
 
 ## حدود ما لم يُنفذ
 
-لا تزال اختبارات الأجهزة الحقيقية وAAB الموقع وGoogle Play Internal Testing وشراء/Restore وAdMob الحقيقي وLiveKit الفعلي وBeta اللاعبين خارج البيئة الحالية. كذلك لم تُضبط أسرار Google Play وLiveKit وTikTok وAnalytics لأنها غير متاحة في جلسة التنفيذ.
+نجح `npm run android:debug` في البناء والـCapacitor sync حتى مرحلة Gradle، ثم توقف لأن Android SDK غير مثبت في البيئة (`ANDROID_HOME`/`sdk.dir` مفقود). لذلك لا يوجد APK/AAB قابل للتسليم من هذه الجلسة. كما لا تزال اختبارات الأجهزة الحقيقية وAAB الموقع وGoogle Play Internal Testing وشراء/Restore وAdMob الحقيقي وLiveKit الفعلي وBeta اللاعبين خارج البيئة الحالية. كذلك لم تُضبط أسرار Google Play وLiveKit وTikTok وAnalytics لأنها غير متاحة في جلسة التنفيذ.
 
 ## القرار
 
