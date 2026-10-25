@@ -62,7 +62,7 @@ kernel=active
 engines=14
 ```
 
-تمت إضافة `/ready` و`/health` و`/healthz` إلى خادم الملفات، وتم توحيد `railway.json` و`railway.toml` على `/ready`. يلزم نشر commit الحالي على Railway ثم إعادة الفحص الحي؛ قبل ذلك لا تُسجل Railway readiness كـPASS.
+تمت إضافة `/ready` و`/health` و`/healthz` إلى خادم ملفات قدها، وتم توحيد `railway.json` و`railway.toml` على `/ready`. الاختبار المحلي أعاد `HTTP 200` لمسارات readiness. أما الرابط المفحوص `my-twin-pro-production-fd77.up.railway.app` فيعيد خدمة API مختلفة (`version 23.0.0`) وليس خادم قدها الثابت؛ لذلك يعيد `/ready` فيها `404` ولا يصلح دليلاً على نشر قدها. يلزم ربط خدمة Railway الصحيحة بمستودع قدها ثم إعادة الفحص الحي.
 
 ## حدود ما لم يُنفذ
 
@@ -73,6 +73,7 @@ engines=14
 - Supabase Staging migrations: **PASS**.
 - Edge Functions deployment: **PASS — 19/19 ACTIVE**.
 - Source quality and build gates: **PASS**.
-- Railway readiness: **CODE FIXED — ينتظر نشر Railway وإعادة فحص حي**.
+- Qaddaha static readiness: **CODE FIXED / LOCAL PASS — ينتظر ربط خدمة Railway الصحيحة وإعادة فحص حي**.
+- الرابط المفحوص الحالي: **WRONG SERVICE / NOT EVIDENCE FOR QADDAHA**.
 - Android/store/E2E external gates: **BLOCKED_EXTERNAL**.
 - قرار الإطلاق العام: **NO-GO** إلى أن تُغلق بوابات الجهاز والمتجر والخدمات الخارجية.
