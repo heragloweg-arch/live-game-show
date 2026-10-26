@@ -44,13 +44,14 @@
 
 - ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
 - تطبيق `db push --include-all`؛ والنتيجة `Remote database is up to date`.
-- مطابقة سجل migrations المحلي والبعيد حتى `20261026000003` في دفعة الغرف ودوري الفرق.
+- مطابقة سجل migrations المحلي والبعيد حتى `20261026000004`، بما فيها reconciliation لزرع محتوى الأعلام.
 - إعادة نشر وظائف `daily` (v13)، `match` (v19)، و`metrics` (v9)، مع بقاء وظائف Edge الـ19 كلها بحالة `ACTIVE`.
 - حفظ دليل التنفيذ في `docs/STAGING_EXECUTION_REPORT_2026-10-25_AR.md`.
 - ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.
 - تطبيق RLS role hardening ومنع الكتابة المباشرة إلى الحالة السلطوية.
 - نقل تقدم Solo إلى جدول خادمي وRPC idempotent مع فرض تسلسل المراحل.
 - نشر `metrics` بالإصدار 9 مع `rebuild_day` مشتق من جداول الخادم؛ `ingest_day` العميلية مرفوضة، و`p_correct` و`median_response_ms` و`drop_rate` أصبحت أعمدة خادمية.
+- تطبيق `20261026000004_reconcile_flag_content_seed.sql` على Staging؛ الصفوف تبقى `active=false/needs_review` ولا يجوز تفعيلها قبل مراجعة بشرية.
 
 ما زال يلزم:
 
@@ -74,7 +75,7 @@
 
 **الحالة: PARTIAL / BLOCKED_EXTERNAL للتفعيل.**
 
-بوابة المحتوى البنيوية تمر لـ968 صفًا مدققًا، مع منع bulk activation وفرض اعتماد service-role-only. لا يجوز تفعيل 968/1119 دفعة واحدة. المطلوب Cohort من 300 سؤال ذهبي بعد المراجعة البشرية المتخصصة، فصل المحتوى الديني، واستبعاد الأسئلة الحرة من Solo/1v1 عند غياب عقد إجابة مغلق.
+بوابة المحتوى البنيوية تمر لـ968 صفًا مدققًا، مع منع bulk activation وفرض اعتماد service-role-only. أضيفت مصالحة seed للأعلام، لكن ظهور الصفوف غير النشطة عبر REST anon محجوب بسياسة RLS؛ لذلك لا يُسجل تحقق صفوف الأعلام PASS إلا عبر service-role audit منزوعة البيانات. لا يجوز تفعيل 968/1119 دفعة واحدة. المطلوب Cohort من 300 سؤال ذهبي بعد المراجعة البشرية المتخصصة، فصل المحتوى الديني، واستبعاد الأسئلة الحرة من Solo/1v1 عند غياب عقد إجابة مغلق.
 
 تم إغلاق فجوة مصدر القياس برمجياً: `metrics` يرفض `ingest_day` القادم بأرقام العميل (`SERVER_DERIVED_ONLY`) ويوفر `rebuild_day` مشتقاً من `matches` و`match_participants` و`answer_submissions`، مع `p_correct` و`median_response_ms` و`drop_rate`. ما زال إثبات التشغيل الفعلي وقياس Cohort والاحتفاظ خارجياً مطلوباً.
 
