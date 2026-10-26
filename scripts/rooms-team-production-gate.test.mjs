@@ -9,6 +9,7 @@ const room = read('supabase/functions/room/index.ts');
 const tournament = read('supabase/functions/tournament/index.ts');
 const team = read('supabase/functions/team/index.ts');
 const migration = read('supabase/migrations/20261026000003_team_tournament_league.sql');
+const flagReconcile = read('supabase/migrations/20261026000004_reconcile_flag_content_seed.sql');
 const server = read('scripts/static-server.mjs');
 
  test('Quick Match AI fallback is an explicit server participant and never a timeout-only path', () => {
@@ -46,4 +47,11 @@ test('Readiness exposes the exact qaddaha service and deployed build commit', ()
   assert.match(server, /readFile\(join\(root, 'build-info\.json'/);
   assert.match(server, /commit: buildInfo\.commit/);
   assert.match(server, /Boolean\(buildInfo\?\.commit\)/);
+});
+
+test('Flag content has an idempotent reconciliation seed and stays inactive pending review', () => {
+  assert.match(flagReconcile, /Reconcile flag identification seed rows/);
+  assert.equal([...flagReconcile.matchAll(/asset_path\) VALUES/g)].length, 12);
+  assert.match(flagReconcile, /active=false/);
+  assert.match(flagReconcile, /qa_status='needs_review'/);
 });
