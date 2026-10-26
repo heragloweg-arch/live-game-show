@@ -6,7 +6,7 @@
 
 **الفرع:** `main`
 
-**Commit المصدر عند تنفيذ الإصلاحات:** `5f3414d9fb61ca28fdb81b7a2fbf7ed5eba02dc8`
+**مرجع الإصدار:** لا يعتمد التقرير على hash تاريخي ثابت؛ المرجع الوحيد للإصدار النهائي هو `dist/build-info.json` داخل الحزمة و`PACKAGE_MANIFEST.json`، وكلاهما يُنشأ من آخر `main`.
 
 ## خلاصة تنفيذية
 
@@ -89,7 +89,7 @@
 
 بُني artifact النهائي بنجاح، و`dist/build-info.json` يثبت أن البناء من commit:
 
-`5f3414d9fb61ca28fdb81b7a2fbf7ed5eba02dc8`
+القيمة الدقيقة تُقرأ من `dist/build-info.json` و`PACKAGE_MANIFEST.json` في الحزمة النهائية.
 
 ## الأمن والذرية
 

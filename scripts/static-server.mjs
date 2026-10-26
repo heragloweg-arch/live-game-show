@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { access, stat } from 'node:fs/promises';
+import { access, readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,11 +70,24 @@ const server = createServer(async (req, res) => {
       fileExists(join(root, 'build-info.json')),
       fileExists(join(root, 'env-config.js')),
     ]);
-    const ready = indexReady && buildInfoReady && runtimeConfigReady;
+    let buildInfo = null;
+    if (buildInfoReady) {
+      try {
+        buildInfo = JSON.parse(await readFile(join(root, 'build-info.json'), 'utf8'));
+      } catch {
+        buildInfo = null;
+      }
+    }
+    const ready = indexReady && buildInfoReady && runtimeConfigReady && Boolean(buildInfo?.commit);
     jsonResponse(res, ready ? 200 : 503, {
       status: ready ? 'ready' : 'not_ready',
       service: 'qaddaha-web',
       checks: { index: indexReady, buildInfo: buildInfoReady, runtimeConfig: runtimeConfigReady },
+      build: buildInfo ? {
+        commit: buildInfo.commit,
+        version: buildInfo.version,
+        fingerprintSource: buildInfo.fingerprintSource,
+      } : null,
     });
     return;
   }

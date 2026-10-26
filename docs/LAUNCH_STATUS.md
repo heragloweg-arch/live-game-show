@@ -1,7 +1,7 @@
 # حالة الإطلاق الحية — قدها
 
 **آخر تحديث:** 26 أكتوبر 2026
-**المرجع المعتمد:** `main`؛ بصمة الإصدار الحية تُقرأ دائماً من `dist/build-info.json` بعد البناء.
+**المرجع المعتمد:** `main`؛ بصمة الإصدار الحية تُقرأ دائماً من `dist/build-info.json` بعد البناء، وتظهر أيضاً في استجابة `/ready`.
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
 ## القرار الحالي
@@ -44,7 +44,7 @@
 
 - ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
 - تطبيق `db push --include-all`؛ والنتيجة `Remote database is up to date`.
-- مطابقة سجل migrations المحلي والبعيد حتى `20261026000002`.
+- مطابقة سجل migrations المحلي والبعيد حتى `20261026000003` في دفعة الغرف ودوري الفرق.
 - إعادة نشر وظائف `daily` (v13)، `match` (v19)، و`metrics` (v9)، مع بقاء وظائف Edge الـ19 كلها بحالة `ACTIVE`.
 - حفظ دليل التنفيذ في `docs/STAGING_EXECUTION_REPORT_2026-10-25_AR.md`.
 - ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.

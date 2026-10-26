@@ -1,6 +1,6 @@
 # E2E Launch Checklist — قدها
 
-**Stack:** React + Vite + Capacitor · targetSdk **36** · Node **>=22.22.0** · migrations حتى `20261023050001`
+**Stack:** React + Vite + Capacitor · targetSdk **36** · Node **>=22.22.0** · migrations حتى `20261026000003`
 
 ## Build
 - [x] Node >= 22.22 — CI مثبت على 22.22.0
@@ -44,5 +44,6 @@
 - [ ] keystore + AAB
 - [ ] Data Safety
 - [ ] Beta 50 players — يتطلب Soft Launch خارجي موثق
+- [x] Static production gate — AI fallback، أمان reveal، دوري الفرق، وبصمة commit في `/ready`
 
 السجل التنفيذي التفصيلي للسيناريوهات العشرة موجود في `docs/E2E_EXECUTION_LOG_AR.md`، ولا يُملأ `PASS` قبل تشغيل الأجهزة فعلياً.
