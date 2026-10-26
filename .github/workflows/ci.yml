@@ -57,6 +57,9 @@ jobs:
       - name: Production gate regression tests
         run: npm run test:production-gates
 
+      - name: Validate field E2E log honesty
+        run: npm run verify:e2e-log
+
       - name: Content release gate
         run: node scripts/verify-content-release.mjs
 

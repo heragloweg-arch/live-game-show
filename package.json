@@ -36,6 +36,7 @@
     "content:audit-wording": "python3 scripts/audit-question-wording.py content/question-bank/review-queue.json content/question-bank/wording-audit.json",
     "content:apply-wording": "python3 scripts/apply-wording-audit.py content/question-bank/wording-audit.json content/question-bank/wording-reviewed-queue.json && npm run content:import-bank",
     "verify:runtime-config": "node scripts/verify-runtime-config.mjs",
+    "verify:e2e-log": "node scripts/verify-e2e-log.mjs",
     "test:production-gates": "node --test scripts/production-gate.test.mjs scripts/atomic-round-advance.test.mjs scripts/security-regression.test.mjs scripts/rooms-team-production-gate.test.mjs"
   },
   "dependencies": {
