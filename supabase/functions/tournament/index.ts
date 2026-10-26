@@ -96,11 +96,59 @@ serve(async (req) => {
         .eq('tournament_id', id)
         .order('round_number')
         .order('created_at');
-      return json({ tournament: t, entries: entries ?? [], matches: matches ?? [] });
+      let teams: any[] = [];
+      if (t.competition_mode === 'team_league') {
+        const { data } = await supabase.from('tournament_teams').select('*, team:teams(id, name, invite_code)').eq('tournament_id', id).order('points', { ascending: false }).order('wins', { ascending: false });
+        teams = data ?? [];
+      }
+      return json({ tournament: t, entries: entries ?? [], teams, matches: matches ?? [] });
+    }
+
+    if (action === 'team_join') {
+      const tournamentId = String(body.tournamentId ?? '');
+      const teamId = String(body.teamId ?? '');
+      if (!tournamentId || !teamId) return json({ error: 'tournamentId and teamId required' }, 400);
+      const { data, error } = await supabase.rpc('join_tournament_team_atomic', { p_tournament_id: tournamentId, p_team_id: teamId, p_user_id: user.id });
+      if (error) return json({ error: error.message }, error.message.includes('INSUFFICIENT') ? 400 : 409);
+      return json(data);
+    }
+
+    if (action === 'team_standings') {
+      const tournamentId = String(body.tournamentId ?? '');
+      const { data, error } = await supabase.from('tournament_teams').select('*, team:teams(id, name)').eq('tournament_id', tournamentId).order('points', { ascending: false }).order('wins', { ascending: false }).order('losses', { ascending: true });
+      if (error) return json({ error: error.message }, 500);
+      return json({ standings: data ?? [] });
+    }
+
+    if (action === 'generate_team_schedule') {
+      const tournamentId = String(body.tournamentId ?? '');
+      const { data: owned } = await supabase.from('tournament_teams').select('team_id, team:teams!inner(owner_id)').eq('tournament_id', tournamentId).eq('team.owner_id', user.id).limit(1).maybeSingle();
+      if (!owned && !isTournamentAdmin(user.id)) return json({ error: 'قائد فريق مسجل أو مدير البطولة فقط', code: 'FORBIDDEN' }, 403);
+      const { data, error } = await supabase.rpc('generate_team_round_robin', { p_tournament_id: tournamentId });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
+    }
+
+    if (action === 'report_team_result') {
+      const fixtureId = String(body.tournamentMatchId ?? '');
+      const winnerTeamId = body.winnerTeamId ? String(body.winnerTeamId) : null;
+      const isDraw = body.isDraw === true;
+      const { data, error } = await supabase.rpc('report_tournament_team_result', { p_tournament_match_id: fixtureId, p_user_id: user.id, p_winner_team_id: winnerTeamId, p_is_draw: isDraw });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
+    }
+
+    if (action === 'start_team_match') {
+      const fixtureId = String(body.tournamentMatchId ?? '');
+      const { data, error } = await supabase.rpc('start_tournament_team_match', { p_tournament_match_id: fixtureId, p_user_id: user.id });
+      if (error) return json({ error: error.message }, 400);
+      return json(data);
     }
 
     if (action === 'join') {
       const tournamentId = body.tournamentId as string;
+      const { data: target } = await supabase.from('tournaments').select('competition_mode').eq('id', tournamentId).maybeSingle();
+      if (target?.competition_mode === 'team_league') return json({ error: 'هذه بطولة فرق — استخدم team_join', code: 'TEAM_TOURNAMENT' }, 400);
       const { data: joined, error: joinErr } = await supabase.rpc('join_tournament_atomic', { p_tournament_id: tournamentId, p_user_id: user.id });
       if (joinErr) return json({ error: joinErr.message }, joinErr.message.includes('INSUFFICIENT') ? 400 : 409);
       const { data: t } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
@@ -316,7 +364,9 @@ serve(async (req) => {
 
     if (action === 'distribute_prizes') {
       if (!isTournamentAdmin(user.id)) return json({ error: 'Admin only' }, 403);
-      const { data: rpcRes, error: rpcErr } = await supabase.rpc('distribute_tournament_prizes', { p_tournament_id: body.tournamentId });
+      const { data: mode } = await supabase.from('tournaments').select('competition_mode').eq('id', body.tournamentId).maybeSingle();
+      const rpcName = mode?.competition_mode === 'team_league' ? 'distribute_team_tournament_prizes' : 'distribute_tournament_prizes';
+      const { data: rpcRes, error: rpcErr } = await supabase.rpc(rpcName, { p_tournament_id: body.tournamentId });
       if (rpcErr) return json({ error: rpcErr.message }, 500);
       return json(rpcRes);
     }
@@ -382,7 +432,13 @@ serve(async (req) => {
  * Pads to power-of-2 with byes (null player_b / auto-win).
  */
 async function generateBracket(supabase: any, tournamentId: string, force = false) {
-  const { data: tmeta } = await supabase.from('tournaments').select('format').eq('id', tournamentId).single();
+  const { data: tmeta } = await supabase.from('tournaments').select('format, competition_mode').eq('id', tournamentId).single();
+  if (tmeta?.competition_mode === 'team_league') {
+    const { data, error } = await supabase.rpc('generate_team_round_robin', { p_tournament_id: tournamentId });
+    if (error) throw new Error(error.message);
+    const { data: fixtures } = await supabase.from('tournament_matches').select('*').eq('tournament_id', tournamentId).order('match_index');
+    return { ...data, matches: fixtures ?? [] };
+  }
   if (tmeta?.format === 'round_robin') {
     return await generateRoundRobin(supabase, tournamentId, force);
   }

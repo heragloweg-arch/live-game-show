@@ -180,7 +180,7 @@ export async function submitAnswer(params: {
 
 export type MatchmakingStatus =
   | { status: 'queued'; waitedMs?: number; message?: string }
-  | { status: 'matched'; match?: { matchId: string }; matchId?: string }
+  | { status: 'matched'; match?: { matchId: string }; matchId?: string; fallbackAi?: boolean; message?: string }
   | { status: 'timeout'; message?: string }
   | { status: 'cancelled' }
   | { status: 'idle' };

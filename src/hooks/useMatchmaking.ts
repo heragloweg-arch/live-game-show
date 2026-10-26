@@ -13,6 +13,7 @@ export function useMatchmaking() {
   const [matchId, setMatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [waitedMs, setWaitedMs] = useState(0);
+  const [aiFallback, setAiFallback] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = () => {
@@ -25,6 +26,7 @@ export function useMatchmaking() {
   const startSearch = useCallback(async (difficulty: Difficulty = 'normal') => {
     setError(null);
     setMatchId(null);
+    setAiFallback(false);
     setPhase('searching');
     setWaitedMs(0);
 
@@ -33,6 +35,7 @@ export function useMatchmaking() {
       if (res.status === 'matched') {
         const id = res.matchId ?? res.match?.matchId ?? null;
         setMatchId(id);
+        setAiFallback(Boolean(res.fallbackAi));
         setPhase('matched');
         return;
       }
@@ -45,6 +48,7 @@ export function useMatchmaking() {
             stopPolling();
             const id = (st as any).matchId ?? (st as any).match?.matchId ?? null;
             setMatchId(id);
+            setAiFallback(Boolean((st as any).fallbackAi));
             setPhase('matched');
           } else if (st.status === 'timeout') {
             stopPolling();
@@ -71,10 +75,11 @@ export function useMatchmaking() {
     }
     setPhase('idle');
     setMatchId(null);
+    setAiFallback(false);
     setWaitedMs(0);
   }, []);
 
   useEffect(() => () => stopPolling(), []);
 
-  return { phase, matchId, error, waitedMs, startSearch, cancel };
+  return { phase, matchId, error, waitedMs, aiFallback, startSearch, cancel };
 }

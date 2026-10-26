@@ -33,6 +33,7 @@ export interface Tournament {
   prize_pool: number;
   rounds_total: number;
   difficulty: string;
+  competition_mode?: 'player' | 'team_league';
   starts_at?: string;
   ends_at?: string;
   entriesCount?: number;
@@ -73,6 +74,26 @@ export async function joinTournament(tournamentId: string) {
 
 export async function leaveTournament(tournamentId: string) {
   return invoke<{ ok: boolean }>({ action: 'leave', tournamentId });
+}
+
+export async function joinTeamTournament(tournamentId: string, teamId: string) {
+  return invoke<{ ok: boolean; tournamentTeamId?: string; memberCount?: number }>({ action: 'team_join', tournamentId, teamId });
+}
+
+export async function getTeamTournamentStandings(tournamentId: string) {
+  return invoke<{ standings: any[] }>({ action: 'team_standings', tournamentId });
+}
+
+export async function generateTeamSchedule(tournamentId: string) {
+  return invoke<{ ok: boolean; generated?: number; alreadyGenerated?: boolean }>({ action: 'generate_team_schedule', tournamentId });
+}
+
+export async function reportTeamTournamentResult(tournamentMatchId: string, winnerTeamId?: string, isDraw = false) {
+  return invoke<{ ok: boolean; pending?: number; championTeamId?: string }>({ action: 'report_team_result', tournamentMatchId, winnerTeamId, isDraw });
+}
+
+export async function startTeamTournamentMatch(tournamentMatchId: string) {
+  return invoke<{ ok: boolean; matchId: string; alreadyStarted?: boolean }>({ action: 'start_team_match', tournamentMatchId });
 }
 
 export async function getStandings(tournamentId: string) {

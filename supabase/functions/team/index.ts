@@ -1,5 +1,5 @@
 /**
- * Teams — manage roster + queue team vs team (1–15 per side)
+ * Teams — manage roster + queue team vs team (1–5 per side)
  */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
@@ -49,7 +49,7 @@ serve(async (req) => {
 
     if (action === 'create') {
       const name = String(body.name || 'فريق قدها').slice(0, 40);
-      const maxMembers = Math.min(15, Math.max(1, Number(body.maxMembers) || 5));
+      const maxMembers = Math.min(5, Math.max(1, Number(body.maxMembers) || 5));
       const { data: team, error } = await supabase.from('teams').insert({
         name,
         invite_code: code6(),
@@ -80,7 +80,7 @@ serve(async (req) => {
     }
 
     if (action === 'set_size') {
-      const size = Math.min(15, Math.max(1, Number(body.maxMembers) || 5));
+      const size = Math.min(5, Math.max(1, Number(body.maxMembers) || 5));
       const { data: mem } = await supabase.from('team_members').select('team_id, role').eq('user_id', user.id).maybeSingle();
       if (!mem || mem.role !== 'owner') return json({ error: 'المالك فقط' }, 403);
       await supabase.from('teams').update({ max_members: size }).eq('id', mem.team_id);
@@ -152,7 +152,7 @@ serve(async (req) => {
 
 
     if (action === 'pickup') {
-      const desired = Math.min(15, Math.max(1, Number(body.desiredSize) || 5));
+      const desired = Math.min(5, Math.max(1, Number(body.desiredSize) || 5));
       const difficulty = body.difficulty ?? 'normal';
       // leave existing team membership for pure pickup flow
       await supabase.from('team_pickup_queue').upsert({

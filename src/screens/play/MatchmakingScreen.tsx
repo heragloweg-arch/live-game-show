@@ -9,7 +9,7 @@ export function MatchmakingScreen() {
   const navigate = useNavigate();
   const [search] = useSearchParams();
   const difficulty = (search.get('diff') as Difficulty) || 'normal';
-  const { phase, matchId, error, waitedMs, startSearch, cancel } = useMatchmaking();
+  const { phase, matchId, error, waitedMs, aiFallback, startSearch, cancel } = useMatchmaking();
 
   useEffect(() => {
     startSearch(difficulty);
@@ -59,8 +59,8 @@ export function MatchmakingScreen() {
 
         {phase === 'matched' && (
           <>
-            <h2 className="mb-2 font-display text-xl font-bold text-zatona-400">تم إيجاد خصم!</h2>
-            <p className="text-sm text-white/50">جاري الانتقال للمباراة...</p>
+            <h2 className="mb-2 font-display text-xl font-bold text-zatona-400">{aiFallback ? 'بدأت مباراة ضد الكمبيوتر' : 'تم إيجاد خصم!'}</h2>
+            <p className="text-sm text-white/50">{aiFallback ? 'لم يتوفر لاعب أونلاين؛ خصم الكمبيوتر جاهز.' : 'جاري الانتقال للمباراة...'}</p>
           </>
         )}
 

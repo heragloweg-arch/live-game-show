@@ -11,7 +11,11 @@ import {
   distributePrizes,
   createNextTournament,
   startBracketMatch,
+  joinTeamTournament,
+  generateTeamSchedule,
+  startTeamTournamentMatch,
 } from '../../services/api/tournamentApi';
+import { teamMine } from '../../services/api/teamApi';
 import { useAuthStore } from '../../store/authStore';
 import { useWalletStore } from '../../store/walletStore';
 import { cn } from '../../utils/cn';
@@ -28,6 +32,7 @@ export function TournamentDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [myTeam, setMyTeam] = useState<any>(null);
 
   const load = useCallback(async () => {
     if (!tournamentId) return;
@@ -39,6 +44,9 @@ export function TournamentDetailScreen() {
       ]);
       setData(t);
       setEntry(me.entry);
+      if (t.tournament?.competition_mode === 'team_league') {
+        try { setMyTeam((await teamMine()).team); } catch { setMyTeam(null); }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -90,6 +98,8 @@ export function TournamentDetailScreen() {
 
   const t = data?.tournament;
   const standings = data?.entries ?? [];
+  const teamLeague = t?.competition_mode === 'team_league';
+  const teamStandings = data?.teams ?? [];
 
   return (
     <ScreenShell>
@@ -123,12 +133,19 @@ export function TournamentDetailScreen() {
           </div>
           <div className="rounded-xl bg-white/5 py-2">
             <p className="text-white/40">اللاعبون</p>
-            <p className="font-bold">{standings.length}/{t?.max_players}</p>
+            <p className="font-bold">{teamLeague ? teamStandings.length : standings.length}/{t?.max_players}</p>
           </div>
         </div>
 
         <div className="mt-4">
-          {!entry ? (
+          {teamLeague ? (
+            <div className="space-y-2">
+              {!myTeam ? <p className="text-center text-xs text-white/50">أنشئ فريقاً أو انضم لفريق من صفحة الفرق أولاً.</p> : (
+                <button onClick={async () => { setBusy(true); setError(null); try { await joinTeamTournament(tournamentId!, myTeam.id); await load(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } }} disabled={busy || t?.status !== 'registration'} className="btn-primary w-full py-3">تسجيل فريقي ({myTeam.name}) — حتى 5 لاعبين</button>
+              )}
+              {teamStandings.length >= 2 && <button onClick={async () => { setBusy(true); setError(null); try { await generateTeamSchedule(tournamentId!); await load(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } }} disabled={busy} className="btn-secondary w-full py-2.5">إنشاء جدول الدوري</button>}
+            </div>
+          ) : !entry ? (
             <button onClick={join} disabled={busy} className="btn-primary w-full gap-2 py-3.5">
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserPlus className="h-5 w-5" />}
               انضم للدوري
@@ -145,7 +162,7 @@ export function TournamentDetailScreen() {
       </div>
 
       
-      <h2 className="mb-3 mt-6 font-display text-lg font-bold">شبكة المواجهات</h2>
+      <h2 className="mb-3 mt-6 font-display text-lg font-bold">{teamLeague ? 'جدول مباريات الدوري' : 'شبكة المواجهات'}</h2>
       <div className="mb-6 space-y-2">
         {(data?.matches ?? []).length === 0 && (
           <p className="py-6 text-center text-sm text-white/35">
@@ -156,8 +173,11 @@ export function TournamentDetailScreen() {
           <div key={m.id} className="card flex items-center gap-2 px-3 py-2.5 text-xs">
             <span className="rounded bg-white/10 px-1.5 py-0.5 text-white/50">R{m.round_number}</span>
             <span className="flex-1 text-white/80">
-              {m.player_a?.slice?.(0, 8) || m.player_a || 'BYE'} vs {m.player_b?.slice?.(0, 8) || m.player_b || 'BYE'}
+              {teamLeague ? `${m.team_a_id?.slice?.(0, 8) ?? 'فريق'} vs ${m.team_b_id?.slice?.(0, 8) ?? 'فريق'}` : `${m.player_a?.slice?.(0, 8) || m.player_a || 'BYE'} vs ${m.player_b?.slice?.(0, 8) || m.player_b || 'BYE'}`}
             </span>
+            {teamLeague && m.status !== 'completed' && !m.match_id && (
+              <button type="button" className="btn-primary px-2 py-1 text-[11px]" disabled={busy} onClick={async () => { setBusy(true); setError(null); try { const result = await startTeamTournamentMatch(m.id); window.location.href = `/match/${result.matchId}`; } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); } }}>ابدأ المباراة</button>
+            )}
             {entry && currentUser && (m.player_a === currentUser.id || m.player_b === currentUser.id) && m.status !== 'completed' && (
               <button type="button" className="btn-primary px-2 py-1 text-[11px]" disabled={busy} onClick={async () => {
                 setBusy(true); setError(null);
@@ -231,9 +251,9 @@ export function TournamentDetailScreen() {
         </div>
       )}
 
-      <h2 className="mb-3 font-display text-lg font-bold">الترتيب</h2>
+      <h2 className="mb-3 font-display text-lg font-bold">الترتيب {teamLeague ? '— نقاط الفرق' : ''}</h2>
       <div className="space-y-2">
-        {standings.map((e: any, i: number) => (
+        {(teamLeague ? teamStandings : standings).map((e: any, i: number) => (
           <div key={e.id} className="card flex items-center gap-3 px-4 py-3">
             <span
               className={cn(
@@ -248,10 +268,10 @@ export function TournamentDetailScreen() {
             </span>
             <div className="flex-1">
               <p className="font-medium">
-                {e.profile?.display_name ?? e.profile?.username ?? 'لاعب'}
+                {teamLeague ? (e.team?.name ?? e.name ?? 'فريق') : (e.profile?.display_name ?? e.profile?.username ?? 'لاعب')}
               </p>
               <p className="text-[11px] text-white/40">
-                {e.wins} فوز · {e.losses} خسارة
+                {teamLeague ? `${e.played ?? 0} مباراة · ${e.wins ?? 0} فوز · ${e.draws ?? 0} تعادل` : `${e.wins} فوز · ${e.losses} خسارة`}
               </p>
             </div>
             <p className="font-display font-bold text-zatona-400">{e.points} نقطة</p>
