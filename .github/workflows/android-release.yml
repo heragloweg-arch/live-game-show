@@ -1,0 +1,94 @@
+name: Qaddaha Android Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit, tag, or branch to build'
+        required: true
+        default: 'main'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-release:
+    name: Build signed Android App Bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout requested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Verify release inputs are not tracked
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files | grep -Eiq '(^|/)([^/]+\.(jks|keystore)|google-services\.json)$'; then
+            echo 'Signing material or google-services.json is tracked in Git.' >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+          cache: npm
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK 36
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build web and sync Capacitor
+        run: npm run build && npx cap sync android
+
+      - name: Materialize signing key outside repository
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/qaddaha-release.jks"
+          chmod 600 "$RUNNER_TEMP/qaddaha-release.jks"
+
+      - name: Build signed AAB
+        working-directory: android
+        env:
+          RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/qaddaha-release.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Hash and upload AAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAB='android/app/build/outputs/bundle/release/app-release.aab'
+          test -f "$AAB"
+          sha256sum "$AAB" | tee "$RUNNER_TEMP/qaddaha-aab.sha256"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/qaddaha-commit.txt"
+
+      - name: Upload signed AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: qaddaha-${{ inputs.ref }}-${{ github.run_number }}
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            ${{ runner.temp }}/qaddaha-aab.sha256
+            ${{ runner.temp }}/qaddaha-commit.txt
+          if-no-files-found: error
+          retention-days: 14

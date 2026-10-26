@@ -12,6 +12,9 @@ const manifest = JSON.parse(readFileSync(file, 'utf8'));
 if (!['staging', 'internal', 'soft_launch', 'production'].includes(manifest.cohort)) throw new Error('Invalid cohort');
 if (!Array.isArray(manifest.items) || manifest.items.length === 0) throw new Error('Manifest has no items');
 if (manifest.cohort === 'production') throw new Error('Direct production approval is forbidden; use internal then soft_launch');
+if (manifest.items.length > 50) throw new Error('Approval batch is limited to 50 items; use multiple reviewed cohorts instead of bulk activation');
+const challengeIds = manifest.items.map((item) => item.challengeId).filter(Boolean);
+if (new Set(challengeIds).size !== challengeIds.length) throw new Error('Approval manifest contains duplicate challenge IDs');
 const client = createClient(url, serviceRole, { auth: { persistSession: false, autoRefreshToken: false } });
 let approved = 0;
 for (const item of manifest.items) {

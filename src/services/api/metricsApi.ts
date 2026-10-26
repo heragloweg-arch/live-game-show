@@ -21,6 +21,6 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
 }
 
 export const metricsOverview = () => invoke<{ overview: any; last14Days: any[]; generatedAt: string }>({ action: 'overview' });
-export const metricsIngestDay = (payload: Record<string, unknown>) => invoke({ action: 'ingest_day', ...payload });
+export const metricsRebuildDay = (day?: string) => invoke({ action: 'rebuild_day', ...(day ? { day } : {}) });
 export const metricsSnapshot = (payload: Record<string, unknown>) => invoke({ action: 'snapshot', ...payload });
 export const metricsListSnapshots = () => invoke<{ snapshots: any[] }>({ action: 'list_snapshots' });

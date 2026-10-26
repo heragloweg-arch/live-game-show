@@ -20,6 +20,7 @@ Remote database is up to date.
 
 ```text
 20261023050001_rls_role_hardening
+20261026000001_server_derived_metrics
 ```
 
 لا توجد migrations محلية معلّقة أو migrations بعيدة غير موجودة في المصدر.
@@ -29,6 +30,8 @@ Remote database is up to date.
 تمت إعادة نشر جميع وظائف Edge Functions الموجودة في `supabase/functions/` من رأس `main` الحالي. عدد الوظائف المنشورة: **19**، وجميعها ظهرت بحالة `ACTIVE`.
 
 بعد إضافة تدرج Solo الخادمي، أُعيد نشر `match` وظهر بحالة `ACTIVE` بالإصدار **17**.
+
+في 26 أكتوبر أُضيفت migration `20261026000001_server_derived_metrics` لتسجيل الإجابات والإكمال والانقطاع من مصدر الخادم، ورُفعت وظيفة `metrics` بالإصدار **7**. أصبحت `ingest_day` القديمة مرفوضة بحالة `SERVER_DERIVED_ONLY`، ويُستخدم `rebuild_day` المشتق من `matches` و`match_participants` و`answer_submissions`.
 
 الوظائف المنشورة هي:
 

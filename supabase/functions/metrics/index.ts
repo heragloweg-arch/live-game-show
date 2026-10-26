@@ -1,6 +1,6 @@
 /**
  * Investor / soft-launch metrics warehouse
- * actions: snapshot | ingest_day | list_days | overview
+ * actions: snapshot | rebuild_day | list_days | overview
  */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
@@ -92,34 +92,66 @@ serve(async (req) => {
       });
     }
 
-    if (action === 'ingest_day') {
-      // Client/session aggregate push (soft-launch). Server merges.
-      const day = body.day || new Date().toISOString().slice(0, 10);
+    if (action === 'rebuild_day') {
+      const day = typeof body.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.day)
+        ? body.day
+        : new Date().toISOString().slice(0, 10);
+      const start = `${day}T00:00:00.000Z`;
+      const end = `${day}T23:59:59.999Z`;
+      const { data: matches, error: matchesError } = await supabase
+        .from('matches')
+        .select('id,status,created_at')
+        .gte('created_at', start)
+        .lte('created_at', end);
+      if (matchesError) return json({ error: matchesError.message, code: 'METRICS_SOURCE_ERROR' }, 500);
+
+      const matchRows = matches ?? [];
+      const matchIds = matchRows.map((match) => match.id);
+      const finishedStatuses = new Set(['MATCH_FINISHED', 'FINAL_RESULT']);
+      const matchesFinished = matchRows.filter((match) => finishedStatuses.has(match.status)).length;
+      let participants: Array<{ user_id: string | null }> = [];
+      let answers: Array<{ outcome: string }> = [];
+      if (matchIds.length) {
+        const [{ data: participantRows, error: participantsError }, { data: answerRows, error: answersError }] = await Promise.all([
+          supabase.from('match_participants').select('user_id').in('match_id', matchIds),
+          supabase.from('answer_submissions').select('outcome').in('match_id', matchIds),
+        ]);
+        if (participantsError || answersError) {
+          return json({ error: participantsError?.message ?? answersError?.message, code: 'METRICS_SOURCE_ERROR' }, 500);
+        }
+        participants = participantRows ?? [];
+        answers = answerRows ?? [];
+      }
+
+      const answersSubmitted = answers.length;
+      const answersCorrect = answers.filter((answer) => answer.outcome === 'correct').length;
+      const answersWrong = answers.filter((answer) => answer.outcome === 'wrong').length;
+      const matchesAbandoned = Math.max(0, matchRows.length - matchesFinished);
+      const dropRate = matchRows.length ? matchesAbandoned / matchRows.length : 0;
+      const dau = new Set(participants.map((participant) => participant.user_id).filter(Boolean)).size;
       const row = {
         day,
-        dau: Number(body.dau) || 1,
-        matches_started: Number(body.matches_started) || 0,
-        matches_finished: Number(body.matches_finished) || 0,
-        ad_impressions: Number(body.ad_impressions) || 0,
-        revenue_micros: Number(body.revenue_micros) || 0,
-        new_users: Number(body.new_users) || 0,
+        dau,
+        matches_started: matchRows.length,
+        matches_finished: matchesFinished,
+        answers_submitted: answersSubmitted,
+        answers_correct: answersCorrect,
+        answers_wrong: answersWrong,
+        match_abandonments: matchesAbandoned,
+        drop_rate: dropRate,
+        source: 'server',
         updated_at: new Date().toISOString(),
       };
-      const { data: existing } = await supabase.from('analytics_daily').select('*').eq('day', day).maybeSingle();
-      if (existing) {
-        await supabase.from('analytics_daily').update({
-          dau: Math.max(existing.dau, row.dau),
-          matches_started: existing.matches_started + row.matches_started,
-          matches_finished: existing.matches_finished + row.matches_finished,
-          ad_impressions: existing.ad_impressions + row.ad_impressions,
-          revenue_micros: existing.revenue_micros + row.revenue_micros,
-          new_users: existing.new_users + row.new_users,
-          updated_at: row.updated_at,
-        }).eq('day', day);
-      } else {
-        await supabase.from('analytics_daily').insert(row);
-      }
-      return json({ ok: true, day });
+      const { error: upsertError } = await supabase.from('analytics_daily').upsert(row, { onConflict: 'day' });
+      if (upsertError) return json({ error: upsertError.message, code: 'METRICS_WRITE_ERROR' }, 500);
+      return json({ ok: true, day, metrics: row });
+    }
+
+    if (action === 'ingest_day') {
+      return json({
+        error: 'Client aggregate ingestion is disabled; use rebuild_day.',
+        code: 'SERVER_DERIVED_ONLY',
+      }, 410);
     }
 
     if (action === 'snapshot') {

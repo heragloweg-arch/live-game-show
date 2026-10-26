@@ -12,7 +12,7 @@ import {
 import { SOFT_LAUNCH } from '../../config/softLaunch';
 import {
   metricsOverview,
-  metricsIngestDay,
+  metricsRebuildDay,
   metricsSnapshot,
   metricsListSnapshots,
 } from '../../services/api/metricsApi';
@@ -51,14 +51,8 @@ export function MetricsScreen() {
     setBusy(true);
     try {
       const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
-      await metricsIngestDay({
-        day,
-        dau: 1,
-        matches_started: summary.counts.match_start ?? 0,
-        matches_finished: summary.counts.match_finish ?? 0,
-        ad_impressions: summary.counts.ad_impression ?? 0,
-      });
-      setMsg('تم دفع ملخص اليوم للمستودع');
+      await metricsRebuildDay(day);
+      setMsg('تمت إعادة بناء إحصاء اليوم من بيانات الخادم');
       await load();
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
@@ -108,7 +102,7 @@ export function MetricsScreen() {
 
       <div className="mb-4 flex gap-2">
         <button type="button" disabled={busy} onClick={() => void pushDay()} className="btn-secondary flex-1 py-2.5 text-xs">
-          دفع إحصاء اليوم
+          إعادة بناء إحصاء اليوم خادمياً
         </button>
         <button type="button" disabled={busy} onClick={() => void saveSnapshot()} className="btn-primary flex-1 gap-1 py-2.5 text-xs">
           <Briefcase className="h-3.5 w-3.5" />

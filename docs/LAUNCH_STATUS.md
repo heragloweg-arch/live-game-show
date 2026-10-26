@@ -1,6 +1,6 @@
 # حالة الإطلاق الحية — قدها
 
-**آخر تحديث:** 25 أكتوبر 2026
+**آخر تحديث:** 26 أكتوبر 2026
 **المرجع المعتمد:** `main`؛ بصمة الإصدار الحية تُقرأ دائماً من `dist/build-info.json` بعد البناء.
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
@@ -19,6 +19,7 @@
 - `npm run lint`
 - `npm test -- --run` — 8 ملفات و21 اختبارًا ناجحًا.
 - `npm run test:production-gates` — 23/23 ناجحًا.
+- `npm run verify:solo-progression` — 48 مرحلة وخمس جولات دون regression في الصعوبة.
 - `npm run build`
 - `node scripts/verify-production.mjs`
 - `node scripts/verify-launch-config.mjs`
@@ -43,12 +44,13 @@
 
 - ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
 - تطبيق `db push --include-all`؛ والنتيجة `Remote database is up to date`.
-- مطابقة سجل migrations المحلي والبعيد حتى `20261023050001`.
+- مطابقة سجل migrations المحلي والبعيد حتى `20261026000001`.
 - إعادة نشر جميع Edge Functions وعددها 19 من رأس `main` وظهورها بحالة `ACTIVE`.
 - حفظ دليل التنفيذ في `docs/STAGING_EXECUTION_REPORT_2026-10-25_AR.md`.
 - ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.
 - تطبيق RLS role hardening ومنع الكتابة المباشرة إلى الحالة السلطوية.
 - نقل تقدم Solo إلى جدول خادمي وRPC idempotent مع فرض تسلسل المراحل.
+- نشر `metrics` بالإصدار 7 مع `rebuild_day` مشتق من جداول الخادم؛ `ingest_day` العميلية مرفوضة.
 
 ما زال يلزم:
 
@@ -74,13 +76,13 @@
 
 بوابة المحتوى البنيوية تمر لـ968 صفًا مدققًا، مع منع bulk activation وفرض اعتماد service-role-only. لا يجوز تفعيل 968/1119 دفعة واحدة. المطلوب Cohort من 300 سؤال ذهبي بعد المراجعة البشرية المتخصصة، فصل المحتوى الديني، واستبعاد الأسئلة الحرة من Solo/1v1 عند غياب عقد إجابة مغلق.
 
-يلزم أيضًا أن تظهر أحداث المباراة وDaily والأخطاء والبلاغات من مصدر خادمي في Staging، لا أن تكون `localStorage` مصدر الحقيقة.
+تم إغلاق فجوة مصدر القياس جزئياً: `metrics` يرفض `ingest_day` القادم بأرقام العميل (`SERVER_DERIVED_ONLY`) ويوفر `rebuild_day` مشتقاً من `matches` و`match_participants` و`answer_submissions`، مع أعمدة الإجابات و`drop_rate`. ما زال إثبات التشغيل الفعلي وقياس Cohort والاحتفاظ خارجياً مطلوباً.
 
 ## T4 — Android وAAB وInternal Testing
 
 **الحالة: BLOCKED_EXTERNAL.**
 
-مسار Capacitor وRelease signing موجود، لكن لا توجد keystore أو AAB موقع أو نتيجة Internal Testing محفوظة. يلزم بناء AAB من commit معتمد، فحصه، رفعه إلى Internal Track، تثبيته على جهاز حقيقي، وتسجيل نتيجة WebView/Auth/Billing/SSV.
+مسار Capacitor وRelease signing موجود، وأضيف workflow يدوي `Qaddaha Android Release` يبني AAB من commit محدد على runner فيه SDK، ويفحص عدم وجود keystore في Git، ثم يرفع SHA-256 وcommit مع artifact. لا توجد keystore أو AAB موقع أو نتيجة Internal Testing محفوظة حتى الآن؛ يلزم تشغيل workflow بأسرار المالك ثم الرفع والتثبيت والتسجيل.
 
 ## T5 — Soft Launch عربي
 

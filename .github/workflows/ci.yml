@@ -60,6 +60,9 @@ jobs:
       - name: Content release gate
         run: node scripts/verify-content-release.mjs
 
+      - name: Solo progression gate
+        run: npm run verify:solo-progression
+
       - name: Production dependency vulnerability audit
         run: npm audit --omit=dev --audit-level=high
 
