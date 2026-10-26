@@ -14,6 +14,11 @@ test('Daily refuses non-atomic completion fallback', () => {
   assert.doesNotMatch(daily, /from\('daily_completions'\)\.insert/);
 });
 
+test('Daily challenge pools only select approved content', () => {
+  const approvedChallengePools = [...daily.matchAll(/from\('challenges'\)[\s\S]{0,240}?\.eq\('qa_status', 'approved'\)/g)];
+  assert.equal(approvedChallengePools.length, 2);
+});
+
 test('Solo stage lock uses the immediately previous linear leaf', () => {
   assert.match(match, /\(\(journeyBranch! - 1\) \* 8\) \+ journeyLeaf! - 2/);
   assert.match(match, /const hasJourneyInputs = journeyBranch !== undefined \|\| journeyLeaf !== undefined/);

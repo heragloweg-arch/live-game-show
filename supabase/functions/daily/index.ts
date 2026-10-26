@@ -71,6 +71,7 @@ serve(async (req) => {
           .from('challenges')
           .select('id')
           .eq('active', true)
+          .eq('qa_status', 'approved')
           .limit(80);
         if (!pool?.length) return json({ error: 'No challenges' }, 500);
         // Deterministic pick by date
@@ -203,7 +204,7 @@ serve(async (req) => {
     if (action === 'get_pack') {
       let { data: pack } = await supabase.from('daily_packs').select('*').eq('pack_date', day).eq('active', true).maybeSingle();
       if (!pack) {
-        const { data: pool } = await supabase.from('challenges').select('id').eq('active', true).limit(120);
+        const { data: pool } = await supabase.from('challenges').select('id').eq('active', true).eq('qa_status', 'approved').limit(120);
         if (!pool || pool.length < 3) return json({ error: 'Not enough production challenges' }, 500);
         let hash = 0;
         for (const ch of day) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;

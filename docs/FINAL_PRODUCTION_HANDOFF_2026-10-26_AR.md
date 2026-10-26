@@ -18,6 +18,7 @@
 - إضافة بوابة إنتاجية للغرف وAI ودوري الفرق وreadiness وseed الأعلام.
 - إضافة `npm run verify:e2e-log` إلى CI؛ البوابة تتحقق من وجود السيناريوهات العشرة وتمنع `PASS` بلا evidence، لكنها لا تزعم تنفيذ الأجهزة عندما تكون الحالة `BLOCKED_EXTERNAL`.
 - إضافة migration reconciliation رقم `20261026000004` لأن migration الأعلام القديمة كانت مسجلة بعيدة دون أن تظهر صفوفها في قراءة REST العامة. الصفوف تُنشأ inactive/needs_review ولا تُفعّل تلقائياً.
+- تشديد Daily وDaily Pack ليختارا فقط تحديات `active=true` و`qa_status='approved'`، مع regression gate يمنع عودة محتوى غير مراجع إلى المسار اليومي.
 - إزالة artifacts Capacitor المتتبعة سابقاً والحفاظ على مستودع قابل لإعادة البناء.
 
 ## الأدلة المحلية
