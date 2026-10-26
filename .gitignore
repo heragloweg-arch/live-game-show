@@ -20,3 +20,6 @@ content/approval/*approved*.json
 # Python and local tooling artifacts
 __pycache__/
 *.py[cod]
+
+# Supabase CLI local state
+supabase/.temp/
