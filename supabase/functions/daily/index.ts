@@ -192,47 +192,12 @@ serve(async (req) => {
         });
       }
 
-      // Fallback if RPC missing
-      console.warn('[daily] atomic fallback', atomicErr?.message);
-      const { data: existing } = await supabase
-        .from('daily_completions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('challenge_date', day)
-        .maybeSingle();
-      if (existing) {
-        return json({ alreadyCompleted: true, completion: existing, streak: await getStreakRow(supabase, user.id) });
-      }
-      await supabase.from('daily_completions').insert({
-        user_id: user.id,
-        challenge_date: day,
-        outcome: correct ? 'correct' : 'wrong',
-        points: score.total,
-      });
-      const streak = await updateStreak(supabase, user.id, day);
-      let coinGain = 0;
-      if (correct) {
-        const { data: prof } = await supabase.from('profiles').select('subscription_plan, subscription_expires_at').eq('id', user.id).single();
-        let mult = 1;
-        if (prof?.subscription_plan && ['plus_monthly','plus_yearly','host_pro','host_max'].includes(prof.subscription_plan)) {
-          const exp = prof.subscription_expires_at ? new Date(prof.subscription_expires_at) : null;
-          if (!exp || exp.getTime() > Date.now()) mult = 2;
-        }
-        coinGain = (daily.bonus_coins ?? 40) * mult;
-        await supabase.rpc('credit_coins', {
-          p_user_id: user.id,
-          p_amount: coinGain,
-          p_type: 'daily_challenge',
-          p_reference: day,
-        });
-      }
+      console.error('[daily] atomic completion failed; refusing non-atomic path', atomicErr?.message);
       return json({
-        ok: true,
-        correct,
-        points: score.total,
-        coinGain,
-        streak,
-      });
+        error: 'Daily completion is temporarily unavailable; retry without awarding a partial result.',
+        code: 'DAILY_ATOMIC_UNAVAILABLE',
+        retryable: true,
+      }, 503);
     }
 
     if (action === 'get_pack') {

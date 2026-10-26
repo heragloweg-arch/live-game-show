@@ -133,12 +133,14 @@ test('T1b RLS hardening blocks client writes to authoritative state', () => {
   assert.match(rls, /GRANT ALL ON public\.matches/);
 });
 
-test('Solo UI cache is updated only from the server settlement result', () => {
+test('Solo UI progress is read from the server-owned progress contract', () => {
   const matchScreen = readFileSync('src/screens/match/MatchScreen.tsx', 'utf8');
   const matchHook = readFileSync('src/hooks/useServerMatch.ts', 'utf8');
+  const journey = readFileSync('src/services/game/soloJourneyProgress.ts', 'utf8');
   assert.doesNotMatch(matchScreen, /completeSoloLeaf/);
-  assert.match(matchHook, /settled\.journeyProgress/);
-  assert.match(matchHook, /completeSoloLeaf\(/);
+  assert.doesNotMatch(matchHook, /completeSoloLeaf/);
+  assert.match(journey, /server-owned/);
+  assert.doesNotMatch(journey, /localStorage|sessionStorage/);
 });
 
 test('public deployment metadata is explicit and CORS is not wildcard', () => {

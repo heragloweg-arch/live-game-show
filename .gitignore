@@ -6,6 +6,7 @@ dist/
 android/.gradle/
 android/build/
 android/app/build/
+android/app/src/main/assets/public/
 android/app/*.apk
 android/app/*.aab
 android/app/*.jks

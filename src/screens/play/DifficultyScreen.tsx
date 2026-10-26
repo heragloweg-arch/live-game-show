@@ -4,7 +4,7 @@ import { ArrowRight, Check, Leaf, Loader2, LockKeyhole, Sparkles, TreePine } fro
 import { motion } from 'framer-motion';
 import { createSoloMatch, getSoloJourneyProgress } from '../../services/api/matchApi';
 import { useAuthStore } from '../../store/authStore';
-import { completeSoloLeaf, getSoloJourney } from '../../services/game/soloJourneyProgress';
+import { getSoloJourney, type SoloProgressRow } from '../../services/game/soloJourneyProgress';
 
 const BRANCHES = Array.from({ length: 6 }, (_, branchIndex) => ({
   number: branchIndex + 1,
@@ -17,20 +17,15 @@ export function DifficultyScreen() {
   const userId = useAuthStore((s) => s.user?.id);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [progressVersion, setProgressVersion] = useState(0);
-  const journey = userId ? getSoloJourney(userId) : null;
+  const [progress, setProgress] = useState<SoloProgressRow[]>([]);
+  const journey = getSoloJourney(progress);
 
   useEffect(() => {
     if (!userId) return;
     void getSoloJourneyProgress()
-      .then((progress) => {
-        progress.forEach((leaf) => completeSoloLeaf(userId, leaf.branch_number, leaf.leaf_number));
-        setProgressVersion((version) => version + 1);
-      })
-      .catch(() => { /* local cache remains available during a temporary network failure */ });
+      .then(setProgress)
+      .catch(() => setProgress([]));
   }, [userId]);
-
-  void progressVersion;
 
   const start = async (branchNumber: number, leafNumber: number) => {
     const key = `${branchNumber}-${leafNumber}`;
@@ -69,10 +64,10 @@ export function DifficultyScreen() {
             <div className="grid grid-cols-4 gap-2">
               {branch.leaves.map((leaf) => {
                 const key = `${branch.number}-${leaf.number}`;
-                const progress = journey?.leaves.find((item) => item.branch === branch.number && item.leaf === leaf.number);
-                const disabled = !progress?.unlocked || !!loading;
-                return <motion.button key={key} type="button" whileTap={{ scale: .92 }} disabled={disabled} onClick={() => void start(branch.number, leaf.number)} className={`relative flex min-h-16 flex-col items-center justify-center rounded-2xl border text-center transition ${progress?.completed ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-200' : progress?.unlocked ? 'border-violet-300/30 bg-violet-400/10 text-violet-100 hover:bg-violet-400/20' : 'border-white/5 bg-white/[.03] text-white/25'}`}>
-                  {loading === key ? <Loader2 className="h-5 w-5 animate-spin" /> : progress?.completed ? <Check className="h-4 w-4" /> : progress?.unlocked ? <Leaf className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
+                const leafProgress = journey.leaves.find((item) => item.branch === branch.number && item.leaf === leaf.number);
+                const disabled = !leafProgress?.unlocked || !!loading;
+                return <motion.button key={key} type="button" whileTap={{ scale: .92 }} disabled={disabled} onClick={() => void start(branch.number, leaf.number)} className={`relative flex min-h-16 flex-col items-center justify-center rounded-2xl border text-center transition ${leafProgress?.completed ? 'border-emerald-300/40 bg-emerald-400/15 text-emerald-200' : leafProgress?.unlocked ? 'border-violet-300/30 bg-violet-400/10 text-violet-100 hover:bg-violet-400/20' : 'border-white/5 bg-white/[.03] text-white/25'}`}>
+                  {loading === key ? <Loader2 className="h-5 w-5 animate-spin" /> : leafProgress?.completed ? <Check className="h-4 w-4" /> : leafProgress?.unlocked ? <Leaf className="h-4 w-4" /> : <LockKeyhole className="h-4 w-4" />}
                   <span className="mt-1 text-[10px] font-bold">ورقة {leaf.number}</span>
                 </motion.button>;
               })}

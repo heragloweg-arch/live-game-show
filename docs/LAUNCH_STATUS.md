@@ -18,7 +18,7 @@
 - `npm run typecheck`
 - `npm run lint`
 - `npm test -- --run` — 8 ملفات و21 اختبارًا ناجحًا.
-- `npm run test:production-gates` — 23/23 ناجحًا.
+- `npm run test:production-gates` — 27/27 ناجحًا.
 - `npm run verify:solo-progression` — 48 مرحلة وخمس جولات دون regression في الصعوبة.
 - `npm run build`
 - `node scripts/verify-production.mjs`
@@ -33,7 +33,7 @@
 
 - Node المطلوب للبناء وAAB هو `>=22.22.0`، وCI مثبت على Node `22.22.0`.
 - فحص Deno لكل Edge Functions متاح محليًا ونجح في هذه الدفعة.
-- `npm audit --omit=dev --audit-level=high` لا يمنع البناء، لكنه أظهر ثغرتين Moderate في React Router، وإصلاح npm المقترح يتضمن breaking change. لا يطبق تلقائيًا قبل اختبار توافق التطبيق.
+- `npm audit --omit=dev --audit-level=high` — 0 vulnerabilities بعد ترقية React Router إلى `7.18.4` مع نجاح typecheck/lint/Vitest وبوابات الإنتاج.
 - بقي تحذير LiveKit chunk كبيرًا، وهو بند P1 وليس فشلًا مخفيًا.
 
 ## T1 — Staging وSupabase وRLS
@@ -44,13 +44,13 @@
 
 - ربط CLI بالمشروع `jwhrbadnirwjyinplbmn`.
 - تطبيق `db push --include-all`؛ والنتيجة `Remote database is up to date`.
-- مطابقة سجل migrations المحلي والبعيد حتى `20261026000001`.
-- إعادة نشر جميع Edge Functions وعددها 19 من رأس `main` وظهورها بحالة `ACTIVE`.
+- مطابقة سجل migrations المحلي والبعيد حتى `20261026000002`.
+- إعادة نشر وظائف `daily` (v13)، `match` (v19)، و`metrics` (v9)، مع بقاء وظائف Edge الـ19 كلها بحالة `ACTIVE`.
 - حفظ دليل التنفيذ في `docs/STAGING_EXECUTION_REPORT_2026-10-25_AR.md`.
 - ضبط `CORS_ALLOWED_ORIGIN` على نطاق Railway الحالي.
 - تطبيق RLS role hardening ومنع الكتابة المباشرة إلى الحالة السلطوية.
 - نقل تقدم Solo إلى جدول خادمي وRPC idempotent مع فرض تسلسل المراحل.
-- نشر `metrics` بالإصدار 7 مع `rebuild_day` مشتق من جداول الخادم؛ `ingest_day` العميلية مرفوضة.
+- نشر `metrics` بالإصدار 9 مع `rebuild_day` مشتق من جداول الخادم؛ `ingest_day` العميلية مرفوضة، و`p_correct` و`median_response_ms` و`drop_rate` أصبحت أعمدة خادمية.
 
 ما زال يلزم:
 
@@ -76,7 +76,7 @@
 
 بوابة المحتوى البنيوية تمر لـ968 صفًا مدققًا، مع منع bulk activation وفرض اعتماد service-role-only. لا يجوز تفعيل 968/1119 دفعة واحدة. المطلوب Cohort من 300 سؤال ذهبي بعد المراجعة البشرية المتخصصة، فصل المحتوى الديني، واستبعاد الأسئلة الحرة من Solo/1v1 عند غياب عقد إجابة مغلق.
 
-تم إغلاق فجوة مصدر القياس جزئياً: `metrics` يرفض `ingest_day` القادم بأرقام العميل (`SERVER_DERIVED_ONLY`) ويوفر `rebuild_day` مشتقاً من `matches` و`match_participants` و`answer_submissions`، مع أعمدة الإجابات و`drop_rate`. ما زال إثبات التشغيل الفعلي وقياس Cohort والاحتفاظ خارجياً مطلوباً.
+تم إغلاق فجوة مصدر القياس برمجياً: `metrics` يرفض `ingest_day` القادم بأرقام العميل (`SERVER_DERIVED_ONLY`) ويوفر `rebuild_day` مشتقاً من `matches` و`match_participants` و`answer_submissions`، مع `p_correct` و`median_response_ms` و`drop_rate`. ما زال إثبات التشغيل الفعلي وقياس Cohort والاحتفاظ خارجياً مطلوباً.
 
 ## T4 — Android وAAB وInternal Testing
 

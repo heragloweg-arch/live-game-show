@@ -52,8 +52,8 @@ serve(async (req) => {
           supabase,
           user,
           body.difficulty ?? 'normal',
-          Number(body.journeyBranch),
-          Number(body.journeyLeaf),
+          body.journeyBranch == null ? undefined : Number(body.journeyBranch),
+          body.journeyLeaf == null ? undefined : Number(body.journeyLeaf),
         );
       case 'solo_progress':
         return await getSoloProgress(supabase, user.id);
@@ -183,13 +183,14 @@ async function createSoloMatch(
   const hasJourneyStage = journeyBranch !== undefined && journeyLeaf !== undefined
     && Number.isInteger(journeyBranch) && Number.isInteger(journeyLeaf)
     && journeyBranch >= 1 && journeyBranch <= 6 && journeyLeaf >= 1 && journeyLeaf <= 8;
-  if ((journeyBranch || journeyLeaf) && !hasJourneyStage) {
+  const hasJourneyInputs = journeyBranch !== undefined || journeyLeaf !== undefined;
+  if (hasJourneyInputs && !hasJourneyStage) {
     return json({ error: 'مرحلة الشجرة غير صالحة', code: 'INVALID_JOURNEY_STAGE' }, 400);
   }
   if (hasJourneyStage && !(journeyBranch === 1 && journeyLeaf === 1)) {
-    const previousIndex = (journeyBranch! * 8) + journeyLeaf! - 1;
-    const previousBranch = Math.floor((previousIndex - 1) / 8) + 1;
-    const previousLeaf = ((previousIndex - 1) % 8) + 1;
+    const previousIndex = ((journeyBranch! - 1) * 8) + journeyLeaf! - 2;
+    const previousBranch = Math.floor(previousIndex / 8) + 1;
+    const previousLeaf = (previousIndex % 8) + 1;
     const { data: previous } = await supabase
       .from('solo_journey_progress')
       .select('user_id')

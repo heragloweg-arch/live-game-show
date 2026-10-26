@@ -47,6 +47,8 @@ cd android && ./gradlew bundleRelease
 - `RELEASE_KEY_ALIAS`
 - `RELEASE_KEY_PASSWORD`
 
+حدّد `version_code` متزايداً في كل رفع إلى Google Play؛ الـworkflow يحقنه في Gradle ويرفض القيمة الأقل من 1. يمكن ضبط `version_name` للنسخة الظاهرة للمستخدم.
+
 يُرفع الـAAB مع SHA-256 وcommit المصدر كـworkflow artifact لمدة 14 يوماً، ولا تُحفظ مادة التوقيع داخل المستودع.
 
 ## صلاحيات LiveKit

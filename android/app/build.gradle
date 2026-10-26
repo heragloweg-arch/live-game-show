@@ -8,6 +8,8 @@ android {
     def releaseKeystorePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
     def releaseKeyAlias = System.getenv("RELEASE_KEY_ALIAS")
     def releaseKeyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+    def configuredVersionCode = (System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger()
+    if (configuredVersionCode < 1) throw new GradleException("ANDROID_VERSION_CODE must be a positive integer")
     def hasReleaseSigning = [releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword].every { it }
     def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
     if (!hasReleaseSigning && isReleaseTask) {
@@ -28,8 +30,8 @@ android {
         applicationId "com.qaddaha.challenges"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0.0"
+        versionCode configuredVersionCode
+        versionName System.getenv("ANDROID_VERSION_NAME") ?: "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'

@@ -8,6 +8,16 @@ on:
         required: true
         default: 'main'
         type: string
+      version_code:
+        description: 'Google Play versionCode (must increase for every upload)'
+        required: true
+        default: '1'
+        type: string
+      version_name:
+        description: 'Displayed application versionName'
+        required: true
+        default: '1.0.0'
+        type: string
 
 permissions:
   contents: read
@@ -67,6 +77,8 @@ jobs:
       - name: Build signed AAB
         working-directory: android
         env:
+          ANDROID_VERSION_CODE: ${{ inputs.version_code }}
+          ANDROID_VERSION_NAME: ${{ inputs.version_name }}
           RELEASE_KEYSTORE_PATH: ${{ runner.temp }}/qaddaha-release.jks
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}

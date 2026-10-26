@@ -110,11 +110,11 @@ serve(async (req) => {
       const finishedStatuses = new Set(['MATCH_FINISHED', 'FINAL_RESULT']);
       const matchesFinished = matchRows.filter((match) => finishedStatuses.has(match.status)).length;
       let participants: Array<{ user_id: string | null }> = [];
-      let answers: Array<{ outcome: string }> = [];
+      let answers: Array<{ outcome: string; response_time_ms: number | null }> = [];
       if (matchIds.length) {
         const [{ data: participantRows, error: participantsError }, { data: answerRows, error: answersError }] = await Promise.all([
           supabase.from('match_participants').select('user_id').in('match_id', matchIds),
-          supabase.from('answer_submissions').select('outcome').in('match_id', matchIds),
+          supabase.from('answer_submissions').select('outcome,response_time_ms').in('match_id', matchIds),
         ]);
         if (participantsError || answersError) {
           return json({ error: participantsError?.message ?? answersError?.message, code: 'METRICS_SOURCE_ERROR' }, 500);
@@ -126,6 +126,16 @@ serve(async (req) => {
       const answersSubmitted = answers.length;
       const answersCorrect = answers.filter((answer) => answer.outcome === 'correct').length;
       const answersWrong = answers.filter((answer) => answer.outcome === 'wrong').length;
+      const responseTimes = answers
+        .map((answer) => answer.response_time_ms)
+        .filter((value): value is number => Number.isFinite(value))
+        .sort((left, right) => left - right);
+      const middle = Math.floor(responseTimes.length / 2);
+      const medianResponseMs = responseTimes.length === 0
+        ? null
+        : Math.round(responseTimes.length % 2
+          ? responseTimes[middle]
+          : (responseTimes[middle - 1] + responseTimes[middle]) / 2);
       const matchesAbandoned = Math.max(0, matchRows.length - matchesFinished);
       const dropRate = matchRows.length ? matchesAbandoned / matchRows.length : 0;
       const dau = new Set(participants.map((participant) => participant.user_id).filter(Boolean)).size;
@@ -137,6 +147,8 @@ serve(async (req) => {
         answers_submitted: answersSubmitted,
         answers_correct: answersCorrect,
         answers_wrong: answersWrong,
+        p_correct: answersSubmitted ? answersCorrect / answersSubmitted : 0,
+        median_response_ms: medianResponseMs,
         match_abandonments: matchesAbandoned,
         drop_rate: dropRate,
         source: 'server',
