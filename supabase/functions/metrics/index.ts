@@ -165,7 +165,7 @@ serve(async (req) => {
         supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -1).start}T00:00:00.000Z`).lt('created_at', `${day}T00:00:00.000Z`),
         supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -7).start}T00:00:00.000Z`).lt('created_at', `${dayBounds(day, -6).start}T00:00:00.000Z`),
         supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -14).start}T00:00:00.000Z`).lt('created_at', `${dayBounds(day, -13).start}T00:00:00.000Z`),
-        supabase.from('retention_opens').select('user_id,created_at').gte('created_at', cohortStart).lt('created_at', cohortEnd),
+        supabase.from('retention_opens').select('user_id,created_at,metadata').eq('surface', 'app_open').gte('created_at', cohortStart).lt('created_at', cohortEnd),
       ]);
       const openUsers = new Set((openRows ?? []).map((row: any) => row.user_id));
       const session2Counts = new Map<string, number>();
