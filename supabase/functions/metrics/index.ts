@@ -22,6 +22,12 @@ function dayBounds(day: string, offset = 0) {
   return { start, end: endDate.toISOString().slice(0, 10) };
 }
 
+function menaDayStart(day: string, offset = 0) {
+  const base = new Date(`${day}T00:00:00+03:00`);
+  base.setUTCDate(base.getUTCDate() + offset);
+  return base.toISOString();
+}
+
 function percentile(values: number[], p: number) {
   if (!values.length) return null;
   const index = Math.min(values.length - 1, Math.max(0, Math.ceil(values.length * p) - 1));
@@ -157,14 +163,13 @@ serve(async (req) => {
       const p95ResponseMs = percentile(responseTimes, 0.95);
       const rematchRows = matchRows.filter((match) => Boolean(match.rematch_of));
 
-      const { start: nextDay } = dayBounds(day, 1);
-      const cohortStart = `${day}T00:00:00.000Z`;
-      const cohortEnd = `${nextDay}T00:00:00.000Z`;
+      const cohortStart = menaDayStart(day, 0);
+      const cohortEnd = menaDayStart(day, 1);
       const [{ data: newUsers }, { data: d1Cohort }, { data: d7Cohort }, { data: d14Cohort }, { data: openRows }] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact' }).gte('created_at', cohortStart).lt('created_at', cohortEnd),
-        supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -1).start}T00:00:00.000Z`).lt('created_at', `${day}T00:00:00.000Z`),
-        supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -7).start}T00:00:00.000Z`).lt('created_at', `${dayBounds(day, -6).start}T00:00:00.000Z`),
-        supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -14).start}T00:00:00.000Z`).lt('created_at', `${dayBounds(day, -13).start}T00:00:00.000Z`),
+        supabase.from('profiles').select('id').gte('created_at', menaDayStart(day, -1)).lt('created_at', cohortStart),
+        supabase.from('profiles').select('id').gte('created_at', menaDayStart(day, -7)).lt('created_at', menaDayStart(day, -6)),
+        supabase.from('profiles').select('id').gte('created_at', menaDayStart(day, -14)).lt('created_at', menaDayStart(day, -13)),
         supabase.from('retention_opens').select('user_id,created_at,metadata').eq('surface', 'app_open').gte('created_at', cohortStart).lt('created_at', cohortEnd),
       ]);
       const openUsers = new Set((openRows ?? []).map((row: any) => row.user_id));
