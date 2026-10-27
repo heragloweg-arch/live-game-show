@@ -26,6 +26,10 @@ const pickupMigration = await readFile(
   new URL('../supabase/migrations/20261027131856_atomic_team_pickup.sql', import.meta.url),
   'utf8'
 );
+const pickupRetryMigration = await readFile(
+  new URL('../supabase/migrations/20261027132536_pickup_assignment_retry.sql', import.meta.url),
+  'utf8'
+);
 const soloCoupleMigration = await readFile(
   new URL('../supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', import.meta.url),
   'utf8'
@@ -104,4 +108,11 @@ test('Solo and Couple matches are fully created by atomic SQL transactions', () 
   assert.match(soloCoupleMigration, /INSERT INTO public\.rounds/);
   assert.match(matchHandler, /supabase\.rpc\('create_solo_match_atomic'/);
   assert.match(matchHandler, /supabase\.rpc\('create_couple_match_atomic'/);
+});
+
+test('Pickup assignment retry returns the assigned team before owner restrictions', () => {
+  const assignedCheck = pickupRetryMigration.indexOf("status='assigned'");
+  const ownerGuard = pickupRetryMigration.indexOf("TEAM_OWNER_CANNOT_PICKUP");
+  assert.ok(assignedCheck >= 0 && ownerGuard > assignedCheck);
+  assert.match(pickupRetryMigration, /alreadyAssigned/);
 });
