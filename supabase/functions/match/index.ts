@@ -167,94 +167,26 @@ async function pickChallenges(supabase: any, count: number, difficulty?: string,
 async function createSoloMatch(
   supabase: any,
   user: any,
-  difficulty: string,
+  _difficulty: string,
   journeyBranch?: number,
   journeyLeaf?: number,
 ) {
-  const now = new Date().toISOString();
-  const difficultyPlan = soloDifficultyPlan(journeyBranch, journeyLeaf);
-  // Solo progression is server-owned: stage bands and round ramp are persisted
-  // in the match snapshot so monitoring can verify the intended difficulty.
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, undefined, difficultyPlan);
-  if (challenges.length < TOTAL_ROUNDS) {
-    return json({ error: 'Not enough challenges in bank. Run seed migrations.' }, 500);
+  const { data, error } = await supabase.rpc('create_solo_match_atomic', {
+    p_user_id: user.id,
+    p_journey_branch: journeyBranch ?? null,
+    p_journey_leaf: journeyLeaf ?? null,
+  });
+  if (error || !data?.matchId) {
+    const message = error?.message ?? data?.error ?? 'SOLO_MATCH_CREATE_FAILED';
+    if (message.includes('JOURNEY_STAGE_LOCKED')) return json({ error: 'أكمل الورقة السابقة أولاً', code: 'JOURNEY_STAGE_LOCKED' }, 409);
+    if (message.includes('INVALID_JOURNEY_STAGE')) return json({ error: 'مرحلة الشجرة غير صالحة', code: 'INVALID_JOURNEY_STAGE' }, 400);
+    if (message.includes('NOT_ENOUGH_PLAYABLE_CHALLENGES')) return json({ error: 'لا توجد خمس جولات معتمدة وقابلة للعب حالياً', code: 'NOT_ENOUGH_PLAYABLE_CHALLENGES' }, 503);
+    console.error('[match] atomic Solo creation failed', error ?? data);
+    return json({ error: 'تعذر إنشاء مباراة فردية كاملة بأمان', code: 'SOLO_MATCH_CREATE_FAILED' }, 503);
   }
-
-  const hasJourneyStage = journeyBranch !== undefined && journeyLeaf !== undefined
-    && Number.isInteger(journeyBranch) && Number.isInteger(journeyLeaf)
-    && journeyBranch >= 1 && journeyBranch <= 6 && journeyLeaf >= 1 && journeyLeaf <= 8;
-  const hasJourneyInputs = journeyBranch !== undefined || journeyLeaf !== undefined;
-  if (hasJourneyInputs && !hasJourneyStage) {
-    return json({ error: 'مرحلة الشجرة غير صالحة', code: 'INVALID_JOURNEY_STAGE' }, 400);
-  }
-  if (hasJourneyStage && !(journeyBranch === 1 && journeyLeaf === 1)) {
-    const previousIndex = ((journeyBranch! - 1) * 8) + journeyLeaf! - 2;
-    const previousBranch = Math.floor(previousIndex / 8) + 1;
-    const previousLeaf = (previousIndex % 8) + 1;
-    const { data: previous } = await supabase
-      .from('solo_journey_progress')
-      .select('user_id')
-      .eq('user_id', user.id)
-      .eq('branch_number', previousBranch)
-      .eq('leaf_number', previousLeaf)
-      .maybeSingle();
-    if (!previous) return json({ error: 'أكمل الورقة السابقة أولاً', code: 'JOURNEY_STAGE_LOCKED' }, 409);
-  }
-
-  const { data: match, error: matchErr } = await supabase
-    .from('matches')
-    .insert({
-      mode: 'solo',
-      status: 'VS',
-      difficulty: 'normal',
-      current_round: 1,
-      total_rounds: TOTAL_ROUNDS,
-      sequence: 1,
-      server_now: now,
-      config_snapshot: hasJourneyStage ? { journeyBranch, journeyLeaf, difficultyPlan } : null,
-    })
-    .select()
-    .single();
-  if (matchErr) return json({ error: matchErr.message }, 500);
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('username, avatar_url')
-    .eq('id', user.id)
-    .single();
-
-  await supabase.from('match_participants').insert([
-    {
-      match_id: match.id,
-      user_id: user.id,
-      side: 'player',
-      score: 0,
-      is_ai: false,
-      username: profile?.username ?? 'player',
-      avatar_url: profile?.avatar_url,
-    },
-    {
-      match_id: match.id,
-      user_id: null,
-      side: 'ai',
-      score: 0,
-      is_ai: true,
-      ai_difficulty: 'normal',
-      username: 'خصم قدها',
-    },
-  ]);
-
-  await supabase.from('rounds').insert(
-    challenges.map((ch: any, i: number) => ({
-      match_id: match.id,
-      round_number: i + 1,
-      challenge_id: ch.id,
-      status: 'pending',
-      sequence: 0,
-    }))
-  );
-
-  return json({ match: await buildMatchState(supabase, match.id) });
+  const match = await buildMatchState(supabase, data.matchId, user.id);
+  if (!match) return json({ error: 'تم إنشاء المباراة لكن تعذر قراءة حالتها', code: 'MATCH_STATE_UNAVAILABLE' }, 503);
+  return json({ match });
 }
 
 async function getSoloProgress(supabase: any, userId: string) {
@@ -425,91 +357,22 @@ async function acceptMatchInvite(supabase: any, user: any, token: string) {
 }
 
 async function createCoupleMatch(supabase: any, user: any, difficulty: string) {
-  const { data: couple } = await supabase
-    .from('couples')
-    .select('*')
-    .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-    .eq('status', 'active')
-    .maybeSingle();
-  if (!couple || !couple.user_b) {
-    return json({ error: 'لا توجد ثنائية نشطة — اربط شريكك أولاً' }, 400);
+  const normalizedDifficulty = ['easy', 'normal', 'hard'].includes(difficulty) ? difficulty : 'normal';
+  const { data, error } = await supabase.rpc('create_couple_match_atomic', {
+    p_user_id: user.id,
+    p_difficulty: normalizedDifficulty,
+  });
+  if (error || !data?.matchId) {
+    const message = error?.message ?? data?.error ?? 'COUPLE_MATCH_CREATE_FAILED';
+    if (message.includes('ACTIVE_COUPLE_NOT_FOUND')) return json({ error: 'لا توجد ثنائية نشطة — اربط شريكك أولاً' }, 400);
+    if (message.includes('COUPLE_BLOCKED')) return json({ error: 'لا يمكن بدء مباراة مع شريك محظور.' }, 403);
+    if (message.includes('NOT_ENOUGH_PLAYABLE_CHALLENGES')) return json({ error: 'لا توجد خمس جولات معتمدة وقابلة للعب حالياً' }, 503);
+    console.error('[match] atomic Couple creation failed', error ?? data);
+    return json({ error: 'تعذر إنشاء مباراة الثنائية كاملة بأمان', code: 'COUPLE_MATCH_CREATE_FAILED' }, 503);
   }
-
-  const partnerId = couple.user_a === user.id ? couple.user_b : couple.user_a;
-  if (await isBlockedPair(supabase, user.id, partnerId)) return json({ error: 'لا يمكن بدء مباراة مع شريك محظور.' }, 403);
-  const { data: me } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', user.id).single();
-  const { data: partner } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', partnerId).single();
-
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, difficulty);
-  if (challenges.length < TOTAL_ROUNDS) {
-    return json({ error: 'Not enough challenges' }, 500);
-  }
-
-  const now = new Date().toISOString();
-  const { data: match, error: matchErr } = await supabase
-    .from('matches')
-    .insert({
-      mode: 'couple',
-      status: 'VS',
-      difficulty,
-      current_round: 1,
-      total_rounds: TOTAL_ROUNDS,
-      sequence: 1,
-      server_now: now,
-      couple_id: couple.id,
-    })
-    .select()
-    .single();
-  if (matchErr) return json({ error: matchErr.message }, 500);
-
-  // Co-op vs AI: both humans on team "player", AI is opponent
-  await supabase.from('match_participants').insert([
-    {
-      match_id: match.id,
-      user_id: user.id,
-      side: 'player',
-      username: me?.display_name || me?.username || 'أنت',
-      avatar_url: me?.avatar_url,
-      score: 0,
-      is_ai: false,
-    },
-    {
-      match_id: match.id,
-      user_id: partnerId,
-      side: 'player',
-      username: partner?.display_name || partner?.username || 'الشريك',
-      avatar_url: partner?.avatar_url,
-      score: 0,
-      is_ai: false,
-    },
-    {
-      match_id: match.id,
-      user_id: null,
-      side: 'ai',
-      username: 'الخصم الذكي',
-      score: 0,
-      is_ai: true,
-      ai_difficulty: difficulty,
-    },
-  ]);
-
-  for (let i = 0; i < challenges.length; i++) {
-    const c = challenges[i];
-    await supabase.from('rounds').insert({
-      match_id: match.id,
-      round_number: i + 1,
-      challenge_id: c.id,
-      status: i === 0 ? 'pending' : 'pending',
-      sequence: 0,
-    });
-  }
-
-  await supabase.from('couples').update({
-    last_match_id: match.id,
-    updated_at: now,
-  }).eq('id', couple.id);
-
-  return json({ match: await buildMatchState(supabase, match.id, user.id), coupleId: couple.id });
+  const match = await buildMatchState(supabase, data.matchId, user.id);
+  if (!match) return json({ error: 'تم إنشاء المباراة لكن تعذر قراءة حالتها', code: 'MATCH_STATE_UNAVAILABLE' }, 503);
+  return json({ match, coupleId: data.coupleId });
 }
 
 async function startRound(supabase: any, matchId: string, userId: string) {
