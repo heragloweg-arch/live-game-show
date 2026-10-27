@@ -10,6 +10,10 @@ const openPackMigration = await readFile(
   new URL('../supabase/migrations/20261027000006_harden_open_daily_pack.sql', import.meta.url),
   'utf8'
 );
+const accountDeleteMigration = await readFile(
+  new URL('../supabase/migrations/20261027000008_account_deletion_tournament_refs.sql', import.meta.url),
+  'utf8'
+);
 
 test('Daily challenge completion validates the exact server-owned date and challenge', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_daily_atomic/);
@@ -38,4 +42,13 @@ test('Daily pack read RPC returns only playable slots and fails closed on incomp
   assert.match(openPackMigration, /DAILY_PACK_NOT_PLAYABLE/);
   assert.match(openPackMigration, /v_slot_count<3/);
   assert.match(openPackMigration, /REVOKE ALL ON FUNCTION public\.open_daily_pack[\s\S]*FROM PUBLIC,anon,authenticated/);
+});
+
+test('Account deletion clears NO ACTION tournament-team references before owner team cascade', () => {
+  assert.match(accountDeleteMigration, /CREATE OR REPLACE FUNCTION public\.delete_account_data_atomic/);
+  assert.match(accountDeleteMigration, /UPDATE public\.tournament_matches tm SET team_a_id=NULL/);
+  assert.match(accountDeleteMigration, /UPDATE public\.tournament_matches tm SET team_b_id=NULL/);
+  assert.match(accountDeleteMigration, /UPDATE public\.tournament_matches tm SET winning_team_id=NULL/);
+  assert.match(accountDeleteMigration, /DELETE FROM public\.profiles WHERE id=p_user_id/);
+  assert.match(accountDeleteMigration, /REVOKE ALL ON FUNCTION public\.delete_account_data_atomic[\s\S]*FROM PUBLIC,anon,authenticated/);
 });
