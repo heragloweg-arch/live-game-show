@@ -22,6 +22,10 @@ const teamHandler = await readFile(
   new URL('../supabase/functions/team/index.ts', import.meta.url),
   'utf8'
 );
+const pickupMigration = await readFile(
+  new URL('../supabase/migrations/20261027000007_atomic_team_pickup.sql', import.meta.url),
+  'utf8'
+);
 
 test('human matchmaking creates match, participants, rounds and queue transition in one SQL transaction', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.join_matchmaking_atomic/);
@@ -69,4 +73,16 @@ test('Team matchmaking claims an opponent and creates the full match atomically'
   assert.match(teamMigration, /FROM PUBLIC,anon,authenticated/);
   assert.match(teamHandler, /supabase\.rpc\('queue_team_match_atomic'/);
   assert.doesNotMatch(teamHandler, /async function createTeamMatch\(/);
+});
+
+test('Pickup assembly is serialized, row-locked and assigned atomically', () => {
+  assert.match(pickupMigration, /CREATE OR REPLACE FUNCTION public\.join_team_pickup_atomic/);
+  assert.match(pickupMigration, /pg_advisory_xact_lock/);
+  assert.match(pickupMigration, /FOR UPDATE SKIP LOCKED/);
+  assert.match(pickupMigration, /INSERT INTO public\.teams/);
+  assert.match(pickupMigration, /INSERT INTO public\.team_members/);
+  assert.match(pickupMigration, /UPDATE public\.team_pickup_queue SET status='assigned',team_id=v_team_id/);
+  assert.match(pickupMigration, /TEAM_OWNER_CANNOT_PICKUP/);
+  assert.match(teamHandler, /supabase\.rpc\('join_team_pickup_atomic'/);
+  assert.doesNotMatch(teamHandler, /const \{ data: waiting \} = await supabase/);
 });
