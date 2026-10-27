@@ -72,44 +72,34 @@ function json(data: unknown, status = 200) {
 }
 
 async function joinQueue(supabase: any, user: any, difficulty: string, region: string) {
-  const { error: clearError } = await supabase.from('matchmaking_queue').delete().eq('user_id', user.id);
-  if (clearError) return json({ error: 'تعذر تحديث طابور المطابقة بأمان.' }, 503);
+  const normalizedDifficulty = ['easy', 'normal', 'hard'].includes(difficulty) ? difficulty : 'normal';
+  const normalizedRegion = typeof region === 'string' && region.trim() ? region.trim().slice(0, 32) : 'mena';
 
-  const { data: claimed, error: claimErr } = await supabase.rpc('claim_matchmaking_opponent', {
+  // One server-side transaction now owns queue insertion, opponent claim,
+  // match creation, participants, rounds, and both queue state transitions.
+  const { data, error } = await supabase.rpc('join_matchmaking_atomic', {
     p_user_id: user.id,
-    p_region: region,
-    p_difficulty: difficulty,
+    p_region: normalizedRegion,
+    p_difficulty: normalizedDifficulty,
   });
-  if (claimErr) {
-    console.error('[matchmaking] atomic claim failed; fail closed', claimErr);
+
+  if (error || !data || !['queued', 'matched'].includes(data.status)) {
+    console.error('[matchmaking] atomic join failed', error ?? data);
     return json({ error: 'تعذر إتمام المطابقة بأمان. حاول مرة أخرى.' }, 503);
   }
 
-  if (claimed) {
-    const { data: blockRows, error: blockError } = await supabase.from('user_blocks')
-      .select('blocker_id')
-      .or(`and(blocker_id.eq.${user.id},blocked_id.eq.${claimed}),and(blocker_id.eq.${claimed},blocked_id.eq.${user.id})`)
-      .limit(1);
-    if (blockError || (blockRows ?? []).length > 0) {
-      const { error: restoreError } = await supabase.from('matchmaking_queue').upsert([
-        { user_id: user.id, difficulty, region, skill_mmr: 1000, status: 'queued' },
-        { user_id: claimed, difficulty, region, skill_mmr: 1000, status: 'queued' },
-      ], { onConflict: 'user_id' });
-      if (restoreError) console.error('[matchmaking] failed to restore queue after safety check', restoreError);
-      if (blockError || restoreError) return json({ error: 'تعذر التحقق من إعدادات الحظر؛ لم يتم إنشاء المباراة.' }, 503);
-      return json({ status: 'queued', message: 'تم تجاوز منافس غير متاح والبحث عن منافس آخر.' });
-    }
-    const match = await create1v1(supabase, user.id, claimed);
-    return json({ status: 'matched', match });
+  if (data.status === 'matched') {
+    return json({ status: 'matched', matchId: data.matchId, alreadyMatched: !!data.alreadyMatched });
   }
 
-  const { error: enqueueError } = await supabase.from('matchmaking_queue').upsert({
-    user_id: user.id, difficulty, region, skill_mmr: 1000, status: 'queued',
-  }, { onConflict: 'user_id' });
-  if (enqueueError) {
-    console.error('[matchmaking] enqueue failed', enqueueError);
-    return json({ error: 'تعذر الانضمام إلى طابور المطابقة.' }, 503);
+  if (data.reason === 'NOT_ENOUGH_PLAYABLE_CHALLENGES') {
+    return json({
+      status: 'queued',
+      message: 'نبحث عن منافس؛ سيتم بدء المباراة عند توفر خمس جولات معتمدة.',
+      code: data.reason,
+    });
   }
+
   return json({ status: 'queued', message: 'Waiting for opponent...' });
 }
 
@@ -148,46 +138,6 @@ async function checkStatus(supabase: any, userId: string) {
   }
 
   return json({ status: 'idle' });
-}
-
-async function create1v1(supabase: any, userId1: string, userId2: string) {
-  const TOTAL = 5;
-  const SEQUENCE = ['speed', 'knowledge', 'words', 'speed', 'mystery'];
-  const now = new Date().toISOString();
-
-  // Pick challenges
-  const challenges: any[] = [];
-  for (let i = 0; i < TOTAL; i++) {
-    const t = SEQUENCE[i] === 'mystery' ? null : SEQUENCE[i];
-    let q = supabase.from('challenges').select('id').eq('active', true).eq('qa_status', 'approved');
-    if (t) q = q.eq('type', t);
-    const { data } = await q.limit(20);
-    if (data?.length) challenges.push(data[Math.floor(Math.random() * data.length)]);
-  }
-
-  const { data: match } = await supabase.from('matches').insert({
-    mode: '1v1', status: 'VS', current_round: 1, total_rounds: TOTAL, sequence: 1, server_now: now,
-  }).select().single();
-
-  if (!match) throw new Error('Failed to create match');
-
-  const { data: p1 } = await supabase.from('profiles').select('username, avatar_url').eq('id', userId1).single();
-  const { data: p2 } = await supabase.from('profiles').select('username, avatar_url').eq('id', userId2).single();
-
-  await supabase.from('match_participants').insert([
-    { match_id: match.id, user_id: userId1, side: 'player', score: 0, username: p1?.username ?? 'p1', avatar_url: p1?.avatar_url },
-    { match_id: match.id, user_id: userId2, side: 'opponent', score: 0, username: p2?.username ?? 'p2', avatar_url: p2?.avatar_url },
-  ]);
-
-  if (challenges.length > 0) {
-    await supabase.from('rounds').insert(
-      challenges.map((ch: any, i: number) => ({
-        match_id: match.id, round_number: i + 1, challenge_id: ch.id, status: 'pending', sequence: 0,
-      }))
-    );
-  }
-
-  return { matchId: match.id, status: 'VS' };
 }
 
 async function createAiFallback(supabase: any, userId: string, difficulty: string) {
