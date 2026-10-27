@@ -77,6 +77,8 @@ serve(async (req) => {
         return await startRound(supabase, body.matchId, user.id);
       case 'next_round':
         return await nextRound(supabase, body.matchId, user.id);
+      case 'abandon':
+        return await abandonMatch(supabase, body.matchId, user.id, String(body.reason ?? 'navigation'));
       case 'finish':
         return await finishMatch(supabase, body.matchId, user.id);
       case 'settle':
@@ -461,6 +463,22 @@ async function nextRound(supabase: any, matchId: string, userId: string) {
 
   if (row.code === 'MATCH_FINISHED') return await finishMatch(supabase, matchId, userId);
   return json({ match: await buildMatchState(supabase, matchId, userId), advanced: true });
+}
+
+async function abandonMatch(supabase: any, matchId: string, userId: string, reason: string) {
+  const { data, error } = await supabase.rpc('abandon_match_atomic', {
+    p_match_id: matchId,
+    p_user_id: userId,
+    p_reason: reason,
+  });
+  if (error) {
+    const message = error.message ?? '';
+    if (message.includes('MATCH_NOT_FOUND')) return json({ error: 'المباراة غير موجودة' }, 404);
+    if (message.includes('MATCH_PARTICIPANT_REQUIRED')) return json({ error: 'لست مشاركًا في هذه المباراة' }, 403);
+    console.error('[match] atomic abandon failed', error);
+    return json({ error: 'تعذر تسجيل مغادرة المباراة' }, 503);
+  }
+  return json(data ?? { ok: false });
 }
 
 async function finishMatch(supabase: any, matchId: string, userId: string | null) {
