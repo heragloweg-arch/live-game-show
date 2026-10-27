@@ -59,6 +59,7 @@ test('Metrics are server-derived and include quality measures', () => {
   assert.match(metrics, /session2_rate/);
   assert.match(metrics, /rematch_rate/);
   assert.match(metrics, /p95_response_ms/);
+  assert.match(metrics, /function menaDayStart/);
 });
 
 test('Rematch is linked server-side and Daily RPC enforces approved content', () => {
