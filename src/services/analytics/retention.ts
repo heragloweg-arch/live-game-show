@@ -1,17 +1,17 @@
 /**
- * Client-side retention + DAU building blocks.
- * Complements PostHog; stores first_seen / last_seen / visit days for D1/D7 estimates.
+ * Ephemeral client diagnostics only.
+ * Authoritative D1/D7/D14 and session-2 retention is recorded by the server in retention_opens.
+ * Deliberately does not persist to localStorage/sessionStorage.
  */
-
-const KEY = 'qaddaha_retention_v1';
-
 export interface RetentionState {
   firstOpenAt: string;
   lastOpenAt: string;
-  openDays: string[]; // YYYY-MM-DD in Asia/Riyadh
+  openDays: string[];
   totalOpens: number;
   userId?: string;
 }
+
+let memoryState: RetentionState | null = null;
 
 function todayMena(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
@@ -24,25 +24,15 @@ function daysBetween(a: string, b: string): number {
 }
 
 export function loadRetention(): RetentionState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as RetentionState;
-  } catch {
-    /* */
-  }
+  if (memoryState) return { ...memoryState, openDays: [...memoryState.openDays] };
   const now = new Date().toISOString();
   return { firstOpenAt: now, lastOpenAt: now, openDays: [], totalOpens: 0 };
 }
 
 export function saveRetention(s: RetentionState) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(s));
-  } catch {
-    /* */
-  }
+  memoryState = { ...s, openDays: [...s.openDays] };
 }
 
-/** Call on every app_open */
 export function recordOpen(userId?: string): {
   state: RetentionState;
   isD1: boolean;
@@ -52,23 +42,14 @@ export function recordOpen(userId?: string): {
   const s = loadRetention();
   const today = todayMena();
   const firstDay = s.openDays[0] ?? today;
-
-  if (!s.openDays.includes(today)) {
-    s.openDays = [...s.openDays, today].slice(-60);
-  }
+  if (!s.openDays.includes(today)) s.openDays = [...s.openDays, today].slice(-60);
   s.lastOpenAt = new Date().toISOString();
   s.totalOpens += 1;
   if (userId) s.userId = userId;
   if (!s.firstOpenAt) s.firstOpenAt = s.lastOpenAt;
   saveRetention(s);
-
   const dayNumber = daysBetween(firstDay, today);
-  return {
-    state: s,
-    isD1: dayNumber === 1,
-    isD7: dayNumber === 7,
-    dayNumber,
-  };
+  return { state: s, isD1: dayNumber === 1, isD7: dayNumber === 7, dayNumber };
 }
 
 export function retentionSnapshot() {
@@ -77,6 +58,7 @@ export function retentionSnapshot() {
   const firstDay = s.openDays[0] ?? today;
   const dayNumber = daysBetween(firstDay, today);
   return {
+    source: 'client_diagnostic_only' as const,
     firstOpenAt: s.firstOpenAt,
     lastOpenAt: s.lastOpenAt,
     totalOpens: s.totalOpens,
