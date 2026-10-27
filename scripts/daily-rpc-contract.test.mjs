@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migration = await readFile(
-  new URL('../supabase/migrations/20261027000004_harden_daily_rpc_contract.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027131351_harden_daily_rpc_contract.sql', import.meta.url),
   'utf8'
 );
 const openPackMigration = await readFile(
-  new URL('../supabase/migrations/20261027000006_harden_open_daily_pack.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027131748_harden_open_daily_pack.sql', import.meta.url),
   'utf8'
 );
 const accountDeleteMigration = await readFile(
-  new URL('../supabase/migrations/20261027000008_account_deletion_tournament_refs.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027131959_account_deletion_tournament_refs.sql', import.meta.url),
   'utf8'
 );
 

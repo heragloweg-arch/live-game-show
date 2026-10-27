@@ -9,7 +9,7 @@ const room = read('supabase/functions/room/index.ts');
 const tournament = read('supabase/functions/tournament/index.ts');
 const team = read('supabase/functions/team/index.ts');
 const migration = read('supabase/migrations/20261026000003_team_tournament_league.sql');
-const aiFallbackMigration = read('supabase/migrations/20261027000003_atomic_matchmaking_ai_fallback.sql');
+const aiFallbackMigration = read('supabase/migrations/20261027131128_atomic_matchmaking_ai_fallback.sql');
 const flagReconcile = read('supabase/migrations/20261026000004_reconcile_flag_content_seed.sql');
 const server = read('scripts/static-server.mjs');
 

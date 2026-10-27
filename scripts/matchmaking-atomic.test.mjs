@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migration = await readFile(
-  new URL('../supabase/migrations/20261027000002_atomic_matchmaking_create.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027130924_atomic_matchmaking_create.sql', import.meta.url),
   'utf8'
 );
 const handler = await readFile(
@@ -11,11 +11,11 @@ const handler = await readFile(
   'utf8'
 );
 const aiMigration = await readFile(
-  new URL('../supabase/migrations/20261027000003_atomic_matchmaking_ai_fallback.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027131128_atomic_matchmaking_ai_fallback.sql', import.meta.url),
   'utf8'
 );
 const teamMigration = await readFile(
-  new URL('../supabase/migrations/20261027000005_atomic_team_matchmaking.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027131609_atomic_team_matchmaking.sql', import.meta.url),
   'utf8'
 );
 const teamHandler = await readFile(
@@ -23,7 +23,7 @@ const teamHandler = await readFile(
   'utf8'
 );
 const pickupMigration = await readFile(
-  new URL('../supabase/migrations/20261027000007_atomic_team_pickup.sql', import.meta.url),
+  new URL('../supabase/migrations/20261027131856_atomic_team_pickup.sql', import.meta.url),
   'utf8'
 );
 
