@@ -136,49 +136,24 @@ serve(async (req) => {
 
     if (action === 'pickup') {
       const desired = Math.min(5, Math.max(1, Number(body.desiredSize) || 5));
-      const difficulty = body.difficulty ?? 'normal';
-      // leave existing team membership for pure pickup flow
-      await supabase.from('team_pickup_queue').upsert({
-        user_id: user.id,
-        desired_size: desired,
-        difficulty,
-        status: 'waiting',
-        team_id: null,
-        joined_at: new Date().toISOString(),
+      const difficulty = ['easy', 'normal', 'hard'].includes(body.difficulty) ? body.difficulty : 'normal';
+      const { data, error } = await supabase.rpc('join_team_pickup_atomic', {
+        p_user_id: user.id,
+        p_desired_size: desired,
+        p_difficulty: difficulty,
       });
-      // Try assemble team from waiting players same size
-      const { data: waiting } = await supabase
-        .from('team_pickup_queue')
-        .select('*')
-        .eq('status', 'waiting')
-        .eq('desired_size', desired)
-        .eq('difficulty', difficulty)
-        .order('joined_at', { ascending: true })
-        .limit(desired);
-      if ((waiting?.length ?? 0) >= desired) {
-        const batch = waiting!.slice(0, desired);
-        const { data: team } = await supabase.from('teams').insert({
-          name: `تجميع ${desired}v${desired}`,
-          invite_code: code6(),
-          owner_id: batch[0].user_id,
-          max_members: desired,
-        }).select().single();
-        for (let i = 0; i < batch.length; i++) {
-          await supabase.from('team_members').delete().eq('user_id', batch[i].user_id);
-          await supabase.from('team_members').insert({
-            team_id: team.id,
-            user_id: batch[i].user_id,
-            role: i === 0 ? 'owner' : 'member',
-          });
-          await supabase.from('team_pickup_queue').update({
-            status: 'assigned',
-            team_id: team.id,
-          }).eq('user_id', batch[i].user_id);
+      if (error) {
+        if (error.message?.includes('TEAM_OWNER_CANNOT_PICKUP')) {
+          return json({ error: 'انقل ملكية فريقك الحالي أو اتركه قبل الدخول إلى التجميع السريع.' }, 409);
         }
-        // Owner queues matchmaking
-        return json({ status: 'team_ready', teamId: team.id, size: desired, message: 'اكتمل الفريق — اطلب المباراة من القائد' });
+        console.error('[team] atomic pickup failed', error);
+        return json({ error: 'تعذر تجميع الفريق بأمان. حاول مرة أخرى.' }, 503);
       }
-      return json({ status: 'waiting', size: desired, waiting: waiting?.length ?? 1, need: desired });
+      if (!data) return json({ error: 'تعذر قراءة حالة التجميع.' }, 503);
+      if (data.status === 'team_ready') {
+        return json({ status: 'team_ready', teamId: data.teamId, size: data.size, message: 'اكتمل الفريق — اطلب المباراة من القائد' });
+      }
+      return json({ status: 'waiting', size: data.size, waiting: data.waiting ?? 0, need: data.need ?? desired });
     }
 
     if (action === 'pickup_cancel') {
