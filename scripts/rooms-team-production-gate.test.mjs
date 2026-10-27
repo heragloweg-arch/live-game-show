@@ -13,7 +13,7 @@ const flagReconcile = read('supabase/migrations/20261026000004_reconcile_flag_co
 const server = read('scripts/static-server.mjs');
 
  test('Quick Match AI fallback is an explicit server participant and never a timeout-only path', () => {
-  assert.match(matchmaking, /createAiFallback/);
+  assert.match(matchmaking, /create_matchmaking_ai_fallback_atomic/);
   assert.match(matchmaking, /fallbackAi:\s*true/);
   assert.match(matchmaking, /is_ai:\s*true/);
   assert.match(matchmaking, /خصم الكمبيوتر/);
