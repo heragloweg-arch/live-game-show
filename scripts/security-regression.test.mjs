@@ -5,6 +5,10 @@ import test from 'node:test';
 const daily = readFileSync('supabase/functions/daily/index.ts', 'utf8');
 const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
 const metrics = readFileSync('supabase/functions/metrics/index.ts', 'utf8');
+const clientRetention = readFileSync('src/services/analytics/retention.ts', 'utf8');
+const analyticsFunction = readFileSync('supabase/functions/analytics/index.ts', 'utf8');
+const analyticsEvents = readFileSync('src/services/analytics/events.ts', 'utf8');
+const serverOpenMigration = readFileSync('supabase/migrations/20261027133117_server_app_open_retention.sql', 'utf8');
 const retentionMigration = readFileSync('supabase/migrations/20261027000001_retention_rematch_latency.sql', 'utf8');
 const soloProjection = readFileSync('src/services/game/soloJourneyProgress.ts', 'utf8');
 const soloCoupleMigration = readFileSync('supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', 'utf8');
@@ -33,6 +37,15 @@ test('Solo stage lock uses the immediately previous linear leaf in the atomic RP
   assert.match(soloCoupleMigration, /JOURNEY_STAGE_LOCKED/);
   assert.match(soloCoupleMigration, /branch_number=CASE WHEN p_journey_leaf=1 THEN p_journey_branch-1 ELSE p_journey_branch END/);
   assert.match(match, /supabase\.rpc\('create_solo_match_atomic'/);
+});
+
+test('Retention is derived from authenticated server app sessions, not browser storage', () => {
+  assert.doesNotMatch(clientRetention, /localStorage|sessionStorage/);
+  assert.match(analyticsFunction, /record_app_open_atomic/);
+  assert.match(analyticsEvents, /recordServerAppOpen/);
+  assert.match(metrics, /eq\('surface', 'app_open'\)/);
+  assert.match(serverOpenMigration, /retention_opens_app_session_uidx/);
+  assert.match(serverOpenMigration, /qaddaha:app-open:/);
 });
 
 test('Metrics are server-derived and include quality measures', () => {
