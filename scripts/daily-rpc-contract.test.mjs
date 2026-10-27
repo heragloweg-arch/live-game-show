@@ -33,14 +33,14 @@ test('Daily pack completion verifies slot-to-pack ownership and serializes rewar
   assert.match(migration, /qaddaha:daily-pack:/);
   assert.match(migration, /ON CONFLICT\(user_id,pack_id\) DO NOTHING/);
   assert.match(migration, /INSERT INTO public\.wallet_ledger/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION public\.complete_daily_pack_slot_atomic[\s\S]*FROM PUBLIC,anon,authenticated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.complete_daily_pack_slot_atomic[\s\S]*FROM PUBLIC,\\s*anon,\\s*authenticated/);
 });
 
 test('Daily pack read RPC returns only playable slots and fails closed on incomplete packs', () => {
   assert.match(openPackMigration, /CREATE OR REPLACE FUNCTION public\.open_daily_pack/);
   assert.match(openPackMigration, /c\.active=true AND c\.qa_status='approved'/);
   assert.match(openPackMigration, /DAILY_PACK_NOT_PLAYABLE/);
-  assert.match(openPackMigration, /v_slot_count<3/);
+  assert.match(openPackMigration, /v_slot_count\\s*<\\s*3/);
   assert.match(openPackMigration, /REVOKE ALL ON FUNCTION public\.open_daily_pack[\s\S]*FROM PUBLIC,anon,authenticated/);
 });
 
