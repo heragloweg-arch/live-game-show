@@ -26,6 +26,14 @@ const pickupMigration = await readFile(
   new URL('../supabase/migrations/20261027131856_atomic_team_pickup.sql', import.meta.url),
   'utf8'
 );
+const soloCoupleMigration = await readFile(
+  new URL('../supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', import.meta.url),
+  'utf8'
+);
+const matchHandler = await readFile(
+  new URL('../supabase/functions/match/index.ts', import.meta.url),
+  'utf8'
+);
 
 test('human matchmaking creates match, participants, rounds and queue transition in one SQL transaction', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.join_matchmaking_atomic/);
@@ -85,4 +93,15 @@ test('Pickup assembly is serialized, row-locked and assigned atomically', () => 
   assert.match(pickupMigration, /TEAM_OWNER_CANNOT_PICKUP/);
   assert.match(teamHandler, /supabase\.rpc\('join_team_pickup_atomic'/);
   assert.doesNotMatch(teamHandler, /const \{ data: waiting \} = await supabase/);
+});
+
+test('Solo and Couple matches are fully created by atomic SQL transactions', () => {
+  assert.match(soloCoupleMigration, /CREATE OR REPLACE FUNCTION public\.create_solo_match_atomic/);
+  assert.match(soloCoupleMigration, /CREATE OR REPLACE FUNCTION public\.create_couple_match_atomic/);
+  assert.match(soloCoupleMigration, /JOURNEY_STAGE_LOCKED/);
+  assert.match(soloCoupleMigration, /INSERT INTO public\.matches/);
+  assert.match(soloCoupleMigration, /INSERT INTO public\.match_participants/);
+  assert.match(soloCoupleMigration, /INSERT INTO public\.rounds/);
+  assert.match(matchHandler, /supabase\.rpc\('create_solo_match_atomic'/);
+  assert.match(matchHandler, /supabase\.rpc\('create_couple_match_atomic'/);
 });
