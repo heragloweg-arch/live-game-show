@@ -164,6 +164,10 @@ export async function finishMatch(matchId: string): Promise<MatchResponse> {
   });
 }
 
+export async function abandonMatch(matchId: string, reason: 'navigation' | 'user_exit' | 'network_failure' | 'client_error' | 'timeout' = 'navigation'): Promise<{ ok: boolean; alreadyTerminated?: boolean }> {
+  return invoke<{ ok: boolean; alreadyTerminated?: boolean }>('match', { action: 'abandon', matchId, reason });
+}
+
 export async function submitAnswer(params: {
   matchId: string;
   roundId: string;
