@@ -6,6 +6,10 @@ const migration = await readFile(
   new URL('../supabase/migrations/20261027000004_harden_daily_rpc_contract.sql', import.meta.url),
   'utf8'
 );
+const openPackMigration = await readFile(
+  new URL('../supabase/migrations/20261027000006_harden_open_daily_pack.sql', import.meta.url),
+  'utf8'
+);
 
 test('Daily challenge completion validates the exact server-owned date and challenge', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.complete_daily_atomic/);
@@ -26,4 +30,12 @@ test('Daily pack completion verifies slot-to-pack ownership and serializes rewar
   assert.match(migration, /ON CONFLICT\(user_id,pack_id\) DO NOTHING/);
   assert.match(migration, /INSERT INTO public\.wallet_ledger/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.complete_daily_pack_slot_atomic[\s\S]*FROM PUBLIC,anon,authenticated/);
+});
+
+test('Daily pack read RPC returns only playable slots and fails closed on incomplete packs', () => {
+  assert.match(openPackMigration, /CREATE OR REPLACE FUNCTION public\.open_daily_pack/);
+  assert.match(openPackMigration, /c\.active=true AND c\.qa_status='approved'/);
+  assert.match(openPackMigration, /DAILY_PACK_NOT_PLAYABLE/);
+  assert.match(openPackMigration, /v_slot_count<3/);
+  assert.match(openPackMigration, /REVOKE ALL ON FUNCTION public\.open_daily_pack[\s\S]*FROM PUBLIC,anon,authenticated/);
 });
