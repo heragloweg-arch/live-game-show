@@ -121,7 +121,7 @@ serve(async (req) => {
       const end = `${day}T23:59:59.999Z`;
       const { data: matches, error: matchesError } = await supabase
         .from('matches')
-        .select('id,status,created_at,rematch_of')
+        .select('id,status,created_at,rematch_of,abandoned_at,termination_reason')
         .gte('created_at', start)
         .lte('created_at', end);
       if (matchesError) return json({ error: matchesError.message, code: 'METRICS_SOURCE_ERROR' }, 500);
@@ -157,7 +157,7 @@ serve(async (req) => {
         : Math.round(responseTimes.length % 2
           ? responseTimes[middle]
           : (responseTimes[middle - 1] + responseTimes[middle]) / 2);
-      const matchesAbandoned = Math.max(0, matchRows.length - matchesFinished);
+      const matchesAbandoned = matchRows.filter((match) => Boolean(match.abandoned_at)).length;
       const dropRate = matchRows.length ? matchesAbandoned / matchRows.length : 0;
       const dau = new Set(participants.map((participant) => participant.user_id).filter(Boolean)).size;
       const p95ResponseMs = percentile(responseTimes, 0.95);
