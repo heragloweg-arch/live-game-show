@@ -5,7 +5,7 @@
 
 import { FLAGS } from '../../config/flags';
 import { BRAND } from '../../config/brand';
-import { recordOpen, retentionSnapshot } from './retention';
+import { retentionSnapshot } from './retention';
 import { supabase } from '../supabase/client';
 import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 import { trackFirebase } from './firebaseBridge';
