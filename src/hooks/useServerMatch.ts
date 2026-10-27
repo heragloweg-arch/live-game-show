@@ -134,7 +134,10 @@ export function useServerMatch() {
     clearTimers(); clearMatch(); setError(null); setPhase('loading');
     try {
       const state = await createRematch(previousMatchId, difficulty);
-      setMatch(state); saveActiveMatch(state.matchId, state.mode); track('match_start', { matchId: state.matchId, mode: 'rematch' }); setPhase('vs'); attachRealtime(state.matchId);
+      setMatch(state); saveActiveMatch(state.matchId, state.mode);
+      track('rematch_requested', { previousMatchId, matchId: state.matchId, mode: '1v1' });
+      track('match_start', { matchId: state.matchId, mode: 'rematch' });
+      setPhase('vs'); attachRealtime(state.matchId);
       setTimeout(async () => {
         try { const started = await apiStartRound(state.matchId); setMatch(started); setAnswer(''); setPhase('playing'); startLocalCountdown(); }
         catch (e) { setError(e instanceof Error ? e.message : String(e)); setPhase('error'); }
@@ -183,6 +186,7 @@ export function useServerMatch() {
     if (!allowAction(`answer:${current.matchId}:${current.round.roundId}`, 500)) return;
 
     setPhase('submitting');
+    const requestStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     try {
       const result = await apiSubmitAnswer({
         matchId: current.matchId,
@@ -191,6 +195,8 @@ export function useServerMatch() {
         answer,
         clientTimestamp: new Date().toISOString(),
       });
+      const latencyMs = Math.max(0, Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - requestStartedAt));
+      track('latency_sample', { matchId: current.matchId, roundId: current.round.roundId, latency_ms: latencyMs });
 
       // Optimistic local update
       const updated: MatchState = {

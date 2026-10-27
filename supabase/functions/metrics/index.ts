@@ -13,6 +13,21 @@ function json(data: unknown, status = 200) {
   });
 }
 
+function dayBounds(day: string, offset = 0) {
+  const base = new Date(`${day}T00:00:00.000Z`);
+  base.setUTCDate(base.getUTCDate() + offset);
+  const start = base.toISOString().slice(0, 10);
+  const endDate = new Date(base);
+  endDate.setUTCDate(endDate.getUTCDate() + 1);
+  return { start, end: endDate.toISOString().slice(0, 10) };
+}
+
+function percentile(values: number[], p: number) {
+  if (!values.length) return null;
+  const index = Math.min(values.length - 1, Math.max(0, Math.ceil(values.length * p) - 1));
+  return values[index];
+}
+
 serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -100,7 +115,7 @@ serve(async (req) => {
       const end = `${day}T23:59:59.999Z`;
       const { data: matches, error: matchesError } = await supabase
         .from('matches')
-        .select('id,status,created_at')
+        .select('id,status,created_at,rematch_of')
         .gte('created_at', start)
         .lte('created_at', end);
       if (matchesError) return json({ error: matchesError.message, code: 'METRICS_SOURCE_ERROR' }, 500);
@@ -139,6 +154,31 @@ serve(async (req) => {
       const matchesAbandoned = Math.max(0, matchRows.length - matchesFinished);
       const dropRate = matchRows.length ? matchesAbandoned / matchRows.length : 0;
       const dau = new Set(participants.map((participant) => participant.user_id).filter(Boolean)).size;
+      const p95ResponseMs = percentile(responseTimes, 0.95);
+      const rematchRows = matchRows.filter((match) => Boolean(match.rematch_of));
+
+      const { start: nextDay } = dayBounds(day, 1);
+      const cohortStart = `${day}T00:00:00.000Z`;
+      const cohortEnd = `${nextDay}T00:00:00.000Z`;
+      const [{ data: newUsers }, { data: d1Cohort }, { data: d7Cohort }, { data: d14Cohort }, { data: openRows }] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact' }).gte('created_at', cohortStart).lt('created_at', cohortEnd),
+        supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -1).start}T00:00:00.000Z`).lt('created_at', `${day}T00:00:00.000Z`),
+        supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -7).start}T00:00:00.000Z`).lt('created_at', `${dayBounds(day, -6).start}T00:00:00.000Z`),
+        supabase.from('profiles').select('id').gte('created_at', `${dayBounds(day, -14).start}T00:00:00.000Z`).lt('created_at', `${dayBounds(day, -13).start}T00:00:00.000Z`),
+        supabase.from('retention_opens').select('user_id,created_at').gte('created_at', cohortStart).lt('created_at', cohortEnd),
+      ]);
+      const openUsers = new Set((openRows ?? []).map((row: any) => row.user_id));
+      const session2Counts = new Map<string, number>();
+      for (const row of openRows ?? []) session2Counts.set(row.user_id, (session2Counts.get(row.user_id) ?? 0) + 1);
+      const session2Users = [...session2Counts.values()].filter((count) => count >= 2).length;
+      const cohortRate = (cohort: Array<{ id: string }> | null | undefined) => {
+        const total = cohort?.length ?? 0;
+        return { users: (cohort ?? []).filter((row) => openUsers.has(row.id)).length, total, rate: total ? (cohort ?? []).filter((row) => openUsers.has(row.id)).length / total : null };
+      };
+      const d1 = cohortRate(d1Cohort);
+      const d7 = cohortRate(d7Cohort);
+      const d14 = cohortRate(d14Cohort);
+      const session2Rate = dau ? session2Users / dau : null;
       const row = {
         day,
         dau,
@@ -149,8 +189,21 @@ serve(async (req) => {
         answers_wrong: answersWrong,
         p_correct: answersSubmitted ? answersCorrect / answersSubmitted : 0,
         median_response_ms: medianResponseMs,
+        p95_response_ms: p95ResponseMs,
         match_abandonments: matchesAbandoned,
         drop_rate: dropRate,
+        new_users: newUsers?.length ?? 0,
+        d1_users: d1.users,
+        d7_users: d7.users,
+        d14_users: d14.users,
+        d1_rate: d1.rate,
+        d7_rate: d7.rate,
+        d14_rate: d14.rate,
+        session2_users: session2Users,
+        session2_rate: session2Rate,
+        rematch_attempts: rematchRows.length,
+        rematch_completed: rematchRows.filter((match) => finishedStatuses.has(match.status)).length,
+        rematch_rate: rematchRows.length ? rematchRows.filter((match) => finishedStatuses.has(match.status)).length / rematchRows.length : null,
         source: 'server',
         updated_at: new Date().toISOString(),
       };

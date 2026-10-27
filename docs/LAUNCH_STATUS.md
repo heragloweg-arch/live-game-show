@@ -81,6 +81,8 @@
 
 تم إغلاق فجوة مصدر القياس برمجياً: `metrics` يرفض `ingest_day` القادم بأرقام العميل (`SERVER_DERIVED_ONLY`) ويوفر `rebuild_day` مشتقاً من `matches` و`match_participants` و`answer_submissions`، مع `p_correct` و`median_response_ms` و`drop_rate`. ما زال إثبات التشغيل الفعلي وقياس Cohort والاحتفاظ خارجياً مطلوباً.
 
+أضيفت دفعة القياس التالية في `20261027000001_retention_rematch_latency.sql`: D1/D7/D14 خادمية من Cohort المستخدمين و`retention_opens`، وsession 2، وp95 latency، وربط `rematch_of` بالمباراة السابقة، مع تشديد RPC فتح Daily على `active + approved` ووجود إجابة مغلقة. الحالة البرمجية `READY_TO_DEPLOY` حتى تُنشر migration وFunctions إلى Staging وتُحفظ أدلة التشغيل.
+
 ## T4 — Android وAAB وInternal Testing
 
 **الحالة: BLOCKED_EXTERNAL.**
@@ -105,6 +107,8 @@
 | O5 | Store listing وPrivacy/Terms/Data Safety | BLOCKED_EXTERNAL |
 | O6 | عشرة اختبارات حقيقية على أجهزة/شبكات | BLOCKED_EXTERNAL |
 | O7 | Soft Launch عربي محدود وقرار Go/Iterate/Stop | BLOCKED_BY_O0_O6 |
+
+مصفوفة التنفيذ التفصيلية والمالك لكل بند في [`docs/OWNER_MATRIX_2026-10-27_AR.md`](OWNER_MATRIX_2026-10-27_AR.md).
 
 ## Go/No-Go
 

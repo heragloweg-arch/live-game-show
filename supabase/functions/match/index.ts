@@ -268,7 +268,13 @@ async function getSoloProgress(supabase: any, userId: string) {
   return json({ progress: data ?? [] });
 }
 
-async function create1v1Match(supabase: any, user: any, opponentId: string, difficulty = 'normal') {
+async function create1v1Match(
+  supabase: any,
+  user: any,
+  opponentId: string,
+  difficulty = 'normal',
+  rematchOf?: string,
+) {
   if (!opponentId) return json({ error: 'opponentId required' }, 400);
   const now = new Date().toISOString();
   const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, difficulty);
@@ -285,6 +291,7 @@ async function create1v1Match(supabase: any, user: any, opponentId: string, diff
       total_rounds: TOTAL_ROUNDS,
       sequence: 1,
       server_now: now,
+      ...(rematchOf ? { rematch_of: rematchOf } : {}),
     })
     .select()
     .single();
@@ -331,7 +338,7 @@ async function createRematch(supabase: any, user: any, previousMatchId: string, 
   const opponent = (participants ?? []).find((p: any) => p.user_id && p.user_id !== user.id && !p.is_ai);
   if (!opponent) return json({ error: 'Opponent is no longer available' }, 409);
   if (await isBlockedPair(supabase, user.id, opponent.user_id)) return json({ error: 'لا يمكن بدء إعادة مباراة مع مستخدم محظور.' }, 403);
-  return create1v1Match(supabase, user, opponent.user_id, difficulty);
+  return create1v1Match(supabase, user, opponent.user_id, difficulty, previousMatchId);
 }
 
 async function getMatch(supabase: any, matchId: string, userId: string) {
