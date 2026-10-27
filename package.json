@@ -37,7 +37,7 @@
     "content:apply-wording": "python3 scripts/apply-wording-audit.py content/question-bank/wording-audit.json content/question-bank/wording-reviewed-queue.json && npm run content:import-bank",
     "verify:runtime-config": "node scripts/verify-runtime-config.mjs",
     "verify:e2e-log": "node scripts/verify-e2e-log.mjs",
-    "test:production-gates": "node --test scripts/production-gate.test.mjs scripts/atomic-round-advance.test.mjs scripts/security-regression.test.mjs scripts/rooms-team-production-gate.test.mjs scripts/matchmaking-atomic.test.mjs"
+    "test:production-gates": "node --test scripts/production-gate.test.mjs scripts/atomic-round-advance.test.mjs scripts/security-regression.test.mjs scripts/rooms-team-production-gate.test.mjs scripts/matchmaking-atomic.test.mjs scripts/daily-rpc-contract.test.mjs"
   },
   "dependencies": {
     "@capacitor-community/admob": "^6.0.0",
