@@ -6,6 +6,8 @@
 import { FLAGS } from '../../config/flags';
 import { BRAND } from '../../config/brand';
 import { recordOpen, retentionSnapshot } from './retention';
+import { supabase } from '../supabase/client';
+import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 import { trackFirebase } from './firebaseBridge';
 
 export type AnalyticsEvent =
@@ -69,7 +71,6 @@ interface BufferedEvent {
 
 const buffer: BufferedEvent[] = [];
 const SESSION_KEY = 'qaddaha_analytics_sid';
-const FIRST_OPEN_KEY = 'qaddaha_first_open';
 
 function sessionId(): string {
   try {
@@ -84,13 +85,23 @@ function sessionId(): string {
   }
 }
 
-function isFirstOpen(): boolean {
+
+async function recordServerAppOpen() {
   try {
-    if (localStorage.getItem(FIRST_OPEN_KEY)) return false;
-    localStorage.setItem(FIRST_OPEN_KEY, new Date().toISOString());
-    return true;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    await fetch(getFunctionsUrl('analytics'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: getSupabaseAnonKey(),
+      },
+      body: JSON.stringify({ action: 'app_open', sessionId: sessionId() }),
+      keepalive: true,
+    });
   } catch {
-    return false;
+    // Analytics is best-effort and must never block app startup.
   }
 }
 
@@ -163,18 +174,10 @@ export function trackScreen(screen: string) {
 }
 
 export function trackAppOpen(userId?: string) {
-  const ret = recordOpen(userId);
-  track('app_open', {
-    first_open: isFirstOpen(),
-    day_number: ret.dayNumber,
-    is_d1_return: ret.isD1,
-    is_d7_return: ret.isD7,
-    unique_days: ret.state.openDays.length,
-    total_opens: ret.state.totalOpens,
-    user_id: userId,
-  });
-  if (ret.isD1) track('soft_launch_region', { retention_event: 'd1_return' });
-  if (ret.isD7) track('soft_launch_region', { retention_event: 'd7_return' });
+  // Server telemetry is the retention source of truth. Client storage is not used
+  // to declare D1/D7 returns or session-2 retention.
+  track('app_open', { user_id: userId });
+  void recordServerAppOpen();
 }
 
 export function getRetentionSnapshot() {
