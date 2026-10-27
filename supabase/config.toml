@@ -22,9 +22,6 @@ verify_jwt = true
 [functions.answer]
 verify_jwt = true
 
-[functions.scoring]
-verify_jwt = false
-
 [functions.matchmaking]
 verify_jwt = true
 

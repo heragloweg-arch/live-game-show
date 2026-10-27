@@ -71,7 +71,6 @@ export function MatchScreen() {
   // Post-match interstitial (policy-capped, never during round)
   useEffect(() => {
     if (phase !== 'finished' || !finishedMatchId) return;
-    track('match_finish', { matchId: finishedMatchId, mode: finishedMatchMode });
     const t = window.setTimeout(() => {
       void showAd('post_match_interstitial');
     }, 1200);
@@ -400,7 +399,7 @@ export function MatchScreen() {
                   track('share_result', { matchId: match.matchId ?? match.id });
                   void shareMatchResult(`🔥 قدها؟ نتيجتي ${a ?? 0} — ${b ?? 0}\nتحداك تكسر رقمي 👇 ${window.location.origin}`);
                 }}
-                onRematch={() => match.mode === '1v1' && match.matchId ? server.startRematch(match.matchId, difficulty) : server.startSolo(difficulty)}
+                onRematch={match.mode === '1v1' && match.matchId ? () => server.startRematch(match.matchId!, difficulty) : undefined}
                 onReset={() => active.reset()}
               />
             </motion.div>

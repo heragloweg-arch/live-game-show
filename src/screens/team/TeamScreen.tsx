@@ -15,7 +15,7 @@ import {
   teamSetSize,
 } from '../../services/api/teamApi';
 
-const SIZES = [1, 2, 3, 5, 8, 10, 15];
+const SIZES = [1, 2, 3, 5];
 
 export function TeamScreen() {
   const navigate = useNavigate();
@@ -75,7 +75,7 @@ export function TeamScreen() {
         <Link to="/home" className="btn-ghost -mr-2 p-2"><ArrowRight className="h-5 w-5" /></Link>
         <div className="flex-1">
           <h1 className="font-display text-2xl font-black text-gradient">معارك الفرق</h1>
-          <p className="text-xs text-white/45">من 1 ضد 1 حتى 15 ضد 15 · مجموع نقاط الفريق</p>
+          <p className="text-xs text-white/45">من 1 ضد 1 حتى 5 ضد 5 · مجموع نقاط الفريق</p>
         </div>
       </header>
 
@@ -125,7 +125,7 @@ export function TeamScreen() {
 
           {role === 'owner' && (
             <div className="card space-y-3 p-4">
-              <p className="text-sm font-semibold">حجم المواجهة (1–15)</p>
+              <p className="text-sm font-semibold">حجم المواجهة (1–5)</p>
               <div className="flex flex-wrap gap-2">
                 {SIZES.map((s) => (
                   <button

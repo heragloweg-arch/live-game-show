@@ -2,7 +2,7 @@
 
 **آخر تحديث:** 27 أكتوبر 2026  
 **مرجع الكود:** `main`  
-**آخر commit معروف:** `f3cf52be` قبل دفعة القياس الحالية
+**آخر commit معروف:** `8dac3ff8` — تقرير Supabase Staging موثق
 
 ## قاعدة الحالة
 
@@ -16,12 +16,12 @@
 | C1 | بنك الأسئلة المعتمد | مالك المنتج + مراجع المحتوى | EVIDENCE_REQUIRED | القاعدة البرمجية لا تعرض إلا `active=true` و`qa_status=approved`، وتستبعد السؤال بلا إجابة مغلقة | تشغيل دفعة الاعتماد service-role لكل سؤال، مع reviewer UUID وملف نتائج؛ لا تفعيل عبر REST client |
 | C2 | الأسئلة الدينية | المراجع الديني | EVIDENCE_REQUIRED | بوابة `religious_review_required` قائمة | حفظ reviewer ID وسجل الاعتماد لكل سؤال ديني |
 | C3 | الأسئلة الحرة بلا إجابة | الفريق البرمجي | CLOSED_CODE | `challenge_answers` شرط للتفعيل، وDaily RPC يتحقق من الإجابة | إعادة تشغيل content gate بعد تطبيق الاعتماد |
-| C4 | Daily | Backend | READY_TO_DEPLOY | Edge Function وRPC يفرضان active/approved؛ completion ذري | نشر `daily` وmigration `20261027000001` إلى Staging، ثم request IDs لثلاثة أيام/حسابات |
-| C5 | D1/D7/D14 | Data/Backend | READY_TO_DEPLOY | `metrics.rebuild_day` يحسب cohorts من profiles وretention_opens ويخزن users/rates | تشغيل rebuild يومي على Staging، ثم تحقق من cohort غير فارغ؛ لا تستخدم أرقام localStorage |
-| C6 | Session 2 | Product Analytics | READY_TO_DEPLOY | `session2_users/rate` مشتقة من تكرار server retention opens في اليوم | تعريف session product النهائي وتأكيده من لوحة البيانات بعد 7 أيام |
-| C7 | Latency | SRE/Backend | READY_TO_DEPLOY | median وp95 response time من `answer_submissions.response_time_ms`، مع event تشخيصي للعميل | نشر metrics ثم مراقبة p50/p95 وP95 حسب mode/region |
-| C8 | Rematch | Backend/Product | READY_TO_DEPLOY | `matches.rematch_of` يربط rematch بالمباراة الأصلية، و`rematch_rate` مشتق خادمياً | نشر migration/function، تنفيذ مباراة منتهية ثم rematch وحفظ IDs |
-| C9 | Match completion/drop | SRE | READY_TO_DEPLOY | `matches_finished`, `match_abandonments`, `drop_rate` خادمية | تشغيل rebuild يومي والتحقق من status transitions |
+| C4 | Daily | Backend | STAGING_DEPLOYED / EVIDENCE_REQUIRED | `daily` v20 وRPC يفرضان active/approved؛ completion ذري | تنفيذ سيناريوهات Daily بحسابات Staging وحفظ request IDs |
+| C5 | D1/D7/D14 | Data/Backend | STAGING_DEPLOYED / EVIDENCE_REQUIRED | `metrics` v14 وmigration مطبقة؛ cohorts تحتاج بيانات فعلية | تشغيل rebuild يومي ثم تحقق من cohort غير فارغ؛ لا تستخدم أرقام localStorage |
+| C6 | Session 2 | Product Analytics | STAGING_DEPLOYED / EVIDENCE_REQUIRED | `session2_users/rate` خادمية، وتعريف المنتج يحتاج تثبيتاً | تشغيل 7 أيام ومطابقة البسط والمقام مع تعريف session المعتمد |
+| C7 | Latency | SRE/Backend | STAGING_DEPLOYED / EVIDENCE_REQUIRED | `metrics` v14 يخزن median/p95 | مراقبة p50/p95 حسب mode/region مع أدلة تشغيل |
+| C8 | Rematch | Backend/Product | STAGING_DEPLOYED / EVIDENCE_REQUIRED | `match` v24 و`matches.rematch_of` منشوران | تنفيذ مباراة منتهية ثم rematch وحفظ IDs |
+| C9 | Match completion/drop | SRE | STAGING_DEPLOYED / EVIDENCE_REQUIRED | rebuild خادمي منشور | التحقق من status transitions على حسابات Staging |
 | C10 | Quick Match/AI | Backend | CLOSED_CODE / EVIDENCE_REQUIRED | AI fallback بعد الانتظار، مع participant خادمي | اختبار جهازين/شبكة فعلية وحفظ request IDs |
 | C11 | Couples | Backend | CLOSED_CODE / EVIDENCE_REQUIRED | الربط والـmatch engine موجودان | اختبار حسابي couple حقيقيين على Staging |
 | C12 | Team Tournament | Backend | CLOSED_CODE / EVIDENCE_REQUIRED | حد 5، Round Robin، 3/1/0، prizes idempotent | اختبار فريقين على Staging وحفظ ledger IDs |
@@ -36,7 +36,7 @@
 
 ## أمر التنفيذ المختصر
 
-1. تطبيق migration `20261027000001` ونشر `metrics` و`daily` إلى Staging.
+1. تم تطبيق migration `20261027000001` ونشر `daily` v20 و`metrics` v14 و`match` v24 إلى Staging؛ المتبقي أدلة اللعب الفعلية.
 2. تنفيذ اعتماد المحتوى service-role فقط، مع reviewer IDs وسجل لكل سؤال؛ تفعيل المحتوى ذي الإجابة المغلقة فقط.
 3. تشغيل `rebuild_day` لكل يوم متاح وحفظ نتائج D1/D7/D14 وsession2 وlatency وrematch.
 4. تنفيذ سيناريوهات rematch وDaily وإعادة الإرسال وانقطاع الشبكة على حسابات Staging.
