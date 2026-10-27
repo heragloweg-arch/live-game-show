@@ -125,9 +125,31 @@ async function checkStatus(supabase: any, userId: string) {
   if (queueRow) {
     const waited = Date.now() - new Date(queueRow.enqueued_at).getTime();
     if (waited > MATCH_TIMEOUT_MS) {
-      const aiMatch = await createAiFallback(supabase, userId, queueRow.difficulty ?? 'normal');
-      await supabase.from('matchmaking_queue').delete().eq('user_id', userId);
-      return json({ status: 'matched', matchId: aiMatch.matchId, fallbackAi: true, message: 'لم نجد لاعباً متاحاً؛ بدأنا مباراة ضد خصم الكمبيوتر.' });
+      const { data: aiMatch, error: aiError } = await supabase.rpc('create_matchmaking_ai_fallback_atomic', {
+        p_user_id: userId,
+        p_difficulty: queueRow.difficulty ?? 'normal',
+      });
+      if (aiError || !aiMatch) {
+        console.error('[matchmaking] atomic AI fallback failed', aiError ?? aiMatch);
+        return json({ error: 'تعذر بدء مباراة الكمبيوتر بأمان. حاول مرة أخرى.' }, 503);
+      }
+      if (aiMatch.status === 'matched') {
+        return json({
+          status: 'matched',
+          matchId: aiMatch.matchId,
+          fallbackAi: true,
+          message: 'لم نجد لاعباً متاحاً؛ بدأنا مباراة ضد خصم الكمبيوتر.',
+        });
+      }
+      if (aiMatch.status === 'queued') {
+        return json({
+          status: 'queued',
+          waitedMs: waited,
+          retryAfterMs: aiMatch.retryAfterMs ?? 1500,
+          code: aiMatch.reason,
+        });
+      }
+      return json({ status: 'idle' });
     }
     return json({ status: 'queued', waitedMs: waited });
   }
@@ -148,31 +170,4 @@ async function checkStatus(supabase: any, userId: string) {
   }
 
   return json({ status: 'idle' });
-}
-
-async function createAiFallback(supabase: any, userId: string, difficulty: string) {
-  const TOTAL = 5;
-  const { data: challenges } = await supabase
-    .from('challenges')
-    .select('id')
-    .eq('active', true)
-    .eq('qa_status', 'approved')
-    .eq('difficulty', ['easy', 'normal', 'hard'].includes(difficulty) ? difficulty : 'normal')
-    .limit(80);
-  if (!challenges || challenges.length < TOTAL) throw new Error('Not enough approved challenges for AI fallback');
-  const { data: profile } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', userId).single();
-  const { data: match, error } = await supabase.from('matches').insert({
-    mode: '1v1', status: 'VS', difficulty, current_round: 1, total_rounds: TOTAL, sequence: 1, server_now: new Date().toISOString(),
-  }).select().single();
-  if (error || !match) throw new Error('Unable to create AI fallback match');
-  await supabase.from('match_participants').insert([
-    { match_id: match.id, user_id: userId, side: 'player', username: profile?.display_name || profile?.username || 'أنت', avatar_url: profile?.avatar_url, score: 0, is_ai: false },
-    { match_id: match.id, user_id: null, side: 'ai', username: 'خصم الكمبيوتر', avatar_url: '/icons/app-icon.png', score: 0, is_ai: true, ai_difficulty: difficulty },
-  ]);
-  const selected = [...challenges].sort(() => Math.random() - 0.5).slice(0, TOTAL);
-  const { error: roundsError } = await supabase.from('rounds').insert(selected.map((challenge: any, index: number) => ({
-    match_id: match.id, round_number: index + 1, challenge_id: challenge.id, status: 'pending', sequence: 0,
-  })));
-  if (roundsError) throw new Error('Unable to prepare AI fallback rounds');
-  return { matchId: match.id };
 }
