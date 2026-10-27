@@ -9,6 +9,8 @@ const clientRetention = readFileSync('src/services/analytics/retention.ts', 'utf
 const analyticsFunction = readFileSync('supabase/functions/analytics/index.ts', 'utf8');
 const analyticsEvents = readFileSync('src/services/analytics/events.ts', 'utf8');
 const serverOpenMigration = readFileSync('supabase/migrations/20261027133117_server_app_open_retention.sql', 'utf8');
+const abandonmentMigration = readFileSync('supabase/migrations/20261027133556_match_abandonment_metrics.sql', 'utf8');
+const matchScreen = readFileSync('src/screens/match/MatchScreen.tsx', 'utf8');
 const retentionMigration = readFileSync('supabase/migrations/20261027000001_retention_rematch_latency.sql', 'utf8');
 const soloProjection = readFileSync('src/services/game/soloJourneyProgress.ts', 'utf8');
 const soloCoupleMigration = readFileSync('supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', 'utf8');
@@ -46,6 +48,16 @@ test('Retention is derived from authenticated server app sessions, not browser s
   assert.match(metrics, /eq\('surface', 'app_open'\)/);
   assert.match(serverOpenMigration, /retention_opens_app_session_uidx/);
   assert.match(serverOpenMigration, /qaddaha:app-open:/);
+});
+
+test('Match abandonment is explicit, participant-authorized, and measured server-side', () => {
+  assert.match(abandonmentMigration, /abandon_match_atomic/);
+  assert.match(abandonmentMigration, /MATCH_PARTICIPANT_REQUIRED/);
+  assert.match(abandonmentMigration, /abandoned_at=COALESCE\(abandoned_at,now\(\)\)/);
+  assert.match(match, /case 'abandon'/);
+  assert.match(match, /supabase\.rpc\('abandon_match_atomic'/);
+  assert.match(matchScreen, /abandonMatch\(currentId, 'navigation'\)/);
+  assert.match(metrics, /matchRows\.filter\(\(match\) => Boolean\(match\.abandoned_at\)\)/);
 });
 
 test('Metrics are server-derived and include quality measures', () => {
