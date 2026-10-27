@@ -10,6 +10,10 @@ const handler = await readFile(
   new URL('../supabase/functions/matchmaking/index.ts', import.meta.url),
   'utf8'
 );
+const aiMigration = await readFile(
+  new URL('../supabase/migrations/20261027000003_atomic_matchmaking_ai_fallback.sql', import.meta.url),
+  'utf8'
+);
 
 test('human matchmaking creates match, participants, rounds and queue transition in one SQL transaction', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.join_matchmaking_atomic/);
@@ -31,4 +35,17 @@ test('matchmaking Edge Function delegates human match creation to the atomic RPC
   assert.match(handler, /data\.status === 'matched'/);
   assert.match(handler, /NOT_ENOUGH_PLAYABLE_CHALLENGES/);
   assert.match(handler, /if \(!authHeader\) return json\(\{ error: 'Unauthorized' \}, 401\)/);
+});
+
+test('AI fallback creation is idempotent and server-enforced after queue timeout', () => {
+  assert.match(aiMigration, /CREATE OR REPLACE FUNCTION public\.create_matchmaking_ai_fallback_atomic/);
+  assert.match(aiMigration, /pg_advisory_xact_lock/);
+  assert.match(aiMigration, /enqueued_at > now\(\) - interval '60 seconds'/);
+  assert.match(aiMigration, /INSERT INTO public\.matches/);
+  assert.match(aiMigration, /INSERT INTO public\.match_participants/);
+  assert.match(aiMigration, /INSERT INTO public\.rounds/);
+  assert.match(aiMigration, /REVOKE ALL ON FUNCTION public\.create_matchmaking_ai_fallback_atomic[\s\S]*FROM PUBLIC, anon, authenticated/);
+  assert.match(aiMigration, /GRANT EXECUTE ON FUNCTION public\.create_matchmaking_ai_fallback_atomic[\s\S]*TO service_role/);
+  assert.match(handler, /supabase\.rpc\('create_matchmaking_ai_fallback_atomic'/);
+  assert.doesNotMatch(handler, /async function createAiFallback\(/);
 });
