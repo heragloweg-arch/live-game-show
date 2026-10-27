@@ -9,17 +9,18 @@ const room = read('supabase/functions/room/index.ts');
 const tournament = read('supabase/functions/tournament/index.ts');
 const team = read('supabase/functions/team/index.ts');
 const migration = read('supabase/migrations/20261026000003_team_tournament_league.sql');
+const aiFallbackMigration = read('supabase/migrations/20261027000003_atomic_matchmaking_ai_fallback.sql');
 const flagReconcile = read('supabase/migrations/20261026000004_reconcile_flag_content_seed.sql');
 const server = read('scripts/static-server.mjs');
 
  test('Quick Match AI fallback is an explicit server participant and never a timeout-only path', () => {
   assert.match(matchmaking, /create_matchmaking_ai_fallback_atomic/);
   assert.match(matchmaking, /fallbackAi:\s*true/);
-  assert.match(matchmaking, /is_ai:\s*true/);
-  assert.match(matchmaking, /خصم الكمبيوتر/);
   assert.match(match, /is_ai/);
   assert.match(match, /AI_ACCURACY/);
   assert.match(match, /p_ai_score_delta/);
+  assert.match(aiFallbackMigration, /is_ai, ai_difficulty/);
+  assert.match(aiFallbackMigration, /خصم الكمبيوتر/);
 });
 
 test('Room reveal and answer security remain server-authoritative', () => {
