@@ -7,6 +7,7 @@ const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
 const metrics = readFileSync('supabase/functions/metrics/index.ts', 'utf8');
 const retentionMigration = readFileSync('supabase/migrations/20261027000001_retention_rematch_latency.sql', 'utf8');
 const soloProjection = readFileSync('src/services/game/soloJourneyProgress.ts', 'utf8');
+const soloCoupleMigration = readFileSync('supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', 'utf8');
 
 
 test('Daily refuses non-atomic completion fallback', () => {
@@ -28,9 +29,10 @@ test('Production runtime rejects simulated ads regardless of ad enablement', () 
   assert.match(runtime, /'VITE_ADS_SIMULATE'/);
 });
 
-test('Solo stage lock uses the immediately previous linear leaf', () => {
-  assert.match(match, /\(\(journeyBranch! - 1\) \* 8\) \+ journeyLeaf! - 2/);
-  assert.match(match, /const hasJourneyInputs = journeyBranch !== undefined \|\| journeyLeaf !== undefined/);
+test('Solo stage lock uses the immediately previous linear leaf in the atomic RPC', () => {
+  assert.match(soloCoupleMigration, /JOURNEY_STAGE_LOCKED/);
+  assert.match(soloCoupleMigration, /branch_number=CASE WHEN p_journey_leaf=1 THEN p_journey_branch-1 ELSE p_journey_branch END/);
+  assert.match(match, /supabase\.rpc\('create_solo_match_atomic'/);
 });
 
 test('Metrics are server-derived and include quality measures', () => {
