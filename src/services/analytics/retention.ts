@@ -1,7 +1,7 @@
 /**
  * Ephemeral client diagnostics only.
  * Authoritative D1/D7/D14 and session-2 retention is recorded by the server in retention_opens.
- * Deliberately does not persist to localStorage/sessionStorage.
+ * Deliberately keeps state in memory only.
  */
 export interface RetentionState {
   firstOpenAt: string;
