@@ -62,8 +62,10 @@ serve(async (req) => {
     if (action === 'get_today') {
       let { data: daily } = await supabase
         .from('daily_challenges')
-        .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool)')
+        .select('*, challenge:challenges!inner(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, active, qa_status)')
         .eq('challenge_date', day)
+        .eq('challenge.active', true)
+        .eq('challenge.qa_status', 'approved')
         .maybeSingle();
 
       if (!daily) {
@@ -86,7 +88,7 @@ serve(async (req) => {
             bonus_coins: 40,
             bonus_xp: 35,
           }, { onConflict: 'challenge_date' })
-          .select('*, challenge:challenges(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool)')
+          .select('*, challenge:challenges!inner(id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, active, qa_status)')
           .single();
         daily = inserted;
       }
@@ -221,8 +223,11 @@ serve(async (req) => {
       }
       await supabase.from('retention_opens').insert({ user_id: user.id, surface: 'daily_pack', metadata: { date: day } });
       const { data: slots, error: slotsErr } = await supabase.from('daily_pack_slots')
-        .select('id, slot_number, bonus_coins, bonus_xp, challenge:challenges(id,type,subtype,prompt,difficulty,time_limit_ms,letter_pool)')
-        .eq('pack_id', pack.id).order('slot_number');
+        .select('id, slot_number, bonus_coins, bonus_xp, challenge:challenges!inner(id,type,subtype,prompt,difficulty,time_limit_ms,letter_pool,active,qa_status)')
+        .eq('pack_id', pack.id)
+        .eq('challenge.active', true)
+        .eq('challenge.qa_status', 'approved')
+        .order('slot_number');
       if (slotsErr) return json({ error: slotsErr.message }, 500);
       const { data: completed } = await supabase.from('daily_pack_completions').select('slot_id,outcome,points').eq('user_id', user.id).eq('pack_id', pack.id);
       return json({ date: day, pack, slots: slots ?? [], completed: completed ?? [], streak: await getStreakRow(supabase, user.id) });

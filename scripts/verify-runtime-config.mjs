@@ -27,7 +27,7 @@ if (url) {
 if (/your-anon-key|preview-anon-key|replace-me|placeholder/i.test(anonKey)) {
   failures.push('VITE_SUPABASE_ANON_KEY contains a placeholder value.');
 }
-for (const key of ['VITE_ALLOW_DEV_BILLING', 'ALLOW_DEV_BILLING', 'ALLOW_UNVERIFIED_PLAY_PURCHASES', 'VITE_ENABLE_LOCAL_DEMO']) {
+for (const key of ['VITE_ALLOW_DEV_BILLING', 'ALLOW_DEV_BILLING', 'ALLOW_UNVERIFIED_PLAY_PURCHASES', 'VITE_ENABLE_LOCAL_DEMO', 'VITE_ADS_SIMULATE']) {
   if (process.env[key] === 'true') failures.push(`${key} must not be true in production.`);
 }
 if (process.env.VITE_ADS_ENABLED === 'true') {

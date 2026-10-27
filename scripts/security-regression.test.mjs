@@ -17,6 +17,14 @@ test('Daily refuses non-atomic completion fallback', () => {
 test('Daily challenge pools only select approved content', () => {
   const approvedChallengePools = [...daily.matchAll(/from\('challenges'\)[\s\S]{0,240}?\.eq\('qa_status', 'approved'\)/g)];
   assert.equal(approvedChallengePools.length, 2);
+  assert.match(daily, /challenge\.active', true/);
+  assert.match(daily, /challenge\.qa_status', 'approved'/);
+  assert.match(daily, /challenges!inner\(id,type,subtype,prompt,difficulty,time_limit_ms,letter_pool,active,qa_status\)/);
+});
+
+test('Production runtime rejects simulated ads regardless of ad enablement', () => {
+  const runtime = readFileSync('scripts/verify-runtime-config.mjs', 'utf8');
+  assert.match(runtime, /'VITE_ADS_SIMULATE'/);
 });
 
 test('Solo stage lock uses the immediately previous linear leaf', () => {

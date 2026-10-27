@@ -1,6 +1,6 @@
 # حالة الإطلاق الحية — قدها
 
-**آخر تحديث:** 26 أكتوبر 2026
+**آخر تحديث:** 27 أكتوبر 2026
 **المرجع المعتمد:** `main`؛ بصمة الإصدار الحية تُقرأ دائماً من `dist/build-info.json` بعد البناء، وتظهر أيضاً في استجابة `/ready`.
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
@@ -18,12 +18,14 @@
 - `npm run typecheck`
 - `npm run lint`
 - `npm test -- --run` — 8 ملفات و21 اختبارًا ناجحًا.
-- `npm run test:production-gates` — 27/27 ناجحًا.
+- `npm run test:production-gates` — 34/34 ناجحًا، بما فيها قفل Daily/Pack ضد التحديات غير النشطة أو غير المعتمدة ورفض `VITE_ADS_SIMULATE` في الإنتاج.
 - `npm run verify:solo-progression` — 48 مرحلة وخمس جولات دون regression في الصعوبة.
 - `npm run build`
 - `node scripts/verify-production.mjs`
 - `node scripts/verify-launch-config.mjs`
 - `node scripts/verify-content-release.mjs`
+- `npm run verify:e2e-log` — 10/10 ما زالت `BLOCKED_EXTERNAL` بأمانة، ولا توجد `PASS` بلا دليل ميداني.
+- `npm audit --omit=dev --audit-level=high` — 0 vulnerabilities.
 - فحص أسرار Android — PASS.
 - `dist/build-info.json` يطابق commit الحالي.
 
