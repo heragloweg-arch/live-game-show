@@ -38,6 +38,10 @@ const matchHandler = await readFile(
   new URL('../supabase/functions/match/index.ts', import.meta.url),
   'utf8'
 );
+const inviteMigration = await readFile(
+  new URL('../supabase/migrations/20261027132725_atomic_match_invite_accept.sql', import.meta.url),
+  'utf8'
+);
 
 test('human matchmaking creates match, participants, rounds and queue transition in one SQL transaction', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.join_matchmaking_atomic/);
@@ -115,4 +119,15 @@ test('Pickup assignment retry returns the assigned team before owner restriction
   const ownerGuard = pickupRetryMigration.indexOf("TEAM_OWNER_CANNOT_PICKUP");
   assert.ok(assignedCheck >= 0 && ownerGuard > assignedCheck);
   assert.match(pickupRetryMigration, /alreadyAssigned/);
+});
+
+test('Invite acceptance atomically claims the invite and creates complete match state', () => {
+  assert.match(inviteMigration, /CREATE OR REPLACE FUNCTION public\.accept_match_invite_atomic/);
+  assert.match(inviteMigration, /FROM public\.match_invites WHERE token=p_token FOR UPDATE/);
+  assert.match(inviteMigration, /INVITE_UNAVAILABLE/);
+  assert.match(inviteMigration, /INSERT INTO public\.matches/);
+  assert.match(inviteMigration, /INSERT INTO public\.match_participants/);
+  assert.match(inviteMigration, /INSERT INTO public\.rounds/);
+  assert.match(inviteMigration, /UPDATE public\.match_invites SET status='accepted'/);
+  assert.match(matchHandler, /supabase\.rpc\('accept_match_invite_atomic'/);
 });
