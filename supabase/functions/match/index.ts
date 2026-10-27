@@ -306,54 +306,25 @@ async function createMatchInvite(supabase: any, user: any, difficulty: string) {
 
 async function acceptMatchInvite(supabase: any, user: any, token: string) {
   if (!token) return json({ error: 'token required' }, 400);
-  const { data: inv } = await supabase.from('match_invites').select('*').eq('token', token).maybeSingle();
-  if (!inv) return json({ error: 'دعوة غير موجودة' }, 404);
-  if (inv.status !== 'pending') return json({ error: 'الدعوة غير متاحة' }, 400);
-  if (new Date(inv.expires_at) < new Date()) {
-    await supabase.from('match_invites').update({ status: 'expired' }).eq('id', inv.id);
-    return json({ error: 'انتهت صلاحية الدعوة' }, 400);
+  const { data, error } = await supabase.rpc('accept_match_invite_atomic', {
+    p_user_id: user.id,
+    p_token: token,
+  });
+  if (error) {
+    const message = error.message ?? '';
+    if (message.includes('INVITE_NOT_FOUND')) return json({ error: 'دعوة غير موجودة' }, 404);
+    if (message.includes('INVITE_UNAVAILABLE')) return json({ error: 'الدعوة غير متاحة' }, 409);
+    if (message.includes('INVITE_SELF_ACCEPT')) return json({ error: 'لا تقبل دعوتك' }, 400);
+    if (message.includes('INVITE_BLOCKED')) return json({ error: 'لا يمكن قبول دعوة بين مستخدمين محظورين.' }, 403);
+    if (message.includes('NOT_ENOUGH_PLAYABLE_CHALLENGES')) return json({ error: 'لا توجد خمس جولات معتمدة وقابلة للعب حالياً' }, 503);
+    console.error('[match] atomic invite acceptance failed', error);
+    return json({ error: 'تعذر قبول الدعوة وإنشاء المباراة بأمان' }, 503);
   }
-  if (inv.from_user === user.id) return json({ error: 'لا تقبل دعوتك' }, 400);
-  if (await isBlockedPair(supabase, user.id, inv.from_user)) return json({ error: 'لا يمكن قبول دعوة بين مستخدمين محظورين.' }, 403);
-
-  const now = new Date().toISOString();
-  const challenges = await pickChallenges(supabase, TOTAL_ROUNDS, inv.difficulty || 'normal');
-  if (challenges.length < TOTAL_ROUNDS) return json({ error: 'Not enough challenges' }, 500);
-
-  const { data: match, error: matchErr } = await supabase.from('matches').insert({
-    mode: '1v1',
-    status: 'VS',
-    difficulty: inv.difficulty || 'normal',
-    current_round: 1,
-    total_rounds: TOTAL_ROUNDS,
-    sequence: 1,
-    server_now: now,
-  }).select().single();
-  if (matchErr) return json({ error: matchErr.message }, 500);
-
-  const { data: a } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', inv.from_user).single();
-  const { data: b } = await supabase.from('profiles').select('username, display_name, avatar_url').eq('id', user.id).single();
-
-  await supabase.from('match_participants').insert([
-    { match_id: match.id, user_id: inv.from_user, side: 'player', username: a?.display_name || a?.username, avatar_url: a?.avatar_url, score: 0, is_ai: false },
-    { match_id: match.id, user_id: user.id, side: 'opponent', username: b?.display_name || b?.username, avatar_url: b?.avatar_url, score: 0, is_ai: false },
-  ]);
-  for (let i = 0; i < challenges.length; i++) {
-    await supabase.from('rounds').insert({
-      match_id: match.id,
-      round_number: i + 1,
-      challenge_id: challenges[i].id,
-      status: 'pending',
-      sequence: 0,
-    });
-  }
-  await supabase.from('match_invites').update({
-    status: 'accepted',
-    to_user: user.id,
-    match_id: match.id,
-  }).eq('id', inv.id);
-
-  return json({ match: await buildMatchState(supabase, match.id, user.id) });
+  if (data?.error === 'INVITE_EXPIRED') return json({ error: 'انتهت صلاحية الدعوة' }, 410);
+  if (!data?.ok || !data?.matchId) return json({ error: 'تعذر قبول الدعوة' }, 503);
+  const match = await buildMatchState(supabase, data.matchId, user.id);
+  if (!match) return json({ error: 'تم إنشاء المباراة لكن تعذر قراءة حالتها', code: 'MATCH_STATE_UNAVAILABLE' }, 503);
+  return json({ match });
 }
 
 async function createCoupleMatch(supabase: any, user: any, difficulty: string) {
