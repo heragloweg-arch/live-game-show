@@ -14,6 +14,14 @@ const aiMigration = await readFile(
   new URL('../supabase/migrations/20261027000003_atomic_matchmaking_ai_fallback.sql', import.meta.url),
   'utf8'
 );
+const teamMigration = await readFile(
+  new URL('../supabase/migrations/20261027000005_atomic_team_matchmaking.sql', import.meta.url),
+  'utf8'
+);
+const teamHandler = await readFile(
+  new URL('../supabase/functions/team/index.ts', import.meta.url),
+  'utf8'
+);
 
 test('human matchmaking creates match, participants, rounds and queue transition in one SQL transaction', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.join_matchmaking_atomic/);
@@ -48,4 +56,17 @@ test('AI fallback creation is idempotent and server-enforced after queue timeout
   assert.match(aiMigration, /GRANT EXECUTE ON FUNCTION public\.create_matchmaking_ai_fallback_atomic[\s\S]*TO service_role/);
   assert.match(handler, /supabase\.rpc\('create_matchmaking_ai_fallback_atomic'/);
   assert.doesNotMatch(handler, /async function createAiFallback\(/);
+});
+
+test('Team matchmaking claims an opponent and creates the full match atomically', () => {
+  assert.match(teamMigration, /CREATE OR REPLACE FUNCTION public\.queue_team_match_atomic/);
+  assert.match(teamMigration, /pg_advisory_xact_lock/);
+  assert.match(teamMigration, /FOR UPDATE OF q SKIP LOCKED/);
+  assert.match(teamMigration, /INSERT INTO public\.matches/);
+  assert.match(teamMigration, /INSERT INTO public\.match_participants/);
+  assert.match(teamMigration, /INSERT INTO public\.rounds/);
+  assert.match(teamMigration, /UPDATE public\.team_match_queue SET status='matched',match_id=v_match_id/);
+  assert.match(teamMigration, /FROM PUBLIC,anon,authenticated/);
+  assert.match(teamHandler, /supabase\.rpc\('queue_team_match_atomic'/);
+  assert.doesNotMatch(teamHandler, /async function createTeamMatch\(/);
 });
