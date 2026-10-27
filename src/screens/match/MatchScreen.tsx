@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Zap } from 'lucide-react';
@@ -13,6 +13,7 @@ import { formatCountdown } from '../../utils/time';
 import { LetterPoolBoard } from '../../components/game/LetterPoolBoard';
 import { showAd } from '../../services/ads/adMob';
 import { track } from '../../services/analytics/events';
+import { abandonMatch } from '../../services/api/matchApi';
 import { playSound } from '../../utils/sound';
 import { spendFiftyFifty } from '../../services/api/lifelineApi';
 import { MatchEndSummary } from '../../components/match/MatchEndSummary';
@@ -36,6 +37,10 @@ export function MatchScreen() {
   const difficulty = (search.get('diff') as Difficulty) || 'normal';
   const server = useServerMatch();
   const match = server.match;
+  const latestMatchRef = useRef(match);
+  const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { latestMatchRef.current = match; }, [match]);
   const finishedMatchId = match?.matchId ?? match?.id;
   const finishedMatchMode = match?.mode;
   const active = server;
@@ -48,10 +53,28 @@ export function MatchScreen() {
   const [lifelineBusy, setLifelineBusy] = useState(false);
 
   useEffect(() => {
+    if (abandonTimerRef.current) {
+      clearTimeout(abandonTimerRef.current);
+      abandonTimerRef.current = null;
+    }
     if (matchId) {
       server.loadMatch(matchId);
     }
     return () => {
+      // Defer one tick so React StrictMode's development-only effect replay can cancel it.
+      if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+      abandonTimerRef.current = setTimeout(() => {
+        const current = latestMatchRef.current;
+        const currentId = current?.matchId ?? current?.id;
+        const terminal = ['MATCH_FINISHED', 'FINAL_RESULT', 'MATCH_TERMINATED'].includes(String(current?.status ?? ''));
+        if (current && currentId && currentId === matchId && !terminal) {
+          track('match_abandon', { match_id: currentId, reason: 'navigation', mode: current.mode });
+          void abandonMatch(currentId, 'navigation').catch(() => {
+            // Server metrics remain best-effort during navigation/offline teardown.
+          });
+        }
+        abandonTimerRef.current = null;
+      }, 0);
       server.reset();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
