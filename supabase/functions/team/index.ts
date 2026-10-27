@@ -3,7 +3,17 @@
  */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+const configuredOrigin = Deno.env.get('CORS_ALLOWED_ORIGIN') ?? Deno.env.get('TIKTOK_APP_ORIGIN') ?? 'https://qaddaha.app';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': configuredOrigin,
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Vary': 'Origin',
+};
+function handleCors(req: Request): Response | null {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  return null;
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -88,52 +98,25 @@ serve(async (req) => {
     }
 
     if (action === 'queue') {
-      const difficulty = body.difficulty ?? 'normal';
+      const difficulty = ['easy', 'normal', 'hard'].includes(body.difficulty) ? body.difficulty : 'normal';
       const { data: mem } = await supabase.from('team_members').select('team_id, role').eq('user_id', user.id).maybeSingle();
       if (!mem) return json({ error: 'انضم لفريق أولاً' }, 400);
       if (mem.role !== 'owner') return json({ error: 'قائد الفريق فقط يبدأ الطابور' }, 403);
-      const { data: team } = await supabase.from('teams').select('*').eq('id', mem.team_id).single();
-      const { count } = await supabase.from('team_members').select('*', { count: 'exact', head: true }).eq('team_id', team.id);
-      const teamSize = team.max_members;
-      if ((count ?? 0) < 1) return json({ error: 'الفريق فارغ' }, 400);
 
-      // Try find opponent same size
-      const { data: opp } = await supabase
-        .from('team_match_queue')
-        .select('*')
-        .eq('status', 'queued')
-        .eq('team_size', teamSize)
-        .eq('difficulty', difficulty)
-        .neq('team_id', team.id)
-        .order('joined_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (opp) {
-        // Create match via internal logic — call match create_team through insert
-        const matchId = await createTeamMatch(supabase, team.id, opp.team_id, teamSize, difficulty);
-        await supabase.from('team_match_queue').update({ status: 'matched', match_id: matchId }).eq('team_id', opp.team_id);
-        await supabase.from('team_match_queue').upsert({
-          team_id: team.id,
-          owner_id: user.id,
-          team_size: teamSize,
-          difficulty,
-          status: 'matched',
-          match_id: matchId,
-        });
-        return json({ status: 'matched', matchId });
-      }
-
-      await supabase.from('team_match_queue').upsert({
-        team_id: team.id,
-        owner_id: user.id,
-        team_size: teamSize,
-        difficulty,
-        status: 'queued',
-        match_id: null,
-        joined_at: new Date().toISOString(),
+      const { data, error } = await supabase.rpc('queue_team_match_atomic', {
+        p_user_id: user.id,
+        p_team_id: mem.team_id,
+        p_difficulty: difficulty,
       });
-      return json({ status: 'queued', teamSize, message: 'بانتظار فريق منافس…' });
+      if (error || !data || !['queued', 'matched'].includes(data.status)) {
+        console.error('[team] atomic queue failed', error ?? data);
+        return json({ error: 'تعذر إتمام مطابقة الفريق بأمان. حاول مرة أخرى.' }, 503);
+      }
+      if (data.status === 'matched') return json({ status: 'matched', matchId: data.matchId, alreadyMatched: !!data.alreadyMatched });
+      if (data.reason === 'NOT_ENOUGH_PLAYABLE_CHALLENGES') {
+        return json({ status: 'queued', teamSize: data.teamSize, code: data.reason, message: 'نبحث عن منافس؛ لا تتوفر حاليًا خمس جولات معتمدة.' });
+      }
+      return json({ status: 'queued', teamSize: data.teamSize, message: 'بانتظار فريق منافس…' });
     }
 
     if (action === 'queue_status') {
@@ -208,85 +191,3 @@ serve(async (req) => {
     return json({ error: String(e) }, 500);
   }
 });
-
-async function createTeamMatch(
-  supabase: any,
-  teamAId: string,
-  teamBId: string,
-  teamSize: number,
-  difficulty: string
-) {
-  const TOTAL = 5;
-  const ROUND_SEQUENCE = ['speed', 'knowledge', 'words', 'knowledge', 'mystery'];
-  const challenges: any[] = [];
-  const used = new Set<string>();
-  for (let i = 0; i < TOTAL; i++) {
-    const desired = ROUND_SEQUENCE[i] === 'mystery' ? null : ROUND_SEQUENCE[i];
-    let q = supabase.from('challenges').select('id, type, subtype').eq('active', true).eq('qa_status', 'approved').eq('difficulty', difficulty);
-    if (desired) q = q.eq('type', desired);
-    const { data } = await q.limit(120);
-    const unused = (data ?? []).filter((c: any) => !used.has(c.id));
-    const previous = challenges.at(-1)?.subtype;
-    const pool = unused.filter((c: any) => c.subtype !== previous);
-    const candidates = pool.length ? pool : unused;
-    if (!candidates.length) continue;
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    used.add(pick.id);
-    challenges.push(pick);
-  }
-  if (challenges.length < TOTAL) throw new Error('Not enough approved challenges for a mixed team match');
-
-  const now = new Date().toISOString();
-  const { data: match, error } = await supabase.from('matches').insert({
-    mode: 'team',
-    status: 'VS',
-    difficulty,
-    current_round: 1,
-    total_rounds: TOTAL,
-    sequence: 1,
-    server_now: now,
-    team_size: teamSize,
-    team_a_id: teamAId,
-    team_b_id: teamBId,
-  }).select().single();
-  if (error) throw new Error(error.message);
-
-  const { data: memA } = await supabase.from('team_members').select('user_id, profile:profiles(username, display_name, avatar_url)').eq('team_id', teamAId);
-  const { data: memB } = await supabase.from('team_members').select('user_id, profile:profiles(username, display_name, avatar_url)').eq('team_id', teamBId);
-
-  const rows: any[] = [];
-  for (const m of memA ?? []) {
-    rows.push({
-      match_id: match.id,
-      user_id: m.user_id,
-      side: 'team_a',
-      username: m.profile?.display_name || m.profile?.username || 'A',
-      avatar_url: m.profile?.avatar_url,
-      score: 0,
-      is_ai: false,
-    });
-  }
-  for (const m of memB ?? []) {
-    rows.push({
-      match_id: match.id,
-      user_id: m.user_id,
-      side: 'team_b',
-      username: m.profile?.display_name || m.profile?.username || 'B',
-      avatar_url: m.profile?.avatar_url,
-      score: 0,
-      is_ai: false,
-    });
-  }
-  if (rows.length) await supabase.from('match_participants').insert(rows);
-
-  for (let i = 0; i < challenges.length; i++) {
-    await supabase.from('rounds').insert({
-      match_id: match.id,
-      round_number: i + 1,
-      challenge_id: challenges[i].id,
-      status: 'pending',
-      sequence: 0,
-    });
-  }
-  return match.id as string;
-}
