@@ -12,6 +12,7 @@ export const ANALYTICS_EVENTS = {
   answer_correct: 'answer_correct',
   answer_wrong: 'answer_wrong',
   match_complete: 'match_complete',
+  match_abandon: 'match_abandon',
   match_win: 'match_win',
   match_loss: 'match_loss',
   match_draw: 'match_draw',
