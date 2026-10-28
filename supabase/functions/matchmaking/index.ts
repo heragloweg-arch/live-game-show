@@ -10,6 +10,7 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { serveWithCors } from '../_shared/cors.ts';
 const configuredOrigin = Deno.env.get('CORS_ALLOWED_ORIGIN') ?? Deno.env.get('TIKTOK_APP_ORIGIN') ?? 'https://qaddaha.app';
 const corsHeaders = {
   'Access-Control-Allow-Origin': configuredOrigin,
@@ -24,7 +25,7 @@ function handleCors(req: Request): Response | null {
 
 const MATCH_TIMEOUT_MS = 60000; // 60s search window
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

@@ -5,14 +5,14 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 import { normalizeArabic } from '../_shared/arabic.ts';
 import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
 import { assertMatchParticipant, assertMatchNotFinished } from '../_shared/authz.ts';
 import { validateAnswer } from '../_shared/answerValidator.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

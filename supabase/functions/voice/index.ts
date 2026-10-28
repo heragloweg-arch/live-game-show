@@ -12,7 +12,7 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 
 // ─── LiveKit JWT (HS256) without heavy SDK ─────────────────
 async function hmacSha256(secret: string, data: string): Promise<ArrayBuffer> {
@@ -123,7 +123,7 @@ function hostBillingError(reason: string | undefined) {
   return json({ error: messages[reason ?? ''] ?? 'لا يمكن استمرار فوترة الغرفة.', code: reason ?? 'HOST_BILLING_BLOCKED' }, status);
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

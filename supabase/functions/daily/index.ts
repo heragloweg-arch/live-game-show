@@ -16,7 +16,7 @@ function gameDayMena(d = new Date()): string {
   }).format(d);
 }
 
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 import { normalizeArabic } from '../_shared/arabic.ts';
 import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
 
@@ -37,7 +37,7 @@ function yesterdayOf(dateStr: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

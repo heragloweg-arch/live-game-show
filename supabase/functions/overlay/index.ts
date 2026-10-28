@@ -1,7 +1,7 @@
 /** Read-only OBS overlay with expiring, revocable bearer links. */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
@@ -17,7 +17,7 @@ async function sha256(value: string): Promise<string> {
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);

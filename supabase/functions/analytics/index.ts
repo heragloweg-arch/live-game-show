@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { serveWithCors } from '../_shared/cors.ts';
 
 const configuredOrigin = Deno.env.get('CORS_ALLOWED_ORIGIN') ?? Deno.env.get('TIKTOK_APP_ORIGIN') ?? 'https://qaddaha.app';
 const corsHeaders = {
@@ -16,7 +17,7 @@ function json(data: unknown, status = 200) {
   });
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 

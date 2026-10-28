@@ -5,7 +5,7 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 import { calculateScore, DEFAULT_SCORING } from '../_shared/scoring.ts';
 import {
   assertMatchParticipant,
@@ -21,7 +21,7 @@ const LOSS_XP = 20;
 
 const AI_ACCURACY: Record<string, number> = { easy: 0.45, normal: 0.68, hard: 0.88 };
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

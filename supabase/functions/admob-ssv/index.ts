@@ -1,6 +1,7 @@
 /** AdMob SSV callback. No Supabase JWT: AdMob authenticates by ECDSA query signature. */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { serveWithCors } from '../_shared/cors.ts';
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
@@ -91,7 +92,7 @@ async function verifyCallback(url: URL): Promise<boolean> {
   );
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
   const url = new URL(req.url);
   const params = url.searchParams;

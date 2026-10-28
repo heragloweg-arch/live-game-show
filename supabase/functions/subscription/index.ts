@@ -8,7 +8,7 @@
 
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 import {
   verifySubscriptionPurchase,
   acknowledgeSubscriptionPurchase,
@@ -30,7 +30,7 @@ const PLAN_DAYS: Record<string, number> = {
   host_max: 30,
 };
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
 

@@ -1,6 +1,7 @@
 /** Authenticated Google Play RTDN Pub/Sub push handler. */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
+import { serveWithCors } from '../_shared/cors.ts';
 import { getSubscriptionPurchaseV2, acknowledgeSubscriptionPurchase } from '../_shared/googlePlay.ts';
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -60,7 +61,7 @@ async function verifyPubSubBearer(req: Request): Promise<boolean> {
   );
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   try {
     if (!await verifyPubSubBearer(req)) return json({ error: 'Unauthorized Pub/Sub push' }, 401);

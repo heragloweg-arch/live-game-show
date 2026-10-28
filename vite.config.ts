@@ -3,7 +3,14 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+const buildSupabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL || '';
+const buildSupabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || '';
+
 export default defineConfig({
+  define: {
+    __QADDAHA_BUILD_SUPABASE_URL__: JSON.stringify(buildSupabaseUrl),
+    __QADDAHA_BUILD_SUPABASE_ANON_KEY__: JSON.stringify(buildSupabaseAnonKey),
+  },
   plugins: [
     react(),
     VitePWA({

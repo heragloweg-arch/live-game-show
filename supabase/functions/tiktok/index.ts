@@ -10,7 +10,7 @@
  */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 function json(data: unknown, status = 200) {
@@ -129,7 +129,7 @@ async function callback(req: Request, supabase: any) {
   }
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   if (req.method === 'OPTIONS') return handleCors(req) ?? new Response(null, { status: 204, headers: corsHeaders });
   const supabase = serviceClient();
   if (req.method === 'GET') return callback(req, supabase);

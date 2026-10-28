@@ -1,7 +1,7 @@
 /** Authenticated user safety: report content/users and manage personal blocks. */
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
+import { corsHeaders, handleCors, serveWithCors } from '../_shared/cors.ts';
 import { enforceRateLimit } from '../_shared/rateLimit.ts';
 
 const categories = new Set(['harassment','hate','sexual_content','spam','cheating','unsafe_content','other']);
@@ -69,7 +69,7 @@ async function ejectBlockedPeer(supabase: any, blockerId: string, blockedId: str
   return { status: completed === active.length ? 'complete' : 'partial', attempted: active.length, removed };
 }
 
-serve(async (req) => {
+serveWithCors(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
