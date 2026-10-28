@@ -2,11 +2,11 @@
   "product": "Qaddaha",
   "repository": "https://github.com/heragloweg-arch/live-game-show.git",
   "branch": "main",
-  "commit": "4b0e08f4f198e8b46fa9c56f974015e12e09bef6",
-  "generatedAt": "2026-10-28",
+  "commit": "f3f1d4acd42a52b1fe138a7533381dbd7d9b7193",
+  "generatedAt": "2026-10-29",
   "trackedFileCount": 424,
   "latestMigration": "supabase/migrations/20261027000001_retention_rematch_latency.sql",
-  "productionGates": "49/49 PASS locally",
+  "productionGates": "50/50 PASS locally",
   "contentGate": "968 audited rows; no bulk activation; service-role approval required",
   "e2eGate": "10/10 BLOCKED_EXTERNAL; no false PASS",
   "npmAudit": "0 vulnerabilities",
@@ -34,6 +34,7 @@
     "docs/LAUNCH_STATUS.md",
     "docs/COMPREHENSIVE_GAP_AUDIT_2026-10-27_AR.md",
     "docs/OWNER_MATRIX_2026-10-27_AR.md",
-    "docs/SUPABASE_STAGING_EXECUTION_2026-10-27_AR.md"
+    "docs/SUPABASE_STAGING_EXECUTION_2026-10-27_AR.md",
+    "docs/SOLO_UI_AND_LEAF_CONTRACT_2026-10-29_AR.md"
   ]
 }
