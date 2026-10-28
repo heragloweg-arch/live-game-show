@@ -182,7 +182,7 @@ async function createSoloMatch(
     const message = error?.message ?? data?.error ?? 'SOLO_MATCH_CREATE_FAILED';
     if (message.includes('JOURNEY_STAGE_LOCKED')) return json({ error: 'أكمل الورقة السابقة أولاً', code: 'JOURNEY_STAGE_LOCKED' }, 409);
     if (message.includes('INVALID_JOURNEY_STAGE')) return json({ error: 'مرحلة الشجرة غير صالحة', code: 'INVALID_JOURNEY_STAGE' }, 400);
-    if (message.includes('NOT_ENOUGH_PLAYABLE_CHALLENGES')) return json({ error: 'لا توجد خمس جولات معتمدة وقابلة للعب حالياً', code: 'NOT_ENOUGH_PLAYABLE_CHALLENGES' }, 503);
+    if (message.includes('NOT_ENOUGH_PLAYABLE_CHALLENGES')) return json({ error: 'لا توجد ثلاث أسئلة معتمدة وقابلة للعب حالياً', code: 'NOT_ENOUGH_PLAYABLE_CHALLENGES' }, 503);
     console.error('[match] atomic Solo creation failed', error ?? data);
     return json({ error: 'تعذر إنشاء مباراة فردية كاملة بأمان', code: 'SOLO_MATCH_CREATE_FAILED' }, 503);
   }

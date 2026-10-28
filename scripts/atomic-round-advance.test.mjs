@@ -37,6 +37,10 @@ const soloMigration = await readFile(
   new URL('../supabase/migrations/20261023050000_solo_journey_server_progress.sql', import.meta.url),
   'utf8'
 );
+const soloLeafContract = await readFile(
+  new URL('../supabase/migrations/20261029000001_solo_leaf_three_questions.sql', import.meta.url),
+  'utf8'
+);
 
 test('Solo journey progress is server-authoritative and idempotent', () => {
   assert.match(soloMigration, /CREATE TABLE IF NOT EXISTS public\.solo_journey_progress/);
@@ -53,4 +57,13 @@ test('Solo match carries the journey stage and records it after settlement', () 
   assert.match(handler, /journeyLeaf/);
   assert.match(handler, /JOURNEY_STAGE_LOCKED/);
   assert.match(handler, /complete_solo_journey_leaf/);
+});
+
+test('Solo leaves use three questions and require two correct answers', () => {
+  assert.match(soloLeafContract, /FOR v_round IN 1\.\.3 LOOP/);
+  assert.match(soloLeafContract, /total_rounds[^\n]*3/);
+  assert.match(soloLeafContract, /generate_series\(1, 3\)/);
+  assert.match(soloLeafContract, /count\(\*\)[\s\S]*outcome = 'correct'[\s\S]*< 2/);
+  assert.match(soloLeafContract, /'requiredCorrect', 2/);
+  assert.match(soloLeafContract, /'leafQuestions', 3/);
 });

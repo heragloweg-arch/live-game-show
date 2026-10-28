@@ -51,6 +51,8 @@ export function MatchScreen() {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [removedChoices, setRemovedChoices] = useState<string[]>([]);
   const [lifelineBusy, setLifelineBusy] = useState(false);
+  const [soloCorrect, setSoloCorrect] = useState(0);
+  const countedAnswerRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (abandonTimerRef.current) {
@@ -90,6 +92,14 @@ export function MatchScreen() {
       });
     }
   }, [match?.lastAnswerResult]);
+
+  useEffect(() => {
+    if (match?.mode !== 'solo' || phase !== 'round_result' || !match.round || !match.lastAnswerResult) return;
+    const answerKey = `${match.matchId}:${match.round.roundId}:${match.lastAnswerResult.outcome}`;
+    if (countedAnswerRef.current === answerKey) return;
+    countedAnswerRef.current = answerKey;
+    if (match.lastAnswerResult.outcome === 'correct') setSoloCorrect((value) => value + 1);
+  }, [match?.lastAnswerResult, match?.matchId, match?.mode, match?.round, phase]);
 
   // Post-match interstitial (policy-capped, never during round)
   useEffect(() => {
@@ -184,7 +194,7 @@ export function MatchScreen() {
         </Link>
         <div className="flex items-center gap-2 text-sm text-white/50">
           <Zap className="h-4 w-4 text-zatona-400" />
-          جولة {match?.currentRound ?? 1} / {match?.totalRounds ?? 5}
+          جولة {match?.currentRound ?? 1} / {match?.totalRounds ?? (match?.mode === 'solo' ? 3 : 5)}
           <span className="text-[10px] text-zatona-500">SERVER</span>
         </div>
         <div className="w-9" />
@@ -367,6 +377,7 @@ export function MatchScreen() {
 
               {phase === 'round_result' && (
                 <div className="mt-2 text-center">
+                  {match.mode === 'solo' && <div className="mb-3 flex items-center justify-center gap-3 text-xs font-bold"><span className="rounded-full bg-emerald-400/10 px-3 py-1.5 text-emerald-200">صحيح: {soloCorrect}</span><span className="rounded-full bg-rose-400/10 px-3 py-1.5 text-rose-200">الهدف: 2 من 3</span></div>}
                   {active.error && (
                     <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                       {active.error}
@@ -423,6 +434,9 @@ export function MatchScreen() {
                   void shareMatchResult(`🔥 قدها؟ نتيجتي ${a ?? 0} — ${b ?? 0}\nتحداك تكسر رقمي 👇 ${window.location.origin}`);
                 }}
                 onRematch={match.mode === '1v1' && match.matchId ? () => server.startRematch(match.matchId!, difficulty) : undefined}
+                leafCorrect={match.mode === 'solo' ? soloCorrect : undefined}
+                leafQuestions={match.mode === 'solo' ? 3 : undefined}
+                leafUnlocked={match.mode === 'solo' ? soloCorrect >= 2 : undefined}
                 onReset={() => active.reset()}
               />
             </motion.div>
