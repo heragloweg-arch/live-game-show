@@ -225,12 +225,12 @@ serve(async (req) => {
     }
 
     if (action === 'snapshot') {
-      // Build investor snapshot from current overview + client funnel
+      // Build investor snapshot from server warehouse only; client retention is never authoritative.
       const { data: days } = await supabase.from('analytics_daily').select('*').order('day', { ascending: false }).limit(30);
       const label = body.label || `snapshot-${new Date().toISOString().slice(0, 10)}`;
       const payload = {
         clientFunnel: body.funnel || {},
-        retention: body.retention || {},
+        retention: { source: 'analytics_daily', latest: days?.[0] ?? null, days: days ?? [] },
         days: days ?? [],
         notes: body.notes || 'Soft-launch investor snapshot',
         at: new Date().toISOString(),

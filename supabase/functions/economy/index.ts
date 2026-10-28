@@ -121,35 +121,12 @@ serve(async (req) => {
     }
 
     if (action === 'daily_bonus') {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: claim } = await supabase
-        .from('daily_bonus_claims')
-        .select('last_claim')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (claim?.last_claim === today) {
-        return json({ error: 'Already claimed today' }, 400);
-      }
-
-      const { data: balance } = await supabase.rpc('credit_coins', {
+      const { data: result, error } = await supabase.rpc('claim_daily_bonus_atomic', {
         p_user_id: user.id,
         p_amount: DAILY_BONUS,
-        p_type: 'daily_bonus',
-        p_reference: today,
       });
-
-      await supabase.from('daily_bonus_claims').upsert({
-        user_id: user.id,
-        last_claim: today,
-      });
-
-      return json({
-        userId: user.id,
-        coins: balance ?? 0,
-        gems: 0,
-        updatedAt: new Date().toISOString(),
-      });
+      if (error) return json({ error: error.message }, 409);
+      return json({ userId: user.id, ...(result ?? {}), gems: 0, updatedAt: new Date().toISOString() });
     }
 
     if (action === 'match_reward') {
@@ -176,41 +153,14 @@ serve(async (req) => {
       const won = matchRow.winner_id === user.id;
       const draw = matchRow.winner_id == null;
 
-      // Prevent double reward
-      const { data: existing } = await supabase
-        .from('wallet_ledger')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('type', 'match_reward')
-        .eq('reference_id', matchId)
-        .maybeSingle();
-
-      if (existing) {
-        const { data } = await supabase.from('profiles').select('coins, updated_at').eq('id', user.id).single();
-        return json({
-          userId: user.id,
-          coins: data?.coins ?? 0,
-          gems: 0,
-          updatedAt: data?.updated_at ?? new Date().toISOString(),
-          alreadyRewarded: true,
-        });
-      }
-
       const amount = draw ? 25 : won ? WIN_COINS : LOSS_COINS;
-      const { data: balance } = await supabase.rpc('credit_coins', {
+      const { data: result, error } = await supabase.rpc('claim_match_reward_atomic', {
         p_user_id: user.id,
+        p_match_id: matchId,
         p_amount: amount,
-        p_type: 'match_reward',
-        p_reference: matchId,
       });
-
-      return json({
-        userId: user.id,
-        coins: balance ?? 0,
-        gems: 0,
-        updatedAt: new Date().toISOString(),
-        rewarded: amount,
-      });
+      if (error) return json({ error: error.message }, 409);
+      return json({ userId: user.id, ...(result ?? {}), gems: 0, updatedAt: new Date().toISOString(), rewarded: result?.awarded ?? 0 });
     }
 
     

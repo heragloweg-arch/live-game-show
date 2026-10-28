@@ -232,83 +232,13 @@ serve(async (req) => {
         }
       }
       if (!matchRowId || !winnerId) return json({ error: 'tournamentMatchId and winnerId required' }, 400);
-
-      const { data: tm } = await supabase
-        .from('tournament_matches')
-        .select('*')
-        .eq('id', matchRowId)
-        .single();
-      if (!tm) return json({ error: 'Match not found' }, 404);
-      if (tm.status === 'completed') return json({ ok: true, already: true });
-
-      const loserId = tm.player_a === winnerId ? tm.player_b : tm.player_a;
-
-      await supabase
-        .from('tournament_matches')
-        .update({ winner_id: winnerId, status: 'completed' })
-        .eq('id', matchRowId);
-
-      if (winnerId) {
-        const { data: we } = await supabase
-          .from('tournament_entries')
-          .select('wins, points')
-          .eq('tournament_id', tm.tournament_id)
-          .eq('user_id', winnerId)
-          .single();
-        if (we) {
-          await supabase
-            .from('tournament_entries')
-            .update({ wins: (we.wins ?? 0) + 1, points: (we.points ?? 0) + 3 })
-            .eq('tournament_id', tm.tournament_id)
-            .eq('user_id', winnerId);
-        }
-      }
-      if (loserId) {
-        const { data: le } = await supabase
-          .from('tournament_entries')
-          .select('losses')
-          .eq('tournament_id', tm.tournament_id)
-          .eq('user_id', loserId)
-          .single();
-        if (le) {
-          await supabase
-            .from('tournament_entries')
-            .update({ losses: (le.losses ?? 0) + 1, eliminated: true })
-            .eq('tournament_id', tm.tournament_id)
-            .eq('user_id', loserId);
-        }
-      }
-
-      // Advance winner into next round slot if exists
-      await tryAdvanceWinner(supabase, tm, winnerId);
-
-      // Complete tournament if no pending matches
-      const { count: pending } = await supabase
-        .from('tournament_matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('tournament_id', tm.tournament_id)
-        .neq('status', 'completed');
-      if ((pending ?? 0) === 0) {
-        // Auto crown from last winner
-        const { data: lastWin } = await supabase
-          .from('tournament_matches')
-          .select('winner_id, round_number')
-          .eq('tournament_id', tm.tournament_id)
-          .eq('status', 'completed')
-          .order('round_number', { ascending: false })
-          .limit(1);
-        const championId = lastWin?.[0]?.winner_id || winnerId;
-        await supabase
-          .from('tournaments')
-          .update({
-            status: 'completed',
-            champion_id: championId,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', tm.tournament_id);
-      }
-
-      return json({ ok: true, winnerId });
+      const { data, error } = await supabase.rpc('report_tournament_player_result_atomic', {
+        p_match_id: matchRowId,
+        p_user_id: user.id,
+        p_winner_id: winnerId,
+      });
+      if (error) return json({ error: error.message }, 409);
+      return json(data);
     }
 
 

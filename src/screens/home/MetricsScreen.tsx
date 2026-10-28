@@ -7,7 +7,6 @@ import { ArrowRight, BarChart3, Briefcase, Download, Loader2, RefreshCw } from '
 import {
   getAnalyticsBuffer,
   summarizeFunnel,
-  getRetentionSnapshot,
 } from '../../services/analytics/events';
 import { SOFT_LAUNCH } from '../../config/softLaunch';
 import {
@@ -27,8 +26,18 @@ export function MetricsScreen() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const summary = useMemo(() => summarizeFunnel(), []);
-  const retention = useMemo(() => getRetentionSnapshot(), []);
   const recent = useMemo(() => getAnalyticsBuffer().slice(-40).reverse(), []);
+  const serverRetention = useMemo(() => {
+    const latest = overview?.last14Days?.[0];
+    return latest ? {
+      day: latest.day,
+      d1: latest.d1_rate,
+      d7: latest.d7_rate,
+      d14: latest.d14_rate,
+      session2: latest.session2_rate,
+      source: 'analytics_daily',
+    } : null;
+  }, [overview]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,8 +76,8 @@ export function MetricsScreen() {
       await metricsSnapshot({
         label: `قدها-${new Date().toISOString().slice(0, 16)}`,
         funnel: summary,
-        retention,
-        notes: 'من شاشة المستثمر داخل التطبيق',
+        retention: serverRetention,
+        notes: 'من analytics_daily الخادمي؛ لا تُستخدم localStorage كمصدر رسمي',
       });
       setMsg('تم حفظ لقطة مستثمر');
       await load();
@@ -176,12 +185,14 @@ export function MetricsScreen() {
       )}
 
       <div className="card mb-4 p-4">
-        <p className="mb-2 text-sm font-semibold">احتفاظ هذا الجهاز</p>
+        <p className="mb-2 text-sm font-semibold">الاحتفاظ الخادمي (analytics_daily)</p>
         <div className="grid grid-cols-2 gap-2 text-xs text-white/55">
-          <div className="rounded-lg bg-white/5 px-2 py-1.5">أيام: <b className="text-white">{retention.uniqueDays}</b></div>
-          <div className="rounded-lg bg-white/5 px-2 py-1.5">اليوم #: <b className="text-white">{retention.dayNumber}</b></div>
-          <div className="rounded-lg bg-white/5 px-2 py-1.5">D1: <b className="text-amber-300">{retention.returnedD1 ? 'نعم' : 'لا'}</b></div>
-          <div className="rounded-lg bg-white/5 px-2 py-1.5">D7: <b className="text-amber-300">{retention.returnedD7 ? 'نعم' : 'لا'}</b></div>
+          <div className="rounded-lg bg-white/5 px-2 py-1.5">اليوم: <b className="text-white">{serverRetention?.day ?? '—'}</b></div>
+          <div className="rounded-lg bg-white/5 px-2 py-1.5">المصدر: <b className="text-emerald-300">{serverRetention?.source ?? '—'}</b></div>
+          <div className="rounded-lg bg-white/5 px-2 py-1.5">D1: <b className="text-amber-300">{serverRetention?.d1 == null ? '—' : `${Math.round(serverRetention.d1 * 100)}%`}</b></div>
+          <div className="rounded-lg bg-white/5 px-2 py-1.5">D7: <b className="text-amber-300">{serverRetention?.d7 == null ? '—' : `${Math.round(serverRetention.d7 * 100)}%`}</b></div>
+          <div className="rounded-lg bg-white/5 px-2 py-1.5">D14: <b className="text-amber-300">{serverRetention?.d14 == null ? '—' : `${Math.round(serverRetention.d14 * 100)}%`}</b></div>
+          <div className="rounded-lg bg-white/5 px-2 py-1.5">Session 2: <b className="text-amber-300">{serverRetention?.session2 == null ? '—' : `${Math.round(serverRetention.session2 * 100)}%`}</b></div>
         </div>
       </div>
 
