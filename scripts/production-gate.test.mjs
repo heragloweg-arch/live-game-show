@@ -147,6 +147,8 @@ test('public deployment metadata is explicit and CORS is not wildcard', () => {
   const cors = readFileSync('supabase/functions/_shared/cors.ts', 'utf8');
   const routes = JSON.parse(readFileSync('public/manus-routes.json', 'utf8'));
   assert.doesNotMatch(cors, /Access-Control-Allow-Origin['"]:\s*['"]\*['"]/);
+  assert.match(cors, /isTrustedRailwayOrigin/);
+  assert.match(cors, /railway\\\.app/);
   assert.ok(Array.isArray(routes.routes) && routes.routes.some((route) => route.path === '/host'));
 });
 

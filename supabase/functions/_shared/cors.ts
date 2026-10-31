@@ -17,9 +17,18 @@ const allowedOrigins = new Set([
 
 const fallbackOrigin = configuredOrigins[0] ?? 'https://qaddaha.app';
 
+// Railway domains can be regenerated without changing the Supabase function
+// deployment. Accept only the platform's HTTPS hostname shape, never an
+// arbitrary origin or a wildcard.
+function isTrustedRailwayOrigin(origin: string): boolean {
+  return /^https:\/\/[a-z0-9][a-z0-9-]*\.up\.railway\.app$/i.test(origin);
+}
+
 export function getCorsHeaders(req?: Request): Record<string, string> {
   const requestOrigin = req?.headers.get('Origin') ?? '';
-  const origin = requestOrigin && allowedOrigins.has(requestOrigin) ? requestOrigin : fallbackOrigin;
+  const origin = requestOrigin && (allowedOrigins.has(requestOrigin) || isTrustedRailwayOrigin(requestOrigin))
+    ? requestOrigin
+    : fallbackOrigin;
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
