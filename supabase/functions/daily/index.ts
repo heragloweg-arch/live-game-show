@@ -255,7 +255,25 @@ serveWithCors(async (req) => {
       if (atomicErr) return json({ error: atomicErr.message }, 409);
       return json({ ok: true, correct, points: score.total, coinGain: atomic?.coinGain ?? 0, xpGain: atomic?.xpGain ?? 0,
         alreadyCompleted: !!atomic?.alreadyCompleted, packComplete: !!atomic?.packComplete,
+        perfectPack: !!atomic?.perfectPack, correctCount: atomic?.correctCount ?? 0,
         completed: atomic?.completed ?? 1, streak: await getStreakRow(supabase, user.id) });
+    }
+
+    if (action === 'claim_ad_reward') {
+      const packId = String(body.packId ?? '');
+      const adsWatched = Number(body.adsWatched ?? 0);
+      const { data, error } = await supabase.rpc('claim_daily_pack_ad_reward_atomic', {
+        p_user_id: user.id,
+        p_pack_id: packId,
+        p_ads_watched: adsWatched,
+      });
+      if (error) {
+        const msg = error.message ?? '';
+        if (msg.includes('ADS_REQUIRED')) return json({ error: 'شاهد إعلانين متتاليين أولًا', code: 'ADS_REQUIRED' }, 400);
+        if (msg.includes('PACK_INCOMPLETE')) return json({ error: 'أكمل المحطات الثلاث أولًا', code: 'PACK_INCOMPLETE' }, 400);
+        return json({ error: error.message }, 409);
+      }
+      return json(data);
     }
 
     if (action === 'get_streak') {

@@ -71,3 +71,11 @@ export function getTodayDaily(): Promise<DailyState> { return invoke<DailyState>
 export function submitDailyAnswer(answer: string, responseTimeMs?: number) { return invoke<{ correct: boolean; points: number; coinGain: number; xpGain: number; streak: DailyState['streak']; alreadyCompleted?: boolean }>({ action: 'submit', answer, responseTimeMs }); }
 export function getStreak() { return invoke<{ streak: DailyState['streak'] }>({ action: 'get_streak' }); }
 export function completeOnboarding() { return invoke<{ ok: boolean }>({ action: 'complete_onboarding' }); }
+
+export async function claimDailyPackAdReward(packId: string, adsWatched: number) {
+  return invoke<{ ok?: boolean; coinGain?: number; multiplier?: number; alreadyClaimed?: boolean; perfect?: boolean }>({
+    action: 'claim_ad_reward',
+    packId,
+    adsWatched,
+  });
+}

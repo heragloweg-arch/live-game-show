@@ -159,6 +159,12 @@ export function MatchScreen() {
       void hapticError();
       playSound('wrong');
     }
+      if (match.lastAnswerResult.outcome === 'wrong') {
+      try { navigator.vibrate?.(50); } catch { /* ignore */ }
+    }
+    if (match.lastAnswerResult.outcome === 'correct') {
+      confetti({ particleCount: 55, spread: 60, origin: { y: 0.7 } });
+    }
   }, [phase, match?.lastAnswerResult]);
 
   useEffect(() => {
@@ -359,7 +365,7 @@ export function MatchScreen() {
                       {lifelineBusy ? 'جاري استخدام المساعدة...' : '50:50 · حذف إجابتين'}
                     </button>
                   )}
-                  {phase === 'playing' && <button
+                  {phase === 'playing' && !(match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0) && <button
                     onClick={handleSubmit}
                     disabled={
                       match.round.challenge?.choices ? !selectedChoice : !(active.answer ?? answer).trim()
