@@ -1,6 +1,6 @@
 # حالة الإطلاق الحية — قدها
 
-**آخر تحديث:** 31 أكتوبر 2026
+**آخر تحديث:** 1 نوفمبر 2026
 **المرجع المعتمد:** `main`؛ بصمة الإصدار الحية تُقرأ دائماً من `dist/build-info.json` بعد البناء، وتظهر أيضاً في استجابة `/ready`.
 **التصنيف الحالي:** Production Candidate / Soft-Launch Candidate — ليس إطلاقًا عامًا بعد.
 
@@ -14,7 +14,9 @@
 
 أظهر الفحص الحي للرابط `https://live-game-show-production-317b.up.railway.app/` أن `/health` و`/ready` ينجحان، لكن استجابات وظائف Supabase تعيد `Access-Control-Allow-Origin` لنطاق Railway قديم `...-8e73...` بدل النطاق الحالي `...-317b...`. لذلك يحجب المتصفح ردود Solo وDaily وMatchmaking والغرف ويعرض `Failed to fetch` حتى عندما يكون رد الخادم نفسه `401 Unauthorized` مفهومًا.
 
-أضيف إصلاح دفاعي في `supabase/functions/_shared/cors.ts` لقبول أصل HTTPS مطابق لنمط Railway الرسمي فقط، مع إعادة الأصل المطلوب حرفيًا ورفض wildcard، وأضيفت له بوابة إنتاج. الإصلاح **غير منشور حيًا بعد**؛ تبقى وظائف Supabase وE2E الخارجي `BLOCKED_EXTERNAL` حتى تُعاد مزامنة/نشر الوظائف ثم يُعاد اختبار الـpreflight والطلبات من نطاق `...-317b`.
+أضيف إصلاح دفاعي في `supabase/functions/_shared/cors.ts` لقبول أصل HTTPS مطابق لنمط Railway الرسمي فقط، مع إعادة الأصل المطلوب حرفيًا ورفض wildcard، وأضيفت له بوابة إنتاج. تم نشر جميع Edge Functions إلى Staging في 31 أكتوبر، ثم نُشرت وظيفة `daily` الجديدة بالإصدار 26 في 1 نوفمبر، وأصبح preflight من نطاق `...-317b` يعيد الأصل الصحيح. يبقى E2E الخارجي وRailway `BLOCKED_EXTERNAL` لأن Railway ما زال على بصمة قديمة.
+
+تم تطبيق migration `20261031120000_daily_slot_coins_and_ad_multiplier` وتسجيلها في `schema_migrations`. commit الواجهة الحالي في `main` هو `93fdb243`; أما `/ready` الحي فما زال يعرض `70d4a42ef687cdb5be42d37fba5ad5305a061954`، لذلك لم تثبت بعد واجهة Daily الجديدة على Railway.
 
 ## T0 — تثبيت المصدر والبناء
 
