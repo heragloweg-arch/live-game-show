@@ -12,11 +12,11 @@
 
 ## حادثة Railway/CORS — 31 أكتوبر 2026
 
-أظهر الفحص الحي للرابط `https://live-game-show-production-317b.up.railway.app/` أن `/health` و`/ready` ينجحان، لكن استجابات وظائف Supabase تعيد `Access-Control-Allow-Origin` لنطاق Railway قديم `...-8e73...` بدل النطاق الحالي `...-317b...`. لذلك يحجب المتصفح ردود Solo وDaily وMatchmaking والغرف ويعرض `Failed to fetch` حتى عندما يكون رد الخادم نفسه `401 Unauthorized` مفهومًا.
+أظهر الفحص الأولي للرابط `https://live-game-show-production-317b.up.railway.app/` أن استجابات وظائف Supabase كانت تعيد `Access-Control-Allow-Origin` لنطاق Railway قديم `...-8e73...` بدل النطاق الحالي `...-317b...`. تم إصلاح ذلك ونشره؛ الفحص الحالي يعيد الأصل الصحيح في الوظائف الرئيسية، و`/health` و`/ready` ينجحان.
 
-أضيف إصلاح دفاعي في `supabase/functions/_shared/cors.ts` لقبول أصل HTTPS مطابق لنمط Railway الرسمي فقط، مع إعادة الأصل المطلوب حرفيًا ورفض wildcard، وأضيفت له بوابة إنتاج. تم نشر جميع Edge Functions إلى Staging في 31 أكتوبر، ثم نُشرت وظيفة `daily` الجديدة بالإصدار 26 في 1 نوفمبر، وأصبح preflight من نطاق `...-317b` يعيد الأصل الصحيح. يبقى E2E الخارجي وRailway `BLOCKED_EXTERNAL` لأن Railway ما زال على بصمة قديمة.
+أضيف إصلاح دفاعي في `supabase/functions/_shared/cors.ts` لقبول أصل HTTPS مطابق لنمط Railway الرسمي فقط، مع إعادة الأصل المطلوب حرفيًا ورفض wildcard، وأضيفت له بوابة إنتاج. تم نشر جميع Edge Functions إلى Staging، ثم نُشرت وظيفة `daily` الجديدة بالإصدار 27 في 1 نوفمبر. preflight من نطاق `...-317b` يمر للوظائف الرئيسية. كما أن hashes ملفات `DailyChallengeScreen` و`dailyApi` في Railway تطابق build المحلي؛ `/ready` يعرض بصمة artifact-content `b964cfcef4f4b94176919078270455a56f1c2b4f`.
 
-تم تطبيق migration `20261031120000_daily_slot_coins_and_ad_multiplier` وتسجيلها في `schema_migrations`. commit الواجهة الحالي في `main` هو `93fdb243`; أما `/ready` الحي فما زال يعرض `70d4a42ef687cdb5be42d37fba5ad5305a061954`، لذلك لم تثبت بعد واجهة Daily الجديدة على Railway.
+تم تطبيق migration `20261031120000_daily_slot_coins_and_ad_multiplier` وتسجيلها في `schema_migrations`. كود الواجهة في `main` موجود منذ `93fdb243`، والتوثيق الحالي منذ `f5aeac40`. تطابق artifact الحي يثبت وصول واجهة Daily الجديدة، لكن بصمة `/ready` ليست SHA لcommit GitHub؛ لذلك يجب إبقاء مطابقة مصدر النشر في Railway موثقة إلى أن تظهر بصمة Git commit صريحة.
 
 ## T0 — تثبيت المصدر والبناء
 
