@@ -665,3 +665,16 @@ html.theme-light .play-hero { box-shadow:0 20px 45px rgba(67,56,80,.16); }
   .auth-brand .brand-mark { width:40px; height:40px; }
   .auth-heading p { display:none; }
 }
+
+/* Unified answer feedback and Solo leaf progress. */
+.solo-leaf-progress { position:relative; z-index:1; width:min(calc(100% - 32px), 520px); margin:12px auto 0; padding:10px 14px; border:1px solid rgba(52,211,153,.22); border-radius:16px; background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(15,23,42,.72)); box-shadow:0 8px 26px rgba(0,0,0,.16); }
+.solo-leaf-progress-copy { display:flex; align-items:center; justify-content:space-between; color:rgba(226,232,240,.68); font-size:11px; font-weight:800; }
+.solo-leaf-progress-copy strong { color:#a7f3d0; font-family:var(--font-display,Cairo,sans-serif); font-size:14px; }
+.solo-leaf-progress-track { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:8px; }
+.solo-leaf-progress-dot { height:6px; border-radius:99px; background:rgba(255,255,255,.12); transition:background .25s ease, box-shadow .25s ease; }
+.solo-leaf-progress-dot.is-filled { background:linear-gradient(90deg,#34d399,#a7f3d0); box-shadow:0 0 12px rgba(52,211,153,.5); }
+.solo-leaf-progress p { margin:7px 0 0; color:rgba(167,243,208,.55); font-size:9px; text-align:center; }
+.tree-leaf-steps { display:flex; gap:3px; margin-top:3px; }
+.tree-leaf-steps i { display:block; width:14px; height:3px; border-radius:99px; background:rgba(255,255,255,.16); }
+.tree-leaf-steps i.is-filled { background:#6ee7b7; box-shadow:0 0 7px rgba(52,211,153,.6); }
+@media (max-width:420px) { .solo-leaf-progress { width:calc(100% - 20px); } .tree-leaf-steps i { width:10px; } }

@@ -71,7 +71,11 @@ export function DifficultyScreen() {
                 return <motion.button key={key} type="button" whileTap={{ scale: .94 }} disabled={disabled} onClick={() => void start(branch.number, leaf.number)} className={`tree-leaf ${leafProgress?.completed ? 'is-completed' : leafProgress?.unlocked ? 'is-open' : 'is-locked'}`} aria-label={`${branch.title}، ورقة ${leaf.number}`}>
                   <span className="tree-leaf-shine" />
                   {loading === key ? <Loader2 className="h-5 w-5 animate-spin" /> : leafProgress?.completed ? <Check className="h-5 w-5" /> : leafProgress?.unlocked ? <Leaf className="h-5 w-5" /> : <LockKeyhole className="h-4 w-4" />}
-                  <strong>{leaf.number}</strong><small>{leafProgress?.completed ? 'مكتملة' : leafProgress?.unlocked ? '3 أسئلة' : 'مقفلة'}</small>
+                  <strong>{leaf.number}</strong>
+                  <span className="tree-leaf-steps" aria-label={`${leafProgress?.completed ? 3 : 0} من 3 أسئلة`}>
+                    {[0, 1, 2].map((step) => <i key={step} className={leafProgress?.completed ? 'is-filled' : ''} />)}
+                  </span>
+                  <small>{leafProgress?.completed ? 'مكتملة · مكافأة خادمية' : leafProgress?.unlocked ? '3 أسئلة · مكافأة خادمية' : 'مقفلة'}</small>
                 </motion.button>;
               })}
             </div>

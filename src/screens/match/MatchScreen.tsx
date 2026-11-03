@@ -10,7 +10,7 @@ import { hapticSuccess, hapticError, hapticHeavy } from '../../utils/haptics';
 import { MatchSkeleton } from '../../components/ui/Skeleton';
 import { TeamMatchBoard } from '../../components/match/TeamMatchBoard';
 import { formatCountdown } from '../../utils/time';
-import { LetterPoolBoard } from '../../components/game/LetterPoolBoard';
+import { UnifiedAnswerInput } from '../../components/game/UnifiedAnswerInput';
 import { showAd } from '../../services/ads/adMob';
 import { track } from '../../services/analytics/events';
 import { abandonMatch } from '../../services/api/matchApi';
@@ -110,25 +110,13 @@ export function MatchScreen() {
     return () => window.clearTimeout(t);
   }, [phase, finishedMatchId, finishedMatchMode]);
 
-  const handleSubmit = () => {
-    const value = match?.round?.challenge?.choices
-      ? selectedChoice ?? ''
-      : answer.trim();
+  const handleSubmit = (submittedValue?: string) => {
+    const value = submittedValue ?? (match?.round?.challenge?.choices ? selectedChoice ?? '' : answer.trim());
     if (!value) return;
     active.submitAnswer(value);
-    if (!match?.round?.challenge?.letterPool?.length) setAnswer('');
+    setAnswer('');
     setSelectedChoice(null);
   };
-
-  useEffect(() => {
-    const challenge = match?.round?.challenge;
-    if (phase !== 'playing' || !challenge?.letterPool?.length || !challenge.maxLength) return;
-    if (answer.replace(/\s/g, '').length !== challenge.maxLength) return;
-    const timer = window.setTimeout(handleSubmit, 120);
-    return () => window.clearTimeout(timer);
-    // handleSubmit is intentionally scoped to the current round state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [answer, match?.round?.challenge, phase]);
 
   const handleNext = () => {
     server.goNextRound();
@@ -168,6 +156,14 @@ export function MatchScreen() {
   }, [phase, match?.lastAnswerResult]);
 
   useEffect(() => {
+    if (match?.mode !== 'solo' || phase !== 'round_result' || !match.lastAnswerResult) return;
+    const timer = window.setTimeout(() => handleNext(), 1100);
+    return () => window.clearTimeout(timer);
+    // The server result is received before this request; no local result is used to unlock a round.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, match?.mode, match?.lastAnswerResult?.requestId]);
+
+  useEffect(() => {
     if (phase === 'finished') {
       void hapticHeavy();
       playSound('finish');
@@ -205,6 +201,16 @@ export function MatchScreen() {
         </div>
         <div className="w-9" />
       </header>
+
+      {match?.mode === 'solo' && (
+        <div className="solo-leaf-progress" aria-label={`تقدم الورقة: ${soloCorrect} من 3 إجابات صحيحة`}>
+          <div className="solo-leaf-progress-copy"><span>تقدم الورقة</span><strong>{soloCorrect}/3</strong></div>
+          <div className="solo-leaf-progress-track">
+            {[0, 1, 2].map((step) => <span key={step} className={cn('solo-leaf-progress-dot', step < soloCorrect && 'is-filled')} />)}
+          </div>
+          <p>إجابتان صحيحتان تفتحان الورقة التالية</p>
+        </div>
+      )}
 
 
       {server.online === false && (
@@ -321,59 +327,22 @@ export function MatchScreen() {
 
               {(phase === 'playing' || phase === 'round_result') && (
                 <>
-                  {match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0 ? (
-                    <LetterPoolBoard
-                      letters={match.round.challenge.letterPool}
-                      maxLength={match.round.challenge.maxLength}
-                      disabled={phase !== 'playing'}
-                      feedback={phase === 'round_result' ? (match.lastAnswerResult?.outcome === 'correct' ? 'correct' : 'wrong') : null}
-                      onChange={setAnswer}
-                    />
-                  ) : match.round.challenge?.choices && match.round.challenge.choices.length > 0 ? (
-                    <div className="grid gap-2">
-                      {match.round.challenge.choices.filter((c) => !removedChoices.includes(c.id)).map((c) => (
-                        <button
-                          key={c.id}
-                          disabled={phase !== 'playing'}
-                          onClick={() => setSelectedChoice(c.id)}
-                          className={cn(
-                            'rounded-xl border px-4 py-3 text-right transition-all',
-                            selectedChoice === c.id
-                              ? 'border-zatona-500 bg-zatona-500/20 text-white'
-                              : 'border-white/10 bg-white/5 text-white/80 hover:bg-white/10'
-                          )}
-                        >
-                          {c.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      value={active.answer ?? answer}
-                      disabled={phase !== 'playing'}
-                      onChange={(e) => { setAnswer(e.target.value); active.setAnswer(e.target.value); }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                      placeholder="اكتب إجابتك هنا..."
-                      className="input-field text-center text-lg"
-                      dir="rtl"
-                      autoFocus
-                    />
-                  )}
+                  <UnifiedAnswerInput
+                    challenge={match.round.challenge}
+                    value={active.answer ?? answer}
+                    selectedChoice={selectedChoice}
+                    disabled={phase !== 'playing'}
+                    feedback={phase === 'round_result' ? (match.lastAnswerResult?.outcome === 'correct' ? 'correct' : 'wrong') : null}
+                    removedChoiceIds={removedChoices}
+                    onChange={(value) => { setAnswer(value); active.setAnswer(value); }}
+                    onChoiceChange={setSelectedChoice}
+                    onSubmit={handleSubmit}
+                  />
                   {match.round.challenge?.choices && match.round.challenge.choices.length >= 4 && removedChoices.length === 0 && (
                     <button type="button" onClick={() => void handleFiftyFifty()} disabled={lifelineBusy} className="btn-ghost mt-3 w-full text-xs text-gold-300">
                       {lifelineBusy ? 'جاري استخدام المساعدة...' : '50:50 · حذف إجابتين'}
                     </button>
                   )}
-                  {phase === 'playing' && !(match.round.challenge?.letterPool && match.round.challenge.letterPool.length > 0) && <button
-                    onClick={handleSubmit}
-                    disabled={
-                      match.round.challenge?.choices ? !selectedChoice : !(active.answer ?? answer).trim()
-                    }
-                    className="btn-primary mt-4 w-full"
-                  >
-                    إرسال الإجابة
-                  </button>}
                 </>
               )}
 

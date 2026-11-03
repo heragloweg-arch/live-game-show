@@ -65,7 +65,7 @@ export function submitDailyPackSlot(slotId: string, answer: string, responseTime
   if (slotId.startsWith('legacy:')) {
     return submitDailyAnswer(answer, responseTimeMs).then((result) => ({ ...result, ok: true, xpGain: 0, packComplete: true, completed: 1 }));
   }
-  return invoke<{ ok: boolean; correct: boolean; points: number; coinGain: number; xpGain: number; alreadyCompleted?: boolean; packComplete?: boolean; completed?: number; streak: DailyState['streak'] }>({ action: 'submit_slot', slotId, answer, responseTimeMs });
+  return invoke<{ ok: boolean; correct: boolean; points: number; coinGain: number; xpGain: number; alreadyCompleted?: boolean; packComplete?: boolean; perfectPack?: boolean; completed?: number; streak: DailyState['streak'] }>({ action: 'submit_slot', slotId, answer, responseTimeMs });
 }
 export function getTodayDaily(): Promise<DailyState> { return invoke<DailyState>({ action: 'get_today' }); }
 export function submitDailyAnswer(answer: string, responseTimeMs?: number) { return invoke<{ correct: boolean; points: number; coinGain: number; xpGain: number; streak: DailyState['streak']; alreadyCompleted?: boolean }>({ action: 'submit', answer, responseTimeMs }); }

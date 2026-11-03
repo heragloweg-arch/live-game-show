@@ -5,7 +5,7 @@ import confetti from 'canvas-confetti';
 import { cn } from '../../utils/cn';
 import { formatCountdown } from '../../utils/time';
 import { AnswerHint } from '../game/AnswerHint';
-import { LetterPoolBoard } from '../game/LetterPoolBoard';
+import { UnifiedAnswerInput } from '../game/UnifiedAnswerInput';
 import { hasPlayableAnswerContract } from '../../utils/challengeContract';
 import { ChallengeVisual } from '../game/ChallengeVisual';
 import {
@@ -109,13 +109,9 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
     }
   };
 
-  const onSubmit = async () => {
+  const onSubmit = async (submittedValue?: string) => {
     if (!round) return;
-    const value = round.challenge.letterPool?.length
-      ? answer.trim()
-      : round.challenge.choices?.length
-        ? selected ?? ''
-        : answer.trim();
+    const value = submittedValue ?? (round.challenge.choices?.length ? selected ?? '' : answer.trim());
     if (!value) return;
     setSubmitting(true);
     try {
@@ -229,52 +225,17 @@ export function RoomChallengePanel({ roomId, isHost }: Props) {
                   />
                 </div>
 
-                {round.challenge.letterPool?.length ? (
-                  <LetterPoolBoard
-                    letters={round.challenge.letterPool}
-                    maxLength={round.challenge.maxLength}
-                    disabled={submitting}
-                    onChange={setAnswer}
-                  />
-                ) : round.challenge.choices?.length ? (
-                  <div className="grid gap-2">
-                    {round.challenge.choices.map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => setSelected(c.id)}
-                        className={cn(
-                          'rounded-xl border px-3 py-2.5 text-right text-sm transition-all',
-                          selected === c.id
-                            ? 'border-zatona-500 bg-zatona-500/20'
-                            : 'border-white/10 bg-white/5'
-                        )}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <input
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && onSubmit()}
-                    placeholder="إجابتك..."
-                    className="input-field text-center"
-                    dir="rtl"
-                  />
-                )}
-
-                <button
-                  onClick={onSubmit}
-                  disabled={submitting || (round.challenge.letterPool?.length
-                    ? !answer.trim()
-                    : round.challenge.choices?.length
-                      ? !selected
-                      : !answer.trim())}
-                  className="btn-primary mt-3 w-full py-3 text-sm"
-                >
-                  {submitting ? 'جاري الإرسال...' : 'إرسال'}
-                </button>
+                <UnifiedAnswerInput
+                  challenge={round.challenge}
+                  value={answer}
+                  selectedChoice={selected}
+                  disabled={submitting}
+                  feedback={null}
+                  onChange={setAnswer}
+                  onChoiceChange={setSelected}
+                  onSubmit={onSubmit}
+                />
+                {submitting && <p className="mt-3 text-center text-xs text-white/45">جاري التحقق من السيرفر…</p>}
               </>
             )}
 

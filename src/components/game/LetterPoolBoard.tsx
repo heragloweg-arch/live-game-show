@@ -7,13 +7,14 @@ interface Props {
   letters: string[];
   maxLength?: number;
   onChange: (value: string) => void;
+  onComplete?: (value: string) => void;
   disabled?: boolean;
   feedback?: 'correct' | 'wrong' | null;
 }
 
 const DISTRACTORS = 'ابتثجحخدذرزسشصضطظعغفقكلمنهوي';
 
-export function LetterPoolBoard({ letters, maxLength, onChange, disabled, feedback = null }: Props) {
+export function LetterPoolBoard({ letters, maxLength, onChange, onComplete, disabled, feedback = null }: Props) {
   const lettersKey = letters.join('|');
   const answerLetters = useMemo(() => [...letters], [letters]);
   const shuffled = useMemo(() => {
@@ -54,7 +55,9 @@ export function LetterPoolBoard({ letters, maxLength, onChange, disabled, feedba
     if (disabled || picked.length >= limit) return;
     const next = [...picked, id];
     setPicked(next);
-    emit(next);
+    const value = next.map((pid) => shuffled.find((s) => s.id === pid)?.ch ?? '').join('');
+    onChange(value);
+    if (next.length >= limit) onComplete?.(value);
   };
 
   const undo = () => {
@@ -92,6 +95,10 @@ export function LetterPoolBoard({ letters, maxLength, onChange, disabled, feedba
     const next = [...picked, candidate.id];
     setPicked(next);
     emit(next);
+    if (next.length >= limit) {
+      const value = next.map((pid) => shuffled.find((s) => s.id === pid)?.ch ?? '').join('');
+      onComplete?.(value);
+    }
   };
 
   return (
