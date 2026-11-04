@@ -46,7 +46,15 @@ SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY
 
 ## متغير بصمة البناء
 
-عند البناء من GitHub، يوفر Railway المتغير `RAILWAY_GIT_COMMIT_SHA`. يستخدمه `scripts/write-build-info.mjs` لتثبيت بصمة commit داخل `dist/build-info.json` ووسم HTML. لا يحتاج المشروع إلى تثبيت Git داخل صورة runtime. إذا كان النشر بلا Git checkout، يستخدم السكربت بصمة مشتقة من `RAILWAY_DEPLOYMENT_ID` أو `RAILWAY_SNAPSHOT_ID`. وإذا غابت متغيرات Railway كلها، يستخدم بصمة حتمية مشتقة من artifact نفسه مع `fingerprintSource=artifact-content`؛ هذا يمنع فشل البناء من أجل metadata مفقودة، مع عدم تسميتها commit.
+عند البناء من GitHub، يوفر Railway عادةً المتغير `RAILWAY_GIT_COMMIT_SHA`. يستخدمه `scripts/write-build-info.mjs` لتثبيت بصمة commit داخل `dist/build-info.json` ووسم HTML. يقبل السكربت، بالترتيب، `RAILWAY_GIT_COMMIT_SHA` و`RAILWAY_GIT_COMMIT` و`COMMIT_SHA` و`GITHUB_SHA` و`VITE_GIT_COMMIT` و`CI_COMMIT_SHA` ثم `git rev-parse HEAD`. لا يحتاج المشروع إلى تثبيت Git داخل صورة runtime.
+
+إذا كان Railway يستخدم Docker builder، مرّر `RAILWAY_GIT_COMMIT_SHA` و`RAILWAY_GIT_COMMIT` كـBuild Arguments؛ يحتوي `Dockerfile` على `ARG` و`ENV` لذلك. وإذا كان يستخدم Nixpacks، أضف في إعدادات الخدمة ضمن **Variables → Build**:
+
+```dotenv
+RAILWAY_GIT_COMMIT_SHA=${{RAILWAY_GIT_COMMIT_SHA}}
+```
+
+قد تختلف صيغة المرجع الديناميكي بحسب واجهة Railway؛ المهم أن يصل SHA فعليًا إلى مرحلة `npm run build`. إذا غابت كل المصادر، يفشل البناء عمدًا ويرفض إنتاج `artifact-content` كبديل، لأن بصمة المحتوى ليست دليل commit.
 
 ## تشخيص شاشة الحماية
 

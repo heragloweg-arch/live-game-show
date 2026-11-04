@@ -160,13 +160,21 @@ test('content release gate passes the reviewed question bank', () => {
 
 test('Railway build fingerprint accepts the official Git commit variable', () => {
   const buildInfo = readFileSync('scripts/write-build-info.mjs', 'utf8');
+  const dockerfile = readFileSync('Dockerfile', 'utf8');
   const railwayGuide = readFileSync('docs/RAILWAY.md', 'utf8');
   assert.match(buildInfo, /RAILWAY_GIT_COMMIT_SHA/);
+  assert.match(buildInfo, /RAILWAY_GIT_COMMIT/);
+  assert.match(buildInfo, /GITHUB_SHA/);
+  assert.match(buildInfo, /VITE_GIT_COMMIT/);
+  assert.match(buildInfo, /CI_COMMIT_SHA/);
   assert.match(buildInfo, /RAILWAY_DEPLOYMENT_ID/);
   assert.match(buildInfo, /gitCommit/);
   assert.match(buildInfo, /contentFingerprint/);
   assert.doesNotMatch(buildInfo, /fingerprintSource.*artifact-content/);
   assert.match(buildInfo, /fingerprintSource/);
+  assert.match(dockerfile, /ARG RAILWAY_GIT_COMMIT_SHA/);
+  assert.match(dockerfile, /ENV RAILWAY_GIT_COMMIT_SHA=\$RAILWAY_GIT_COMMIT_SHA/);
+  assert.match(dockerfile, /ARG RAILWAY_GIT_COMMIT/);
   assert.match(railwayGuide, /VITE_SUPABASE_URL/);
   assert.match(railwayGuide, /RAILWAY_GIT_COMMIT_SHA/);
 });

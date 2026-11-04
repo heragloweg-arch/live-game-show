@@ -7,6 +7,10 @@ function firstValue(...values) {
   return values.find((value) => typeof value === 'string' && value.trim())?.trim() ?? '';
 }
 
+function firstCommitValue(...values) {
+  return values.find((value) => typeof value === 'string' && value.trim().length >= 7)?.trim() ?? '';
+}
+
 function gitCommit() {
   try {
     return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
@@ -25,11 +29,13 @@ const dist = resolve(root, 'dist');
 const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
 const indexPath = resolve(dist, 'index.html');
 const index = await readFile(indexPath, 'utf8');
-const gitOrBuildCommit = firstValue(
-  process.env.GIT_COMMIT_SHA,
-  process.env.COMMIT_SHA,
-  process.env.SOURCE_VERSION,
+const gitOrBuildCommit = firstCommitValue(
   process.env.RAILWAY_GIT_COMMIT_SHA,
+  process.env.RAILWAY_GIT_COMMIT,
+  process.env.COMMIT_SHA,
+  process.env.GITHUB_SHA,
+  process.env.VITE_GIT_COMMIT,
+  process.env.CI_COMMIT_SHA,
   gitCommit(),
 );
 const railwayCommit = deploymentFingerprint();
