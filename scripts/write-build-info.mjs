@@ -37,27 +37,25 @@ const contentFingerprint = createHash('sha256')
   .update(JSON.stringify({ package: packageJson, index }))
   .digest('hex')
   .slice(0, 40);
-const commit = gitOrBuildCommit || railwayCommit || contentFingerprint;
-const fingerprintSource = gitOrBuildCommit
-  ? 'git-commit'
-  : (railwayCommit ? 'railway-deployment' : 'artifact-content');
-
-if (!/^[0-9a-f]{7,40}$/i.test(commit)) {
-  throw new Error('Build fingerprint generation failed unexpectedly.');
+if (!/^[0-9a-f]{7,40}$/i.test(gitOrBuildCommit)) {
+  throw new Error('Build must provide a real git commit via rev-parse or a CI/Railway commit variable. Refusing artifact-only fingerprint.');
 }
 
 const info = {
   app: 'qaddaha',
   version: packageJson.version,
-  commit,
-  fingerprintSource,
+  commit: gitOrBuildCommit,
+  gitCommit: gitOrBuildCommit,
+  fingerprintSource: 'git-commit',
+  contentFingerprint,
+  ...(railwayCommit ? { deploymentFingerprint: railwayCommit } : {}),
   builtAt: new Date().toISOString(),
 };
 
 await writeFile(resolve(dist, 'build-info.json'), `${JSON.stringify(info, null, 2)}\n`, 'utf8');
-const marker = `<meta name="qaddaha-build" content="${commit}">`;
+const marker = `<meta name="qaddaha-build" content="${gitOrBuildCommit}">`;
 const nextIndex = index.includes('name="qaddaha-build"')
   ? index.replace(/<meta name="qaddaha-build" content="[^"]*"\s*\/?\s*>/, marker)
   : index.replace('</head>', `  ${marker}\n</head>`);
 await writeFile(indexPath, nextIndex, 'utf8');
-console.log(`[qaddaha] build fingerprint: ${commit} (${packageJson.version})`);
+console.log(`[qaddaha] build gitCommit: ${gitOrBuildCommit} (${packageJson.version})`);
