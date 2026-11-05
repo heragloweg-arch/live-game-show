@@ -1,7 +1,11 @@
 
 
-## إصلاح Railway build-info — 4 نوفمبر 2026
+## مراجعة التشغيل والتسليم — 5 نوفمبر 2026
 
-تم دفع commit `40313d8a8caf75f834ad5a33cf5d3dae0a2708b9` إلى `main` لإصلاح فشل Railway: `write-build-info.mjs` يقرأ SHA بالترتيب `RAILWAY_GIT_COMMIT_SHA` ثم `RAILWAY_GIT_COMMIT` ثم `COMMIT_SHA` ثم `GITHUB_SHA` ثم `VITE_GIT_COMMIT` ثم `CI_COMMIT_SHA` ثم Git، و`Dockerfile` يمرر متغيرات Railway كـ`ARG/ENV`. تم اختبار build محليًا مع Git وبدون `.git` باستخدام `RAILWAY_GIT_COMMIT_SHA`، ونجحت typecheck/lint/Vitest 21/21/production gates 50/50.
+Railway أصبح مطابقًا: `/ready` و`/build-info.json` يعيدان commit `fb4d3af4539ae7bbbcd8b56d824552a0bd63560b` الموجود في `origin/main`، مع `fingerprintSource=git-commit` وHTTP 200. بذلك M0 التشغيلي مغلق.
 
-وقت التوثيق، Railway ما زال يعرض `3a37be340f6503798299774c38e603bc3d08867a` و`artifact-content` من deploy قديم. لذلك M0 التشغيلي ما زال `BLOCKED_EXTERNAL` إلى أن ينفذ مالك Railway Redeploy/Clear Build Cache ويظهر SHA `40313d8a...` أو SHA آخر موجود في `origin/main`.
+مراجعة Supabase خلال آخر 24 ساعة أظهرت وظائف اللعب ACTIVE، وطلبات Daily authenticated بحالة 200 وقراءات pack/slots/completions مقيدة بـ`active=true` و`qa_status=approved`. لم يظهر `error/exception/failed` في الاستعلام العام للسجلات. ظهر طلب واحد فقط لمسار `match` بحالة 503 في `2026-11-04T04:41:02Z`، request ID محفوظ في التقرير النهائي؛ لذلك يلزم إعادة اختبار Solo/Match لا تسجيل PASS مطلق.
+
+لم تظهر حركة حية كافية لإثبات رحلة Couple/Room/Host/Tournament كاملة. تبقى E1–E8 في سجل E2E `BLOCKED_EXTERNAL` حتى يوفر المالك حسابات وأجهزة وشبكات اختبار. التقرير الكامل: `docs/FINAL_HANDOFF_REPORT_2026-11-05_AR.md`.
+
+**القرار:** `NO-GO` للنشر العام/المتجر حاليًا؛ M0 مغلق، لكن E2E وAndroid signed AAB وBilling/AdMob/LiveKit ومراجعة RLS الكاملة ما زالت مطلوبة.
