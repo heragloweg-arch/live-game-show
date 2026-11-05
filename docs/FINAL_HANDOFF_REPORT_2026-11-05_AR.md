@@ -3,7 +3,8 @@
 **التاريخ:** 2026-11-05
 **المستودع:** `heragloweg-arch/live-game-show`
 **الفرع:** `main`
-**Commit التسليم:** `fb4d3af4539ae7bbbcd8b56d824552a0bd63560b`
+**Commit main النهائي للتسليم:** يثبته `DELIVERY_MANIFEST_AR.md` داخل الحزمة.
+**Commit Railway المنشور والمثبت حيًا:** `fb4d3af4539ae7bbbcd8b56d824552a0bd63560b`
 **Supabase:** `jwhrbadnirwjyinplbmn`
 **Railway:** `https://live-game-show-production-317b.up.railway.app/`
 
