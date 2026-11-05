@@ -139,7 +139,9 @@ async function pickChallenges(supabase: any, count: number, difficulty?: string,
       .from('challenges')
       .select('id, type, subtype, prompt, difficulty, time_limit_ms, letter_pool, max_length, asset_path, weight')
       .eq('active', true)
-      .eq('qa_status', 'approved');
+      .eq('qa_status', 'approved')
+      .not('letter_pool', 'is', null)
+      .not('max_length', 'is', null);
     if (requestedDifficulty && ['easy', 'normal', 'hard'].includes(requestedDifficulty)) {
       query = query.eq('difficulty', requestedDifficulty);
     }
@@ -426,14 +428,34 @@ async function nextRound(supabase: any, matchId: string, userId: string) {
   const match = notFin.match;
 
   const aiScoreDelta = await calculateAiRoundScore(supabase, matchId, match.current_round);
-  const { data: result, error: advanceErr } = await supabase.rpc('advance_match_round', {
+  let { data: result, error: advanceErr } = await supabase.rpc('advance_match_round', {
     p_match_id: matchId,
     p_expected_round: match.current_round,
     p_ai_score_delta: aiScoreDelta,
   });
   if (advanceErr) {
-    console.error('[next_round] atomic advance', advanceErr);
-    return json({ error: 'تعذر تثبيت انتقال الجولة ذرياً، أعد المحاولة', code: 'ROUND_ADVANCE_UNAVAILABLE' }, 503);
+    console.error('[next_round] atomic advance failed; retrying once', {
+      message: advanceErr.message,
+      code: (advanceErr as any).code,
+      details: (advanceErr as any).details,
+      hint: (advanceErr as any).hint,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    const retry = await supabase.rpc('advance_match_round', {
+      p_match_id: matchId,
+      p_expected_round: match.current_round,
+      p_ai_score_delta: aiScoreDelta,
+    });
+    if (retry.error) {
+      console.error('[next_round] atomic advance retry failed', {
+        message: retry.error.message,
+        code: (retry.error as any).code,
+        details: (retry.error as any).details,
+        hint: (retry.error as any).hint,
+      });
+      return json({ error: 'تعذر تثبيت انتقال الجولة ذرياً، أعد المحاولة', code: 'ROUND_ADVANCE_UNAVAILABLE', retryable: true }, 503);
+    }
+    result = retry.data;
   }
 
   const row = Array.isArray(result) ? result[0] : result;

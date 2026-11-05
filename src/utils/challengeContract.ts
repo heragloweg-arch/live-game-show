@@ -19,13 +19,12 @@ export function getAnswerLength(challenge: ChallengeContractView): number | null
 
 export function hasPlayableAnswerContract(challenge: ChallengeContractView): boolean {
   if (!challenge.prompt?.trim() || challenge.prompt.trim().length < 8) return false;
-  if (challenge.choices?.length) return challenge.choices.length >= 2 && challenge.choices.every((choice) => Boolean(choice?.label?.trim()));
-  if (lettersOf(challenge)?.length) return Boolean(getAnswerLength(challenge));
-  // Open answers are validated server-side; they still require a valid prompt.
-  return true;
+  // قدها uses one golden-path interaction: compose the answer from letters.
+  // Choices and free text are not playable until migrated to this contract.
+  return Boolean(lettersOf(challenge)?.length && getAnswerLength(challenge));
 }
 
 export function answerHint(challenge: ChallengeContractView): string {
   const length = getAnswerLength(challenge);
-  return length ? `الإجابة من ${length} ${length === 1 ? 'حرف' : 'أحرف'}` : 'أجب بكلمة أو عبارة قصيرة';
+  return length ? `الإجابة من ${length} ${length === 1 ? 'حرف' : 'أحرف'}` : 'تكوين الإجابة من الحروف';
 }

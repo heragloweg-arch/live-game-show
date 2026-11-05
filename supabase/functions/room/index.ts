@@ -175,6 +175,8 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
     .eq('active', true)
     .eq('qa_status', 'approved')
     .eq('difficulty', room.difficulty ?? 'normal')
+    .not('letter_pool', 'is', null)
+    .not('max_length', 'is', null)
     .limit(240);
 
   if (!pool?.length) return json({ error: 'No challenges in bank' }, 500);

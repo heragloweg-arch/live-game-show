@@ -66,6 +66,8 @@ serveWithCors(async (req) => {
         .eq('challenge_date', day)
         .eq('challenge.active', true)
         .eq('challenge.qa_status', 'approved')
+        .not('challenge.letter_pool', 'is', null)
+        .not('challenge.max_length', 'is', null)
         .maybeSingle();
 
       if (!daily) {
@@ -74,6 +76,8 @@ serveWithCors(async (req) => {
           .select('id')
           .eq('active', true)
           .eq('qa_status', 'approved')
+          .not('letter_pool', 'is', null)
+          .not('max_length', 'is', null)
           .limit(80);
         if (!pool?.length) return json({ error: 'No challenges' }, 500);
         // Deterministic pick by date
@@ -206,7 +210,7 @@ serveWithCors(async (req) => {
     if (action === 'get_pack') {
       let { data: pack } = await supabase.from('daily_packs').select('*').eq('pack_date', day).eq('active', true).maybeSingle();
       if (!pack) {
-        const { data: pool } = await supabase.from('challenges').select('id').eq('active', true).eq('qa_status', 'approved').limit(120);
+        const { data: pool } = await supabase.from('challenges').select('id').eq('active', true).eq('qa_status', 'approved').not('letter_pool', 'is', null).not('max_length', 'is', null).limit(120);
         if (!pool || pool.length < 3) return json({ error: 'Not enough production challenges' }, 500);
         let hash = 0;
         for (const ch of day) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
@@ -227,6 +231,8 @@ serveWithCors(async (req) => {
         .eq('pack_id', pack.id)
         .eq('challenge.active', true)
         .eq('challenge.qa_status', 'approved')
+        .not('challenge.letter_pool', 'is', null)
+        .not('challenge.max_length', 'is', null)
         .order('slot_number');
       if (slotsErr) return json({ error: slotsErr.message }, 500);
       const { data: completed } = await supabase.from('daily_pack_completions').select('slot_id,outcome,points').eq('user_id', user.id).eq('pack_id', pack.id);

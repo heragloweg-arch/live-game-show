@@ -199,13 +199,14 @@ test('auth cannot remain pending forever and mobile auth is width-safe', () => {
   assert.match(styles, /\.auth-page \{ place-items: start center; padding:/);
 });
 
-test('flag content is bundled and mixed challenge selection accepts choice questions', () => {
+test('flag content is bundled and every production challenge uses the letter contract', () => {
   const match = readFileSync('supabase/functions/match/index.ts', 'utf8');
   const room = readFileSync('supabase/functions/room/index.ts', 'utf8');
   const flagMigration = readFileSync('supabase/migrations/20261019070000_flag_identification_content.sql', 'utf8');
   const choiceApproval = readFileSync('supabase/migrations/20261019070001_choice_content_approval.sql', 'utf8');
   assert.doesNotMatch(match, /Array\.isArray\(c\.letter_pool\).*c\.letter_pool\.length/);
-  assert.doesNotMatch(room, /\.not\('letter_pool',\s*'is',\s*null\)/);
+  assert.match(match, /\.not\('letter_pool',\s*'is',\s*null\)/);
+  assert.match(room, /\.not\('letter_pool',\s*'is',\s*null\)/);
   assert.match(match, /challenge_choices/);
   assert.match(room, /challenge_choices/);
   assert.match(flagMigration, /asset_path/);
