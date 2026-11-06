@@ -180,3 +180,12 @@ execution=618ms
 - كامل مصدر المشروع، migrations، Edge Functions، Android، و`dist` في الحزمة المضغوطة.
 
 **الخلاصة:** Railway وSupabase يعطون أدلة تشغيلية جيدة وM0 مغلق، لكن المنتج ليس جاهزًا لإعلان متجر أو منافسة عامة حتى يُعاد اختبار 503 في Match وتُنفذ E1–E8 وAndroid/Billing/AdMob/LiveKit بحسابات وأجهزة حقيقية.
+
+
+## ملحق تحقق 6 نوفمبر 2026
+
+أُعيد نشر وظائف `match` و`daily` و`room` من `main` إلى مشروع Supabase `jwhrbadnirwjyinplbmn` باستخدام نشر ناجح موثق: `match` ACTIVE/v39، `daily` ACTIVE/v31، و`room` ACTIVE/v19. من نطاق Railway، أعادت OPTIONS لهذه الوظائف HTTP 200، وأعادت الطلبات غير المصرح بها HTTP 401.
+
+Migration `unify_letter_answer_contract` مسجلة حيًا برقم `20261105030750`، وأظهر فحص قاعدة البيانات 533 سؤالًا active/approved، مع `invalid_letter_contract=0`. أصبحت الواجهة ومسارات `Daily` و`Solo/Match` و`Room` على عقد الحروف فقط، وأزيلت خلفية صورة الشجرة القديمة وعناصر الجذع/الجذور القديمة واستُبدلت بتصميم فروع وتاج CSS.
+
+Railway يثبت حاليًا commit `934fad367273c1f68bf070c79832799fb58cb4db` عبر `/ready` و`/build-info.json`، مع HTTP 200 و`fingerprintSource=git-commit`. هذه الأدلة تغلق الإصلاح التقني الحالي، لكنها لا تحول E2E الخارجي أو توقيع Android أو Billing/AdMob/LiveKit إلى PASS؛ الحكم التشغيلي يبقى `NO-GO` حتى ينفذ المالك اختبارات الأدوار والأجهزة الحقيقية.
