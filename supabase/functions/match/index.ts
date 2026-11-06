@@ -427,6 +427,13 @@ async function nextRound(supabase: any, matchId: string, userId: string) {
   if (!notFin.ok) return json({ error: notFin.error }, notFin.status);
   const match = notFin.match;
 
+  // A second tap, realtime echo, or React effect must not close the next
+  // pending round before the first caller starts it. Return the authoritative
+  // state and let the caller invoke start_round idempotently.
+  if (match.status === 'ROUND_STARTING') {
+    return json({ match: await buildMatchState(supabase, matchId, userId), advanced: true, alreadyAdvanced: true });
+  }
+
   const aiScoreDelta = await calculateAiRoundScore(supabase, matchId, match.current_round);
   let { data: result, error: advanceErr } = await supabase.rpc('advance_match_round', {
     p_match_id: matchId,

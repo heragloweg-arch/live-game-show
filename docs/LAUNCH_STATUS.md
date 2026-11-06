@@ -11,3 +11,14 @@
 - البوابات المحلية بعد الإصلاح: typecheck وlint وVitest وproduction gates وbuild و`git diff --check` ناجحة.
 
 لم يُسجل PASS ميداني نهائي لرحلة Solo أو Daily من جهاز مالك بعد هذا الإصلاح؛ يلزم إعادة السيناريو على Railway مع حفظ `match_id` وrequest IDs. قرار الإطلاق يبقى `NO-GO` حتى إغلاق E2E الخارجي وبقية Android/Billing/AdMob/LiveKit.
+
+## دفعة انتقال Solo وتصميم الشجرة — 7 نوفمبر 2026
+
+- أضيف قفل عميل في `useServerMatch` يمنع استدعاء `next_round` المتزامن من النقر المكرر أو تحديث Realtime.
+- أضيف حارس idempotent في Edge Function `match`: إذا كانت المباراة بالفعل في `ROUND_STARTING` يعاد state الخادمي بدل إغلاق الجولة التالية مرة أخرى.
+- نُشرت Edge Function `match` على Supabase Staging بنجاح، وأصبح الإصدار الحي `v41`. اختبار مجهول مباشر أعاد `401`.
+- أُعيد تصميم Solo بصريًا عبر CSS حقيقي: تاج أوراق، جذع متدرج، جذور وفروع جانبية وأوراق مراحل؛ بلا صورة شجرة أو تصميم أعواد منفصل.
+- البوابات المحلية لهذه الدفعة ناجحة: typecheck وlint وVitest وproduction gates وbuild و`git diff --check`.
+- تحقق Railway الحالي: `/health` = 200 و`/ready` = 200، لكن البصمة الحية وقت التوثيق هي commit `b13b6fc67e652989ecc2032a4042f34c9ca982a5` وليست بعد commit هذه الدفعة؛ يلزم انتظار مزامنة Railway ثم إعادة فحصها.
+
+الحكم لا يزال `NO-GO`: لا يوجد PASS ميداني نهائي بعد لسيناريو Solo سؤال 1→2 أو الغرف، ولا يجوز إعلان جاهزية متجر قبل إغلاق E2E الخارجي وبقية Android/Billing/AdMob/LiveKit.

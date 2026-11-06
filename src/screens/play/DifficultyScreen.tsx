@@ -58,9 +58,12 @@ export function DifficultyScreen() {
       </section>
 
       <section className="tree-stage" aria-label="شجرة مراحل Solo">
-        <div className="tree-canopy" aria-hidden="true" />
+        <div className="tree-canopy" aria-hidden="true"><span /><span /><span /><span /></div>
+        <div className="tree-trunk" aria-hidden="true"><i /><i /><i /></div>
+        <div className="tree-roots" aria-hidden="true"><i /><i /><i /><i /></div>
         {BRANCHES.map((branch, branchIndex) => (
           <section key={branch.number} className={`tree-branch tree-branch-${branchIndex % 2 ? 'left' : 'right'}`}>
+            <div className="tree-branch-stem" aria-hidden="true" />
             <div className="tree-branch-label"><span className="tree-branch-number">{branch.number}</span><span><small>الغصن {branch.number}</small><strong>{branch.title}</strong></span></div>
             <div className="tree-leaves-grid">
               {branch.leaves.map((leaf) => {

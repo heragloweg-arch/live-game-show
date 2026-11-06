@@ -52,6 +52,7 @@ export function useServerMatch() {
   const [answer, setAnswer] = useState('');
   const stopRealtimeRef = useRef<(() => void) | null>(null);
   const localTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nextRoundInFlightRef = useRef(false);
 
   const clearTimers = () => {
     if (localTimerRef.current) clearInterval(localTimerRef.current);
@@ -220,7 +221,8 @@ export function useServerMatch() {
 
   const goNextRound = useCallback(async () => {
     const current = useMatchStore.getState().match;
-    if (!current) return;
+    if (!current || nextRoundInFlightRef.current) return;
+    nextRoundInFlightRef.current = true;
 
     setError(null);
     try {
@@ -259,6 +261,8 @@ export function useServerMatch() {
       }
       setError(e instanceof Error ? e.message : String(e));
       setPhase('error');
+    } finally {
+      nextRoundInFlightRef.current = false;
     }
   }, [setMatch, startLocalCountdown]);
 
@@ -282,6 +286,7 @@ export function useServerMatch() {
 
   const reset = useCallback(() => {
     clearTimers();
+    nextRoundInFlightRef.current = false;
     clearMatch();
     setPhase('idle');
     setError(null);
