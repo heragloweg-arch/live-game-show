@@ -1,23 +1,13 @@
 
 
-## مراجعة التشغيل والتسليم — 5 نوفمبر 2026
+## إصلاح Daily وSolo — 6 نوفمبر 2026
 
-Railway أصبح مطابقًا: `/ready` و`/build-info.json` يعيدان commit `fb4d3af4539ae7bbbcd8b56d824552a0bd63560b` الموجود في `origin/main`، مع `fingerprintSource=git-commit` وHTTP 200. بذلك M0 التشغيلي مغلق.
+- كشف سجل Postgres سبب HTTP 503 في `match`: خطأ SQLSTATE `42702` داخل `advance_match_round` بسبب غموض `user_id` في `COUNT(DISTINCT user_id)`. تم إصلاحه بتأهيل الأعمدة (`s.user_id`) مع إبقاء صلاحية RPC مقتصرة على `service_role`.
+- فحص pack الحالي كشف فسادًا حقيقيًا في المحتوى: سؤال «كاتب الأيام؟» كان يعرض حروف «تفاح» ويحمل 34 إجابة غير مرتبطة. تم تصحيح محطات رحلة اليوم الثلاث في migration ذرية:
+  - «كاتب «الأيام»؟» ← «طه حسين» وحروف `ط ه ح س ي ن`.
+  - «اسم ولد يبدأ بحرف ك (4 أحرف)» ← «كريم».
+  - «كوّن كلمة من: ح ب» ← «حب».
+- تحقق Supabase بعد التطبيق: المحطات الثلاث تعرض prompt/letter_pool/max_length/accepted_answer متطابقة، وRPC الانتقال يعرض `qualified_count > 0` مع `anon_exec=false` و`authenticated_exec=false`.
+- البوابات المحلية بعد الإصلاح: typecheck وlint وVitest وproduction gates وbuild و`git diff --check` ناجحة.
 
-مراجعة Supabase خلال آخر 24 ساعة أظهرت وظائف اللعب ACTIVE، وطلبات Daily authenticated بحالة 200 وقراءات pack/slots/completions مقيدة بـ`active=true` و`qa_status=approved`. لم يظهر `error/exception/failed` في الاستعلام العام للسجلات. ظهر طلب واحد فقط لمسار `match` بحالة 503 في `2026-11-04T04:41:02Z`، request ID محفوظ في التقرير النهائي؛ لذلك يلزم إعادة اختبار Solo/Match لا تسجيل PASS مطلق.
-
-لم تظهر حركة حية كافية لإثبات رحلة Couple/Room/Host/Tournament كاملة. تبقى E1–E8 في سجل E2E `BLOCKED_EXTERNAL` حتى يوفر المالك حسابات وأجهزة وشبكات اختبار. التقرير الكامل: `docs/FINAL_HANDOFF_REPORT_2026-11-05_AR.md`.
-
-**القرار:** `NO-GO` للنشر العام/المتجر حاليًا؛ M0 مغلق، لكن E2E وAndroid signed AAB وBilling/AdMob/LiveKit ومراجعة RLS الكاملة ما زالت مطلوبة.
-
-
-## تحقق حي لاحق — 6 نوفمبر 2026
-
-- Commit Railway المثبت عبر `/ready` و`/build-info.json`: `934fad367273c1f68bf070c79832799fb58cb4db`، `fingerprintSource=git-commit`، وHTTP 200.
-- `/health` أعاد `qaddaha-web` وHTTP 200. صفحة الإنتاج تحمل `env-config.js` وأصولًا مبنية، ولا تسرب `/src/main.tsx`.
-- Supabase `jwhrbadnirwjyinplbmn`: `match` ACTIVE/v39، `daily` ACTIVE/v31، `room` ACTIVE/v19.
-- CORS من نطاق Railway نجح لـ`match` و`daily` و`room`، والطلبات بلا JWT رُفضت بـ401.
-- Migration الحية `20261105030750_unify_letter_answer_contract` موجودة. عدد الأسئلة active/approved هو 533، وعدد الأسئلة ذات عقد حروف غير صالح هو 0.
-- فحص سجلات الوظائف الثلاث بعد النشر لم يُرجع صفوفًا قابلة للتصنيف ضمن الاستعلام المستخدم؛ لا أعتبر ذلك إثبات E2E أو PASS للرحلات الكاملة.
-
-**الحالة:** إصلاح عقد الإجابة ونشره مكتملان تقنيًا، لكن E2E بحسابات حقيقية وAndroid/Billing/AdMob/LiveKit ما زالت BLOCKED_EXTERNAL؛ القرار NO-GO لم يتغير.
+لم يُسجل PASS ميداني نهائي لرحلة Solo أو Daily من جهاز مالك بعد هذا الإصلاح؛ يلزم إعادة السيناريو على Railway مع حفظ `match_id` وrequest IDs. قرار الإطلاق يبقى `NO-GO` حتى إغلاق E2E الخارجي وبقية Android/Billing/AdMob/LiveKit.

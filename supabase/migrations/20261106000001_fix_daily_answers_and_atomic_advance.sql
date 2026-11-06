@@ -1,0 +1,138 @@
+-- Correct corrupted Daily fixtures and remove the ambiguous SQL reference that
+-- caused Solo's atomic round transition to return 503 (SQLSTATE 42702).
+
+-- The current pack contained three corrupted challenge/answer bundles. Replace
+-- them with explicit, closed-answer contracts; the answer key stays server-only.
+UPDATE public.challenges
+SET prompt = 'كاتب «الأيام»؟',
+    letter_pool = ARRAY['ط','ه','ح','س','ي','ن']::text[],
+    max_length = 6,
+    active = true,
+    qa_status = 'approved'
+WHERE id = 'a0000001-0a12-4000-8000-000000000027'::uuid;
+
+DELETE FROM public.challenge_answers
+WHERE challenge_id = 'a0000001-0a12-4000-8000-000000000027'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer)
+VALUES ('a0000001-0a12-4000-8000-000000000027'::uuid, 'طه حسين', 'طهحسين');
+
+UPDATE public.challenges
+SET prompt = 'اسم ولد يبدأ بحرف ك (4 أحرف)',
+    letter_pool = ARRAY['ك','ر','ي','م']::text[],
+    max_length = 4,
+    active = true,
+    qa_status = 'approved'
+WHERE id = 'd26d5004-11a9-487c-bc25-4a51e7f47d43'::uuid;
+
+DELETE FROM public.challenge_answers
+WHERE challenge_id = 'd26d5004-11a9-487c-bc25-4a51e7f47d43'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer)
+VALUES ('d26d5004-11a9-487c-bc25-4a51e7f47d43'::uuid, 'كريم', 'كريم');
+
+UPDATE public.challenges
+SET prompt = 'كوّن كلمة من: ح ب',
+    letter_pool = ARRAY['ح','ب']::text[],
+    max_length = 2,
+    active = true,
+    qa_status = 'approved'
+WHERE id = '3c4ecf86-4e83-ac90-8339-c88d0355719f'::uuid;
+
+DELETE FROM public.challenge_answers
+WHERE challenge_id = '3c4ecf86-4e83-ac90-8339-c88d0355719f'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer)
+VALUES ('3c4ecf86-4e83-ac90-8339-c88d0355719f'::uuid, 'حب', 'حب');
+
+CREATE OR REPLACE FUNCTION public.advance_match_round(
+  p_match_id UUID,
+  p_expected_round INTEGER,
+  p_ai_score_delta INTEGER DEFAULT 0
+)
+RETURNS TABLE (
+  ok BOOLEAN,
+  code TEXT,
+  round_id UUID,
+  current_round INTEGER,
+  status public.match_status,
+  sequence INTEGER,
+  advanced BOOLEAN
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_match public.matches%ROWTYPE;
+  v_round public.rounds%ROWTYPE;
+  v_human_count INTEGER;
+  v_submission_count INTEGER;
+  v_next_round INTEGER;
+  v_now TIMESTAMPTZ := clock_timestamp();
+  v_ai_delta INTEGER := LEAST(GREATEST(COALESCE(p_ai_score_delta, 0), 0), 1000);
+BEGIN
+  IF p_match_id IS NULL OR p_expected_round IS NULL THEN
+    RETURN QUERY SELECT false, 'INVALID_ARGUMENT', NULL::UUID, NULL::INTEGER, NULL::public.match_status, NULL::INTEGER, false; RETURN;
+  END IF;
+
+  SELECT m.* INTO v_match FROM public.matches AS m WHERE m.id = p_match_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, 'MATCH_NOT_FOUND', NULL::UUID, NULL::INTEGER, NULL::public.match_status, NULL::INTEGER, false; RETURN;
+  END IF;
+  IF v_match.status IN ('MATCH_FINISHED', 'FINAL_RESULT', 'MATCH_TERMINATED') THEN
+    RETURN QUERY SELECT false, 'MATCH_FINISHED', NULL::UUID, v_match.current_round, v_match.status, v_match.sequence, false; RETURN;
+  END IF;
+  IF v_match.current_round <> p_expected_round THEN
+    RETURN QUERY SELECT false, 'STALE_ROUND', NULL::UUID, v_match.current_round, v_match.status, v_match.sequence, false; RETURN;
+  END IF;
+
+  SELECT r.* INTO v_round
+  FROM public.rounds AS r
+  WHERE r.match_id = p_match_id AND r.round_number = p_expected_round
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT false, 'ROUND_NOT_FOUND', NULL::UUID, v_match.current_round, v_match.status, v_match.sequence, false; RETURN;
+  END IF;
+  IF v_round.status = 'finished' THEN
+    RETURN QUERY SELECT false, 'ROUND_ALREADY_FINISHED', v_round.id, v_match.current_round, v_match.status, v_match.sequence, false; RETURN;
+  END IF;
+
+  SELECT COUNT(*)::INTEGER INTO v_human_count
+  FROM public.match_participants AS mp
+  WHERE mp.match_id = p_match_id AND COALESCE(mp.is_ai, false) = false AND mp.user_id IS NOT NULL;
+
+  SELECT COUNT(DISTINCT s.user_id)::INTEGER INTO v_submission_count
+  FROM public.answer_submissions AS s
+  WHERE s.round_id = v_round.id AND s.user_id IS NOT NULL;
+
+  IF (v_round.server_end_at IS NULL OR v_round.server_end_at > v_now) AND v_submission_count < v_human_count THEN
+    RETURN QUERY SELECT false, 'ROUND_NOT_READY', v_round.id, v_match.current_round, v_match.status, v_match.sequence, false; RETURN;
+  END IF;
+
+  IF NOT COALESCE(v_round.ai_score_applied, false) AND EXISTS (
+    SELECT 1 FROM public.match_participants AS ai_mp
+    WHERE ai_mp.match_id = p_match_id AND COALESCE(ai_mp.is_ai, false) = true
+  ) THEN
+    UPDATE public.match_participants AS mp
+    SET score = COALESCE(mp.score, 0) + v_ai_delta
+    WHERE mp.match_id = p_match_id AND COALESCE(mp.is_ai, false) = true;
+    UPDATE public.rounds AS r SET ai_score_applied = true WHERE r.id = v_round.id;
+  END IF;
+
+  UPDATE public.rounds AS r SET status = 'finished', sequence = COALESCE(r.sequence, 0) + 1 WHERE r.id = v_round.id;
+  v_next_round := v_match.current_round + 1;
+
+  IF v_next_round > v_match.total_rounds THEN
+    UPDATE public.matches AS m
+    SET status = 'MATCH_FINISHED', sequence = COALESCE(m.sequence, 0) + 1, server_now = v_now, ended_at = COALESCE(m.ended_at, v_now)
+    WHERE m.id = p_match_id;
+    RETURN QUERY SELECT true, 'MATCH_FINISHED', v_round.id, v_match.current_round + 1, 'MATCH_FINISHED'::public.match_status, v_match.sequence + 1, true; RETURN;
+  END IF;
+
+  UPDATE public.matches AS m
+  SET current_round = v_next_round, status = 'ROUND_STARTING', sequence = COALESCE(m.sequence, 0) + 1, server_now = v_now
+  WHERE m.id = p_match_id;
+  RETURN QUERY SELECT true, 'ADVANCED', v_round.id, v_next_round, 'ROUND_STARTING'::public.match_status, v_match.sequence + 1, true;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.advance_match_round(UUID, INTEGER, INTEGER) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.advance_match_round(UUID, INTEGER, INTEGER) TO service_role;
