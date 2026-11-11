@@ -1,0 +1,13 @@
+UPDATE public.challenges AS c SET active = false, qa_status = 'needs_review', disabled_reason = 'quarantined: answer bundle exceeds 10 entries; content review required', updated_at = now() WHERE c.active = true AND c.qa_status = 'approved' AND c.id NOT IN ('a0000001-0a12-4000-8000-000000000001'::uuid,'a0000001-0a12-4000-8000-000000000031'::uuid,'4f494a1e-9fcc-4807-9ee9-43053e282c05'::uuid) AND (SELECT count(*) FROM public.challenge_answers a WHERE a.challenge_id = c.id) > 10;
+UPDATE public.challenges SET prompt = '🌙 + ⭐ في رمضان غالباً؟', letter_pool = ARRAY['م','ا','ء']::text[], max_length = 3, active = true, qa_status = 'approved', disabled_reason = NULL, updated_at = now() WHERE id = 'a0000001-0a12-4000-8000-000000000031'::uuid;
+DELETE FROM public.challenge_answers WHERE challenge_id = 'a0000001-0a12-4000-8000-000000000031'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer) VALUES ('a0000001-0a12-4000-8000-000000000031'::uuid, 'ماء', 'ماء');
+UPDATE public.challenges SET prompt = 'اسم ولد يبدأ بحرف ك (4 أحرف)', letter_pool = ARRAY['ك','ر','ي','م']::text[], max_length = 4, active = true, qa_status = 'approved', disabled_reason = NULL, updated_at = now() WHERE id = 'd26d5004-11a9-487c-bc25-4a51e7f47d43'::uuid;
+DELETE FROM public.challenge_answers WHERE challenge_id = 'd26d5004-11a9-487c-bc25-4a51e7f47d43'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer) VALUES ('d26d5004-11a9-487c-bc25-4a51e7f47d43'::uuid, 'كريم', 'كريم');
+UPDATE public.challenges SET prompt = 'فاكهة بحرف ت (اختر: تين)', letter_pool = ARRAY['ت','ي','ن']::text[], max_length = 3, active = true, qa_status = 'approved', disabled_reason = NULL, updated_at = now() WHERE id = '4f494a1e-9fcc-4807-9ee9-43053e282c05'::uuid;
+DELETE FROM public.challenge_answers WHERE challenge_id = '4f494a1e-9fcc-4807-9ee9-43053e282c05'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer) VALUES ('4f494a1e-9fcc-4807-9ee9-43053e282c05'::uuid, 'تين', 'تين');
+UPDATE public.challenges SET prompt = 'فيلم مصري: «الكبير أوي» بطولة؟', letter_pool = ARRAY['أ','ح','م','د','م','ك','ي']::text[], max_length = 7, active = true, qa_status = 'approved', disabled_reason = NULL, updated_at = now() WHERE id = 'a0000001-0a12-4000-8000-000000000001'::uuid;
+DELETE FROM public.challenge_answers WHERE challenge_id = 'a0000001-0a12-4000-8000-000000000001'::uuid;
+INSERT INTO public.challenge_answers (challenge_id, accepted_answer, normalized_answer) VALUES ('a0000001-0a12-4000-8000-000000000001'::uuid, 'أحمد مكي', 'احمدمكي');

@@ -140,6 +140,10 @@ export interface MatchState {
   sequence: number;
   currentRound: number;
   totalRounds: number;
+  /** Server-derived correct answers for the current Solo leaf. */
+  soloCorrectCount?: number;
+  soloRequiredCorrect?: number;
+  soloLeafQuestions?: number;
   player: {
     id: string;
     username: string;

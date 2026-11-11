@@ -10,6 +10,10 @@ const handler = await readFile(
   new URL('../supabase/functions/match/index.ts', import.meta.url),
   'utf8'
 );
+const answerHandler = await readFile(
+  new URL('../supabase/functions/answer/index.ts', import.meta.url),
+  'utf8'
+);
 
 test('atomic round migration owns the match and round transition', () => {
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.advance_match_round/);
@@ -31,6 +35,21 @@ test('match Edge Function delegates next_round to the atomic RPC', () => {
   assert.doesNotMatch(nextRound, /\.from\('rounds'\)\.update/);
   assert.match(nextRound, /ROUND_NOT_READY/);
   assert.match(nextRound, /STALE_ROUND/);
+});
+
+test('answer Edge Function leaves score ownership inside submit_answer_atomic', () => {
+  assert.match(answerHandler, /persistAnswer\(supabase/);
+  assert.doesNotMatch(answerHandler, /from\('match_participants'\)[\s\S]*\.update\(/);
+  assert.doesNotMatch(answerHandler, /status:\s*'ANSWER_SUBMITTED'/);
+});
+
+test('finish action refuses to settle an in-progress match', () => {
+  const finishStart = handler.indexOf('async function finishMatch(');
+  assert.ok(finishStart >= 0);
+  const finish = handler.slice(finishStart, finishStart + 2200);
+  assert.match(finish, /MATCH_NOT_READY/);
+  assert.match(finish, /MATCH_FINISHED/);
+  assert.match(finish, /FINAL_RESULT/);
 });
 
 const soloMigration = await readFile(
