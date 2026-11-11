@@ -12,3 +12,8 @@ export function getFunctionsUrl(functionName?: string): string {
   const base = `${getSupabaseUrl()}/functions/v1`;
   return functionName ? `${base}/${functionName}` : base;
 }
+
+export function getSpaceLoungeWorkerUrl(): string {
+  const base = runtimeEnv?.VITE_SPACE_LOUNGE_WORKER_URL || import.meta.env.VITE_SPACE_LOUNGE_WORKER_URL || '';
+  return base.replace(/\/$/, '');
+}

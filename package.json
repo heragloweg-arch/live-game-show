@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "قدها — Soft-Launch Candidate (Arabic live challenge game)",
+  "packageManager": "npm@10.9.9",
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/write-build-info.mjs",
@@ -65,6 +66,7 @@
     "react-router": "7.18.4",
     "react-router-dom": "7.18.4",
     "tailwind-merge": "^2.5.3",
+    "three": "0.187.0",
     "zustand": "^5.0.0"
   },
   "devDependencies": {
@@ -73,6 +75,7 @@
     "@types/canvas-confetti": "^1.6.4",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
+    "@types/three": "0.187.0",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.12.0",

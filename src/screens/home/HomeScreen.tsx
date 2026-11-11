@@ -150,6 +150,25 @@ export function HomeScreen() {
           <span className="hero-score">+250 XP</span>
         </motion.section>
 
+        <motion.section variants={item}>
+          <Link
+            to="/space-lounge"
+            className="group relative flex items-center gap-4 overflow-hidden rounded-[24px] border border-cyan-200/20 bg-gradient-to-l from-cyan-400/[0.11] via-indigo-400/[0.07] to-white/[0.02] p-4 transition duration-200 hover:-translate-y-0.5 hover:border-cyan-200/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200"
+          >
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 shadow-[0_0_28px_rgba(103,230,220,0.12)]">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="eyebrow text-cyan-100/70">مساحة اجتماعية · خارج المنافسة</span>
+              <span className="mt-1 block font-display text-lg font-black text-white">استراحة الفضاء</span>
+              <span className="mt-1 block text-xs leading-5 text-white/45">شخصيتك تدخل العالم — دون نقاط أو تأثير على نتيجة التحدي.</span>
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-cyan-100/80">
+              استكشف <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            </span>
+          </Link>
+        </motion.section>
+
         <motion.section variants={item} className="level-card">
           <div className="flex items-center justify-between">
             <div>

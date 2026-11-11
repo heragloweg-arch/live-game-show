@@ -1,0 +1,17 @@
+{
+  "name": "qaddaha-space-lounge-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "npm@10.9.9",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "tiktok-live-connector": "2.5.0"
+  }
+}
