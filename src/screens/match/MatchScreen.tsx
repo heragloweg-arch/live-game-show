@@ -53,6 +53,9 @@ export function MatchScreen() {
   const [lifelineBusy, setLifelineBusy] = useState(false);
   const [soloCorrect, setSoloCorrect] = useState(0);
   const countedAnswerRef = useRef<string | null>(null);
+  const displayedSoloCorrect = match?.mode === 'solo'
+    ? (match.soloCorrectCount ?? soloCorrect)
+    : soloCorrect;
 
   useEffect(() => {
     if (abandonTimerRef.current) {
@@ -203,12 +206,12 @@ export function MatchScreen() {
       </header>
 
       {match?.mode === 'solo' && (
-        <div className="solo-leaf-progress" aria-label={`تقدم الورقة: ${soloCorrect} من 3 إجابات صحيحة`}>
-          <div className="solo-leaf-progress-copy"><span>تقدم الورقة</span><strong>{soloCorrect}/3</strong></div>
+        <div className="solo-leaf-progress" aria-label={`تقدم الورقة: ${displayedSoloCorrect} من ${match.soloLeafQuestions ?? 3} إجابات صحيحة`}>
+          <div className="solo-leaf-progress-copy"><span>تقدم الورقة</span><strong>{displayedSoloCorrect}/{match.soloLeafQuestions ?? 3}</strong></div>
           <div className="solo-leaf-progress-track">
-            {[0, 1, 2].map((step) => <span key={step} className={cn('solo-leaf-progress-dot', step < soloCorrect && 'is-filled')} />)}
+            {Array.from({ length: match.soloLeafQuestions ?? 3 }, (_, step) => <span key={step} className={cn('solo-leaf-progress-dot', step < displayedSoloCorrect && 'is-filled')} />)}
           </div>
-          <p>إجابتان صحيحتان تفتحان الورقة التالية</p>
+          <p>{match.soloRequiredCorrect ?? 2} إجابتان صحيحتان تفتحان الورقة التالية</p>
         </div>
       )}
 
@@ -352,7 +355,7 @@ export function MatchScreen() {
 
               {phase === 'round_result' && (
                 <div className="mt-2 text-center">
-                  {match.mode === 'solo' && <div className="mb-3 flex items-center justify-center gap-3 text-xs font-bold"><span className="rounded-full bg-emerald-400/10 px-3 py-1.5 text-emerald-200">صحيح: {soloCorrect}</span><span className="rounded-full bg-rose-400/10 px-3 py-1.5 text-rose-200">الهدف: 2 من 3</span></div>}
+                  {match.mode === 'solo' && <div className="mb-3 flex items-center justify-center gap-3 text-xs font-bold"><span className="rounded-full bg-emerald-400/10 px-3 py-1.5 text-emerald-200">صحيح: {displayedSoloCorrect}</span><span className="rounded-full bg-rose-400/10 px-3 py-1.5 text-rose-200">الهدف: {match.soloRequiredCorrect ?? 2} من {match.soloLeafQuestions ?? 3}</span></div>}
                   {active.error && (
                     <p className="mb-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
                       {active.error}
@@ -409,9 +412,9 @@ export function MatchScreen() {
                   void shareMatchResult(`🔥 قدها؟ نتيجتي ${a ?? 0} — ${b ?? 0}\nتحداك تكسر رقمي 👇 ${window.location.origin}`);
                 }}
                 onRematch={match.mode === '1v1' && match.matchId ? () => server.startRematch(match.matchId!, difficulty) : undefined}
-                leafCorrect={match.mode === 'solo' ? soloCorrect : undefined}
-                leafQuestions={match.mode === 'solo' ? 3 : undefined}
-                leafUnlocked={match.mode === 'solo' ? soloCorrect >= 2 : undefined}
+                leafCorrect={match.mode === 'solo' ? displayedSoloCorrect : undefined}
+                leafQuestions={match.mode === 'solo' ? (match.soloLeafQuestions ?? 3) : undefined}
+                leafUnlocked={match.mode === 'solo' ? displayedSoloCorrect >= (match.soloRequiredCorrect ?? 2) : undefined}
                 onReset={() => active.reset()}
               />
             </motion.div>

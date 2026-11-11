@@ -516,6 +516,20 @@ async function finishMatch(supabase: any, matchId: string, userId: string | null
     if (!authz.ok) return json({ error: authz.error }, authz.status);
   }
 
+  // Settlement is only legal after the authoritative round transition has
+  // closed the final round. A client must not finish an in-progress match.
+  const { data: currentMatch, error: currentMatchError } = await supabase
+    .from('matches')
+    .select('status')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (currentMatchError || !currentMatch) {
+    return json({ error: 'المباراة غير موجودة', code: 'MATCH_NOT_FOUND' }, 404);
+  }
+  if (!['MATCH_FINISHED', 'FINAL_RESULT'].includes(String(currentMatch.status))) {
+    return json({ error: 'لا يمكن إنهاء المباراة قبل إكمال جولاتها', code: 'MATCH_NOT_READY' }, 409);
+  }
+
   const { data: settled, error: settleErr } = await supabase.rpc('settle_match', { p_match_id: matchId });
   if (settleErr || !settled?.ok) {
     console.error('[finish] atomic settlement failed', settleErr?.message ?? settled);
@@ -604,6 +618,20 @@ async function buildMatchState(supabase: any, matchId: string, viewerId?: string
       };
     }
   }
+  let soloCorrectCount: number | undefined;
+  let soloRequiredCorrect: number | undefined;
+  let soloLeafQuestions: number | undefined;
+  if (match.mode === 'solo' && viewerId) {
+    const { count } = await supabase
+      .from('answer_submissions')
+      .select('id', { count: 'exact', head: true })
+      .eq('match_id', matchId)
+      .eq('user_id', viewerId)
+      .eq('outcome', 'correct');
+    soloCorrectCount = Number(count ?? 0);
+    soloRequiredCorrect = Number(match.config_snapshot?.requiredCorrect ?? 2);
+    soloLeafQuestions = Number(match.config_snapshot?.leafQuestions ?? match.total_rounds ?? 3);
+  }
   const player = participants?.find((p: any) => p.side === 'player' || (!p.is_ai && p.user_id === viewerId));
   const opponent = participants?.find((p: any) => p.is_ai || p.side === 'opponent' || p.side === 'ai');
   // For 1v1 without sides, pick other human
@@ -623,6 +651,9 @@ async function buildMatchState(supabase: any, matchId: string, viewerId?: string
     sequence: match.sequence,
     currentRound: match.current_round,
     totalRounds: match.total_rounds,
+    soloCorrectCount,
+    soloRequiredCorrect,
+    soloLeafQuestions,
     player: playerOut
       ? {
           id: playerOut.user_id,

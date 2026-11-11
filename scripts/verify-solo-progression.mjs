@@ -4,16 +4,16 @@ const tiers = ['easy', 'normal', 'hard'];
 
 function planForStage(stageIndex) {
   const baseTier = stageIndex <= 16 ? 0 : stageIndex <= 40 ? 1 : 2;
-  return [0, 1, 2, 3, 4].map((round) => tiers[Math.min(2, baseTier + Math.floor(round / 2))]);
+  return [0, 1, 2].map((round) => tiers[Math.min(2, baseTier + Math.floor(round / 2))]);
 }
 
 const expected = new Map([
-  [1, ['easy', 'easy', 'normal', 'normal', 'hard']],
-  [16, ['easy', 'easy', 'normal', 'normal', 'hard']],
-  [17, ['normal', 'normal', 'hard', 'hard', 'hard']],
-  [40, ['normal', 'normal', 'hard', 'hard', 'hard']],
-  [41, ['hard', 'hard', 'hard', 'hard', 'hard']],
-  [48, ['hard', 'hard', 'hard', 'hard', 'hard']],
+  [1, ['easy', 'easy', 'normal']],
+  [16, ['easy', 'easy', 'normal']],
+  [17, ['normal', 'normal', 'hard']],
+  [40, ['normal', 'normal', 'hard']],
+  [41, ['hard', 'hard', 'hard']],
+  [48, ['hard', 'hard', 'hard']],
 ]);
 
 for (const [stage, wanted] of expected) {
@@ -25,8 +25,8 @@ for (const [stage, wanted] of expected) {
 
 for (let stage = 1; stage <= 48; stage += 1) {
   const plan = planForStage(stage);
-  if (plan.length !== 5 || plan.some((tier) => !tiers.includes(tier))) {
-    throw new Error(`Invalid five-round plan at stage ${stage}`);
+  if (plan.length !== 3 || plan.some((tier) => !tiers.includes(tier))) {
+    throw new Error(`Invalid three-question plan at stage ${stage}`);
   }
   const indexes = plan.map((tier) => tiers.indexOf(tier));
   if (indexes.some((value, index) => index > 0 && value < indexes[index - 1])) {
@@ -34,4 +34,4 @@ for (let stage = 1; stage <= 48; stage += 1) {
   }
 }
 
-console.log('Solo progression gate passed: 48 stages, five server-planned rounds, no difficulty regression.');
+console.log('Solo progression gate passed: 48 stages, three server-planned questions, no difficulty regression.');

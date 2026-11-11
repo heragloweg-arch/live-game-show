@@ -183,29 +183,6 @@ serveWithCors(async (req) => {
       responseTimeMs, clientTimestamp, normalized,
     });
 
-    // Update participant score
-    if (score.total > 0) {
-      const { data: part } = await supabase
-        .from('match_participants')
-        .select('id, score')
-        .eq('match_id', matchId)
-        .eq('user_id', user.id)
-        .single();
-      if (part) {
-        await supabase.from('match_participants').update({
-          score: part.score + score.total,
-        }).eq('id', part.id);
-      }
-    }
-
-    // Update match sequence + status
-    const { data: match } = await supabase.from('matches').select('sequence').eq('id', matchId).single();
-    await supabase.from('matches').update({
-      status: 'ANSWER_SUBMITTED',
-      sequence: (match?.sequence ?? 0) + 1,
-      server_now: now.toISOString(),
-    }).eq('id', matchId);
-
     return json({ result });
   } catch (err) {
     console.error('[answer]', err);
