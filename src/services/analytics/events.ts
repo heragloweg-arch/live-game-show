@@ -16,6 +16,8 @@ export type AnalyticsEvent =
   | 'onboarding_start'
   | 'onboarding_complete'
   | 'match_start'
+  | 'game_format_selected'
+  | 'game_format_started'
   | 'match_finish'
   | 'match_complete'
   | 'match_win'

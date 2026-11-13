@@ -5,6 +5,7 @@
 import { supabase } from '../supabase/client';
 import { getFunctionsUrl, getSupabaseAnonKey } from '../../config/runtime';
 import type { MatchState, Difficulty, AnswerResult } from '../../types';
+import type { GameFormat } from '../game/gameFormats';
 
 const FUNCTIONS_URL = getFunctionsUrl();
 
@@ -97,12 +98,14 @@ async function invoke<T>(fnName: string, body: Record<string, unknown>): Promise
 export async function createSoloMatch(
   difficulty: Difficulty = 'normal',
   journey?: { branch: number; leaf: number },
+  format: GameFormat = 'mixed',
 ): Promise<MatchState> {
   const data = await invoke<{ match: MatchState }>('match', {
     action: 'create_solo',
     difficulty,
     journeyBranch: journey?.branch,
     journeyLeaf: journey?.leaf,
+    format,
   });
   return data.match;
 }

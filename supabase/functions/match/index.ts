@@ -54,6 +54,7 @@ serveWithCors(async (req) => {
           body.difficulty ?? 'normal',
           body.journeyBranch == null ? undefined : Number(body.journeyBranch),
           body.journeyLeaf == null ? undefined : Number(body.journeyLeaf),
+          typeof body.format === 'string' ? body.format : 'mixed',
         );
       case 'solo_progress':
         return await getSoloProgress(supabase, user.id);
@@ -174,17 +175,21 @@ async function createSoloMatch(
   _difficulty: string,
   journeyBranch?: number,
   journeyLeaf?: number,
+  format = 'mixed',
 ) {
   const { data, error } = await supabase.rpc('create_solo_match_atomic', {
     p_user_id: user.id,
     p_journey_branch: journeyBranch ?? null,
     p_journey_leaf: journeyLeaf ?? null,
+    p_format: format,
   });
   if (error || !data?.matchId) {
     const message = error?.message ?? data?.error ?? 'SOLO_MATCH_CREATE_FAILED';
     if (message.includes('JOURNEY_STAGE_LOCKED')) return json({ error: 'أكمل الورقة السابقة أولاً', code: 'JOURNEY_STAGE_LOCKED' }, 409);
     if (message.includes('INVALID_JOURNEY_STAGE')) return json({ error: 'مرحلة الشجرة غير صالحة', code: 'INVALID_JOURNEY_STAGE' }, 400);
     if (message.includes('NOT_ENOUGH_PLAYABLE_CHALLENGES')) return json({ error: 'لا توجد ثلاث أسئلة معتمدة وقابلة للعب حالياً', code: 'NOT_ENOUGH_PLAYABLE_CHALLENGES' }, 503);
+    if (message.includes('GAME_FORMAT_NOT_AVAILABLE')) return json({ error: 'هذا النمط يحتاج إلى محتوى معتمد إضافي حالياً', code: 'GAME_FORMAT_NOT_AVAILABLE' }, 503);
+    if (message.includes('INVALID_GAME_FORMAT')) return json({ error: 'نمط اللعب غير صالح', code: 'INVALID_GAME_FORMAT' }, 400);
     console.error('[match] atomic Solo creation failed', error ?? data);
     return json({ error: 'تعذر إنشاء مباراة فردية كاملة بأمان', code: 'SOLO_MATCH_CREATE_FAILED' }, 503);
   }

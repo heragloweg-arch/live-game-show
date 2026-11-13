@@ -7,6 +7,8 @@ export const ANALYTICS_EVENTS = {
   onboarding_start: 'onboarding_start',
   onboarding_complete: 'onboarding_complete',
   match_start: 'match_start',
+  game_format_selected: 'game_format_selected',
+  game_format_started: 'game_format_started',
   round_start: 'round_start',
   answer_submit: 'answer_submit',
   answer_correct: 'answer_correct',
