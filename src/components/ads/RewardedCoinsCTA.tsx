@@ -5,16 +5,10 @@ import { shouldShowAds } from '../../services/billing/entitlements';
 import { cn } from '../../utils/cn';
 
 type Props = {
-  packId?: string;
   perfect?: boolean;
-  onClaimed?: (coins: number, multiplier: number) => void;
-  claimApi?: (
-    packId: string,
-    adsWatched: number,
-  ) => Promise<{ coinGain?: number; multiplier?: number; alreadyClaimed?: boolean }>;
 };
 
-export function RewardedCoinsCTA({ packId, perfect = false, onClaimed, claimApi }: Props) {
+export function RewardedCoinsCTA({ perfect = false }: Props) {
   const [busy, setBusy] = useState(false);
   const [adsDone, setAdsDone] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -42,19 +36,12 @@ export function RewardedCoinsCTA({ packId, perfect = false, onClaimed, claimApi 
         watched += 1;
         setAdsDone(watched);
       }
-      if (packId && claimApi) {
-        const data = await claimApi(packId, watched);
-        if (data.alreadyClaimed) {
-          setMessage('تم استلام مكافأة الإعلانات سابقًا');
-        } else {
-          const coins = data.coinGain ?? 0;
-          const mult = data.multiplier ?? (perfect ? 3 : 2);
-          setMessage(`+${coins} عملة (${mult === 3 ? 'مضاعفة ثلاثية' : 'مضاعفة'}) 🎉`);
-          onClaimed?.(coins, mult);
-        }
-      } else {
-        setMessage(perfect ? 'مكافأة ثلاثية قيد الإضافة بعد التحقق' : 'أضيفت مكافأتك المضاعفة بعد الإعلانين');
-      }
+      // Each rewarded ad already carries server-generated custom_data. AdMob SSV
+      // credits the reward after signature verification; never call a client-side
+      // claim endpoint or trust the local watched counter.
+      setMessage(perfect
+        ? 'تم إرسال الإعلانين للتحقق الآمن — ستضاف المكافأة بعد وصول AdMob SSV'
+        : 'تم إرسال الإعلانين للتحقق الآمن — ستضاف المكافأة بعد وصول AdMob SSV');
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'تعذر إكمال المكافأة');
     } finally {

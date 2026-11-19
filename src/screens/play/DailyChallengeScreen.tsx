@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Flame, Loader2, Sparkles, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { getDailyPack, submitDailyPackSlot, claimDailyPackAdReward, type DailyPackState } from '../../services/daily/dailyApi';
+import { getDailyPack, submitDailyPackSlot, type DailyPackState } from '../../services/daily/dailyApi';
 import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../utils/cn';
 import { track } from '../../services/analytics/events';
@@ -113,7 +113,7 @@ export function DailyChallengeScreen() {
           <p className={cn('font-display text-2xl font-black', result?.correct ? 'text-zatona-400' : 'text-white/60')}>{result ? (result.correct ? 'أحسنت! 🔥' : 'إجابة خاطئة') : 'أنجزت هذه المحطة'}</p>
           {result && <p className={cn('mt-2 text-sm font-bold', result.correct ? 'text-emerald-300' : 'text-red-300')}>{result.correct ? `إجابة صحيحة · +${result.coinGain || 50} عملة` : 'إجابة خاطئة · بدون مكافأة عملات لهذه المحطة'}</p>}
           {result?.correct && <p className="mt-1 text-sm text-white/55">+{result.xpGain} XP</p>}
-          {packComplete && <RewardedCoinsCTA packId={pack.pack.id} perfect={perfectPack} claimApi={claimDailyPackAdReward} onClaimed={() => { void refreshProfile(); }} />}
+          {packComplete && <RewardedCoinsCTA perfect={perfectPack} />}
           {!packComplete && activeSlot < pack.slots.length - 1 && <p className="mt-5 text-xs text-white/45">جاري فتح المحطة التالية…</p>}
         </div> : hasPlayableAnswerContract(slot.challenge) ? <>
           <div className="mb-4 flex items-center justify-center gap-2 text-xs text-white/45"><Trophy className="h-4 w-4 text-gold-400" />+{slot.bonus_coins} عملة · +{slot.bonus_xp} XP</div>
