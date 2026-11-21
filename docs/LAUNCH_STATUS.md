@@ -22,3 +22,22 @@
 - تحقق Railway الحالي: `/health` = 200 و`/ready` = 200، لكن البصمة الحية وقت التوثيق هي commit `b13b6fc67e652989ecc2032a4042f34c9ca982a5` وليست بعد commit هذه الدفعة؛ يلزم انتظار مزامنة Railway ثم إعادة فحصها.
 
 الحكم لا يزال `NO-GO`: لا يوجد PASS ميداني نهائي بعد لسيناريو Solo سؤال 1→2 أو الغرف، ولا يجوز إعلان جاهزية متجر قبل إغلاق E2E الخارجي وبقية Android/Billing/AdMob/LiveKit.
+
+
+## استعادة مصدر الحقيقة وإغلاق R0 — 21 نوفمبر 2026
+
+- تم استعادة المستودع الرسمي من `https://github.com/heragloweg-arch/live-game-show.git` على فرع `main` في checkout نظيف.
+- commit المرجعي: `432fa995853834444cb2e62e708af01c2e7a3cab` (`fix: route rewarded ads through AdMob SSV`).
+- الحالة: `main...origin/main` والشجرة نظيفة وقت الفحص.
+- الملفات التي كانت مفقودة في مسار التدقيق السابق موجودة في المصدر الرسمي، ومنها `package-lock.json` و`vite.config.ts` و`eslint.config.js` و`tsconfig.node.json` و`static-server.mjs` وFunctions `answer/room/matchmaking` و`DailyChallengeScreen.tsx` و`android/`.
+- `npm ci --legacy-peer-deps --no-audit --no-fund`: PASS.
+- `npm run typecheck`: PASS.
+- `npm run lint`: PASS.
+- `npm test -- --run`: PASS — 12 ملفات و32 اختبارًا.
+- `npm run test:production-gates`: PASS — 52/52.
+- `npm run verify:content-release`: PASS — 968 صفًا مدققًا، دون تفعيل جماعي.
+- `npm run build`: PASS — artifact يحمل commit `432fa995853834444cb2e62e708af01c2e7a3cab`.
+- `node scripts/verify-production.mjs`: PASS — فحص 100 ملف JavaScript.
+- أضيفت بوابة `npm run verify:contracts` لإنشاء `docs/CONTRACT_INVENTORY.json` والتحقق من عدم وجود Edge Function أو RPC مستعمل دون عقد محلي.
+- ما يزال القرار `NO-GO` للتشغيل الخارجي: لا يوجد في هذا الفحص دليل حي جديد على Railway أو Supabase Staging/Production أو E2E أو AAB/Google Play/AdMob/LiveKit/TikTok.
+- تحذير أداء غير حاجب: chunks `ThreeSpaceScene` و`livekitClient` أكبر من 500KB بعد minification؛ يُعالج في دفعة الأداء دون إخفاء التحذير.

@@ -1,0 +1,397 @@
+{
+  "source": "repository static contract inventory",
+  "edgeFunctions": [
+    "account",
+    "admob-ssv",
+    "analytics",
+    "answer",
+    "couple",
+    "creator",
+    "daily",
+    "economy",
+    "google-play-rtdn",
+    "match",
+    "matchmaking",
+    "metrics",
+    "overlay",
+    "room",
+    "safety",
+    "subscription",
+    "team",
+    "tiktok",
+    "tournament",
+    "voice"
+  ],
+  "edgeCalls": [
+    {
+      "name": "account",
+      "files": [
+        "src/services/api/accountApi.ts"
+      ]
+    },
+    {
+      "name": "analytics",
+      "files": [
+        "src/services/analytics/events.ts"
+      ]
+    },
+    {
+      "name": "answer",
+      "files": [
+        "src/services/api/lifelineApi.ts",
+        "src/services/api/matchApi.ts"
+      ]
+    },
+    {
+      "name": "couple",
+      "files": [
+        "src/services/api/coupleApi.ts"
+      ]
+    },
+    {
+      "name": "creator",
+      "files": [
+        "src/screens/creator/CreatorAdminScreen.tsx",
+        "src/services/api/creatorApi.ts"
+      ]
+    },
+    {
+      "name": "daily",
+      "files": [
+        "src/services/daily/dailyApi.ts"
+      ]
+    },
+    {
+      "name": "economy",
+      "files": [
+        "src/services/ads/adMob.ts",
+        "src/services/cosmetics/shopApi.ts",
+        "src/services/daily/weeklyJourneyApi.ts",
+        "src/services/economy/walletApi.ts"
+      ]
+    },
+    {
+      "name": "match",
+      "files": [
+        "src/services/api/matchApi.ts"
+      ]
+    },
+    {
+      "name": "matchmaking",
+      "files": [
+        "src/services/api/matchApi.ts"
+      ]
+    },
+    {
+      "name": "metrics",
+      "files": [
+        "src/services/api/metricsApi.ts"
+      ]
+    },
+    {
+      "name": "overlay",
+      "files": [
+        "src/services/api/overlayApi.ts"
+      ]
+    },
+    {
+      "name": "room",
+      "files": [
+        "src/services/livekit/roomChallengeApi.ts"
+      ]
+    },
+    {
+      "name": "safety",
+      "files": [
+        "src/services/api/safetyApi.ts"
+      ]
+    },
+    {
+      "name": "subscription",
+      "files": [
+        "src/services/billing/coinApi.ts",
+        "src/services/billing/subscriptionApi.ts"
+      ]
+    },
+    {
+      "name": "team",
+      "files": [
+        "src/services/api/teamApi.ts"
+      ]
+    },
+    {
+      "name": "tiktok",
+      "files": [
+        "src/services/api/tiktokApi.ts"
+      ]
+    },
+    {
+      "name": "tournament",
+      "files": [
+        "src/services/api/tournamentApi.ts"
+      ]
+    },
+    {
+      "name": "voice",
+      "files": [
+        "src/services/livekit/voiceApi.ts"
+      ]
+    }
+  ],
+  "rpcCalls": [
+    {
+      "name": "abandon_match_atomic",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "accept_match_invite_atomic",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "activate_subscription_atomic",
+      "files": [
+        "supabase/functions/subscription/index.ts"
+      ]
+    },
+    {
+      "name": "advance_match_round",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "atomic_start_round",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "bill_host_room_period_atomic",
+      "files": [
+        "supabase/functions/voice/index.ts"
+      ]
+    },
+    {
+      "name": "claim_daily_bonus_atomic",
+      "files": [
+        "supabase/functions/economy/index.ts"
+      ]
+    },
+    {
+      "name": "claim_match_reward_atomic",
+      "files": [
+        "supabase/functions/economy/index.ts"
+      ]
+    },
+    {
+      "name": "claim_subscription_daily_atomic",
+      "files": [
+        "supabase/functions/subscription/index.ts"
+      ]
+    },
+    {
+      "name": "complete_ad_reward_ssv_atomic",
+      "files": [
+        "supabase/functions/admob-ssv/index.ts"
+      ]
+    },
+    {
+      "name": "complete_daily_atomic",
+      "files": [
+        "supabase/functions/daily/index.ts"
+      ]
+    },
+    {
+      "name": "complete_daily_pack_slot_atomic",
+      "files": [
+        "supabase/functions/daily/index.ts"
+      ]
+    },
+    {
+      "name": "complete_solo_journey_leaf",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "consume_rate_limit_atomic",
+      "files": [
+        "supabase/functions/_shared/rateLimit.ts"
+      ]
+    },
+    {
+      "name": "create_couple_match_atomic",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "create_host_room_atomic",
+      "files": [
+        "supabase/functions/voice/index.ts"
+      ]
+    },
+    {
+      "name": "create_matchmaking_ai_fallback_atomic",
+      "files": [
+        "supabase/functions/matchmaking/index.ts"
+      ]
+    },
+    {
+      "name": "create_solo_match_atomic",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "delete_account_data_atomic",
+      "files": [
+        "supabase/functions/account/index.ts"
+      ]
+    },
+    {
+      "name": "end_host_room_session",
+      "files": [
+        "supabase/functions/voice/index.ts"
+      ]
+    },
+    {
+      "name": "equip_cosmetic_atomic",
+      "files": [
+        "supabase/functions/economy/index.ts"
+      ]
+    },
+    {
+      "name": "generate_team_round_robin",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "get_public_profiles",
+      "files": [
+        "src/services/profile/profileApi.ts"
+      ]
+    },
+    {
+      "name": "grant_coin_purchase_atomic",
+      "files": [
+        "supabase/functions/subscription/index.ts"
+      ]
+    },
+    {
+      "name": "grant_creator_approval_reward",
+      "files": [
+        "supabase/functions/creator/index.ts"
+      ]
+    },
+    {
+      "name": "join_matchmaking_atomic",
+      "files": [
+        "supabase/functions/matchmaking/index.ts"
+      ]
+    },
+    {
+      "name": "join_team_pickup_atomic",
+      "files": [
+        "supabase/functions/team/index.ts"
+      ]
+    },
+    {
+      "name": "join_tournament_atomic",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "join_tournament_team_atomic",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "prepare_ad_reward_ssv_atomic",
+      "files": [
+        "supabase/functions/economy/index.ts"
+      ]
+    },
+    {
+      "name": "purchase_cosmetic_atomic",
+      "files": [
+        "supabase/functions/economy/index.ts"
+      ]
+    },
+    {
+      "name": "queue_team_match_atomic",
+      "files": [
+        "supabase/functions/team/index.ts"
+      ]
+    },
+    {
+      "name": "reconcile_google_play_subscription_atomic",
+      "files": [
+        "supabase/functions/google-play-rtdn/index.ts"
+      ]
+    },
+    {
+      "name": "record_app_open_atomic",
+      "files": [
+        "supabase/functions/analytics/index.ts"
+      ]
+    },
+    {
+      "name": "report_tournament_player_result_atomic",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "report_tournament_team_result",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "reserve_google_play_receipt_atomic",
+      "files": [
+        "supabase/functions/subscription/index.ts"
+      ]
+    },
+    {
+      "name": "settle_match",
+      "files": [
+        "supabase/functions/match/index.ts"
+      ]
+    },
+    {
+      "name": "spend_lifeline_fifty",
+      "files": [
+        "supabase/functions/answer/index.ts"
+      ]
+    },
+    {
+      "name": "start_bracket_match",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "start_tournament_team_match",
+      "files": [
+        "supabase/functions/tournament/index.ts"
+      ]
+    },
+    {
+      "name": "submit_answer_atomic",
+      "files": [
+        "supabase/functions/answer/index.ts"
+      ]
+    }
+  ],
+  "missingEdgeFunctions": [],
+  "missingRpcDefinitions": []
+}
