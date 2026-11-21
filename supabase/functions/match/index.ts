@@ -295,10 +295,8 @@ async function getMatch(supabase: any, matchId: string, userId: string) {
 /** Co-op: both partners vs shared rounds; team score = sum of human scores. */
 
 function randomToken() {
-  const c = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let s = '';
-  for (let i = 0; i < 12; i++) s += c[Math.floor(Math.random() * c.length)];
-  return s;
+  // Invitation tokens are bearer credentials; use the platform CSPRNG.
+  return crypto.randomUUID().replaceAll('-', '');
 }
 
 async function createMatchInvite(supabase: any, user: any, difficulty: string) {

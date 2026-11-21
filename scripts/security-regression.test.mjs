@@ -14,6 +14,7 @@ const matchScreen = readFileSync('src/screens/match/MatchScreen.tsx', 'utf8');
 const retentionMigration = readFileSync('supabase/migrations/20261027000001_retention_rematch_latency.sql', 'utf8');
 const soloProjection = readFileSync('src/services/game/soloJourneyProgress.ts', 'utf8');
 const soloCoupleMigration = readFileSync('supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', 'utf8');
+const subscription = readFileSync('supabase/functions/subscription/index.ts', 'utf8');
 
 
 test('Daily refuses non-atomic completion fallback', () => {
@@ -84,4 +85,16 @@ test('Rematch is linked server-side and Daily RPC enforces approved content', ()
 
 test('Solo UI projection has no localStorage dependency', () => {
   assert.doesNotMatch(soloProjection, /localStorage|sessionStorage/);
+});
+
+test('Subscription status uses a public projection and never returns receipt secrets', () => {
+  assert.match(subscription, /\.select\('id, plan, status, provider, product_id, starts_at, expires_at, auto_renew, created_at, updated_at'\)/);
+  const statusBlock = subscription.match(/if \(action === 'status'\) \{[\s\S]*?\n    \}\n\n    if \(action === 'verify_google'\)/)?.[0] ?? '';
+  assert.doesNotMatch(statusBlock, /select\('\*'\)/);
+  assert.doesNotMatch(statusBlock, /provider_token|raw_receipt/);
+});
+
+test('Match invitation tokens use cryptographic randomness', () => {
+  assert.match(match, /function randomToken\(\)[\s\S]{0,180}crypto\.randomUUID\(\)/);
+  assert.doesNotMatch(match.match(/function randomToken\(\)[\s\S]*?\n\}/)?.[0] ?? '', /Math\.random/);
 });

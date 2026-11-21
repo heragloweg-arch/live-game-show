@@ -41,3 +41,13 @@
 - أضيفت بوابة `npm run verify:contracts` لإنشاء `docs/CONTRACT_INVENTORY.json` والتحقق من عدم وجود Edge Function أو RPC مستعمل دون عقد محلي.
 - ما يزال القرار `NO-GO` للتشغيل الخارجي: لا يوجد في هذا الفحص دليل حي جديد على Railway أو Supabase Staging/Production أو E2E أو AAB/Google Play/AdMob/LiveKit/TikTok.
 - تحذير أداء غير حاجب: chunks `ThreeSpaceScene` و`livekitClient` أكبر من 500KB بعد minification؛ يُعالج في دفعة الأداء دون إخفاء التحذير.
+
+
+## دفعة R1.3 — نزاهة الاشتراك ورموز الدعوات — 21 نوفمبر 2026
+
+- تم إصلاح `subscription` action=`status` ليستخدم projection صريحًا للحقول العامة فقط؛ لا يعيد `provider_token` أو `raw_receipt` إلى العميل.
+- تم استبدال توليد رمز دعوة المباراة من PRNG غير تشفيري إلى `crypto.randomUUID()` بعد إزالة الشرطات، مع إبقاء قبول الدعوة ذريًا ومقيدًا بانتهاء الصلاحية كما يفرض RPC القائم.
+- أضيفت اختبارات regression ثابتة تمنع عودة تسريب بيانات الإيصال أو استخدام توليد غير تشفيري لرموز الدعوات.
+- البوابات بعد الإصلاح: `node --test scripts/security-regression.test.mjs` = 11/11، `npm run typecheck` = PASS، `npm run lint` = PASS، `npm test -- --run` = 32/32، `npm run test:production-gates` = 54/54، `npm run verify:content-release` = PASS، `npm run verify:contracts` = PASS، `npm run build` = PASS، و`node scripts/verify-production.mjs` = PASS.
+- artifact المحلي يحمل commit السابق `b260755914631ff777cdfd4e28c8149e3a813c5b` إلى حين تسجيل commit هذه الدفعة.
+- لا يثبت هذا الإصلاح نشر Supabase أو Railway أو E2E حيًا؛ قرار الإطلاق يبقى `NO-GO` حتى توفير دليل Staging/Railway/E2E وAAB/Google Play/AdMob/LiveKit/TikTok.

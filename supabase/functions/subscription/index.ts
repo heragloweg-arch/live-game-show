@@ -74,7 +74,8 @@ serveWithCors(async (req) => {
     if (action === 'status') {
       const { data: sub } = await supabase
         .from('user_subscriptions')
-        .select('*')
+        // Return only non-sensitive subscription metadata to the client.
+        .select('id, plan, status, provider, product_id, starts_at, expires_at, auto_renew, created_at, updated_at')
         .eq('user_id', user.id)
         .in('status', ['active', 'grace'])
         .order('expires_at', { ascending: false })
