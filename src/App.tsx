@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AppProviders } from './app/providers';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { SpaceLoungeRouteBoundary } from './components/lounge/SpaceLoungeRouteBoundary';
 
 const SplashScreen = lazy(() => import('./screens/splash/SplashScreen').then((m) => ({ default: m.SplashScreen })));
 const AuthScreen = lazy(() => import('./screens/auth/AuthScreen').then((m) => ({ default: m.AuthScreen })));
@@ -31,9 +30,6 @@ const CreatorScreen = lazy(() => import('./screens/creator/CreatorScreen').then(
 const CreatorAdminScreen = lazy(() => import('./screens/creator/CreatorAdminScreen').then((m) => ({ default: m.CreatorAdminScreen })));
 const SafetyAdminScreen = lazy(() => import('./screens/creator/SafetyAdminScreen').then((m) => ({ default: m.SafetyAdminScreen })));
 const OverlayScreen = lazy(() => import('./screens/host/OverlayScreen').then((m) => ({ default: m.OverlayScreen })));
-const SpaceLoungeScreen = lazy(() => import('./screens/lounge/SpaceLoungeScreens').then((m) => ({ default: m.SpaceLoungeScreen })));
-const SpaceLoungeOverlayScreen = lazy(() => import('./screens/lounge/SpaceLoungeScreens').then((m) => ({ default: m.SpaceLoungeOverlayScreen })));
-const SpaceLoungeControlScreen = lazy(() => import('./screens/lounge/SpaceLoungeScreens').then((m) => ({ default: m.SpaceLoungeControlScreen })));
 const InviteAcceptScreen = lazy(() => import('./screens/play/InviteAcceptScreen').then((m) => ({ default: m.InviteAcceptScreen })));
 const InviteCreateScreen = lazy(() => import('./screens/play/InviteCreateScreen').then((m) => ({ default: m.InviteCreateScreen })));
 
@@ -57,8 +53,6 @@ export default function App() {
               <Route path="/legal/privacy" element={<PrivacyScreen />} />
               <Route path="/legal/terms" element={<TermsScreen />} />
               <Route path="/overlay/:token" element={<OverlayScreen />} />
-              <Route path="/space-lounge/overlay/:token" element={<SpaceLoungeRouteBoundary><SpaceLoungeOverlayScreen /></SpaceLoungeRouteBoundary>} />
-              <Route path="/space-lounge/control/:sessionId" element={<SpaceLoungeRouteBoundary><SpaceLoungeControlScreen /></SpaceLoungeRouteBoundary>} />
               <Route element={<ProtectedLayout />}>
                 <Route path="/home" element={<HomeScreen />} />
                 <Route path="/onboarding" element={<OnboardingScreen />} />
@@ -80,7 +74,6 @@ export default function App() {
                 <Route path="/play/matchmaking" element={<MatchmakingScreen />} />
                 <Route path="/match/:matchId" element={<MatchScreen />} />
                 <Route path="/host" element={<HostScreen />} />
-                <Route path="/space-lounge" element={<SpaceLoungeRouteBoundary><SpaceLoungeScreen /></SpaceLoungeRouteBoundary>} />
                 <Route path="/room/join" element={<RoomScreen />} />
                 <Route path="/room/:roomId" element={<RoomScreen />} />
                 <Route path="/profile" element={<ProfileScreen />} />

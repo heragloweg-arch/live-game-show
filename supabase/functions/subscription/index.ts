@@ -136,6 +136,7 @@ serveWithCors(async (req) => {
         .from('subscription_catalog')
         .select('*')
         .eq('google_product_id', productId)
+        .eq('active', true)
         .maybeSingle();
 
       if (!catalogItem) return json({ error: 'Unknown product' }, 400);
@@ -241,11 +242,12 @@ serveWithCors(async (req) => {
         const productId = String(item.productId || '');
         const purchaseToken = String(item.purchaseToken || '');
         if (!productId || !purchaseToken) continue;
-        const { data: catalogItem } = await supabase
-          .from('subscription_catalog')
-          .select('*')
-          .eq('google_product_id', productId)
-          .maybeSingle();
+          const { data: catalogItem } = await supabase
+            .from('subscription_catalog')
+            .select('*')
+            .eq('google_product_id', productId)
+            .eq('active', true)
+            .maybeSingle();
         if (!catalogItem) continue;
         if (Deno.env.get('GOOGLE_PLAY_PACKAGE_NAME') && Deno.env.get('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON')) {
           const { data: reservation, error: reservationError } = await supabase.rpc('reserve_google_play_receipt_atomic', {

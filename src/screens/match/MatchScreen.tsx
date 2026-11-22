@@ -199,7 +199,7 @@ export function MatchScreen() {
         </Link>
         <div className="flex items-center gap-2 text-sm text-white/50">
           <Zap className="h-4 w-4 text-zatona-400" />
-          جولة {match?.currentRound ?? 1} / {match?.totalRounds ?? (match?.mode === 'solo' ? 3 : 5)}
+          {match?.mode === 'solo' ? 'رحلة Solo · ورقة شخصية' : `جولة ${match?.currentRound ?? 1} / ${match?.totalRounds ?? 5}`}
           <span className="text-[10px] text-zatona-500">SERVER</span>
         </div>
         <div className="w-9" />
@@ -229,7 +229,12 @@ export function MatchScreen() {
         </div>
       )}
 
-      {match?.mode === 'team' ? (
+      {match?.mode === 'solo' ? (
+        <div className="mx-5 my-5 rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.06] px-5 py-4 text-center">
+          <p className="text-xs font-bold text-emerald-200/80">أنت وحدك في هذه الرحلة</p>
+          <p className="mt-1 text-sm text-white/55">أكمل أسئلة الورقة بالكامل لفتح المستوى التالي.</p>
+        </div>
+      ) : match?.mode === 'team' ? (
         <TeamMatchBoard
           scoreA={Number(match.teamScoreA ?? 0)}
           scoreB={Number(match.teamScoreB ?? 0)}
@@ -268,12 +273,12 @@ export function MatchScreen() {
             >
               <p className="mb-2 text-sm text-white/50">استعد</p>
               <h2 className="font-display text-4xl font-black text-gradient">
-                {match?.mode === 'team' ? 'معركة الفرق' : 'VS'}
+                {match?.mode === 'team' ? 'معركة الفرق' : match?.mode === 'solo' ? 'رحلتك تبدأ' : 'VS'}
               </h2>
               <p className="mt-3 text-white/60">
                 {match?.mode === 'team'
                   ? `${match.teamSize || ''} ضد ${match.teamSize || ''}`
-                  : match?.opponent?.username}
+                  : match?.mode === 'solo' ? 'ورقة جديدة في شجرة المستويات' : match?.opponent?.username}
               </p>
             </motion.div>
           )}

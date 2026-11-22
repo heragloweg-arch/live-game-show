@@ -22,7 +22,7 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   return data as T;
 }
 
-export type PlanId = 'free' | 'plus_monthly' | 'plus_yearly' | 'host_pro' | 'host_max';
+export type PlanId = 'free' | 'plus_monthly' | 'host_pro' | 'host_max';
 
 export interface CatalogItem {
   plan: PlanId;

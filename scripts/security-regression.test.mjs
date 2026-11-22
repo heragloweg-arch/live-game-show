@@ -17,6 +17,10 @@ const soloCoupleMigration = readFileSync('supabase/migrations/20261027132337_ato
 const subscription = readFileSync('supabase/functions/subscription/index.ts', 'utf8');
 const team = readFileSync('supabase/functions/team/index.ts', 'utf8');
 const couple = readFileSync('supabase/functions/couple/index.ts', 'utf8');
+const soloMigration = readFileSync('supabase/migrations/20261122000001_solo_no_competitor.sql', 'utf8');
+const annualMigration = readFileSync('supabase/migrations/20261122000002_remove_annual_subscription.sql', 'utf8');
+const app = readFileSync('src/App.tsx', 'utf8');
+const soloScreen = readFileSync('src/screens/play/DifficultyScreen.tsx', 'utf8');
 
 
 test('Daily refuses non-atomic completion fallback', () => {
@@ -107,4 +111,19 @@ test('Team and couple invitation codes use cryptographic randomness', () => {
     assert.match(generator, /crypto\.getRandomValues/);
     assert.doesNotMatch(generator, /Math\.random/);
   }
+});
+
+test('Solo journey is a single-player tree and the app exposes no space lounge route', () => {
+  assert.match(soloMigration, /Solo journey has no opponent or AI participant/);
+  assert.match(soloMigration, /VALUES\n    \(v_match_id, p_user_id, 'player'/);
+  assert.doesNotMatch(soloMigration, /'خصم قدها'|is_ai = true/);
+  assert.doesNotMatch(app, /space-lounge|SpaceLounge/);
+  assert.match(soloScreen, /لا يوجد منافس أمامك/);
+  assert.doesNotMatch(soloScreen, /GAME_FORMATS|format-launcher|LEVELS/);
+});
+
+test('Annual subscription is disabled in the sellable catalog', () => {
+  assert.match(annualMigration, /UPDATE public\.subscription_catalog/);
+  assert.match(annualMigration, /plan = 'plus_yearly'/);
+  assert.doesNotMatch(subscription, /\.eq\('google_product_id', productId\)\n\s*\.maybeSingle\(\)/);
 });
