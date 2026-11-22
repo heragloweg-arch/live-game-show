@@ -3,7 +3,6 @@
 interface QaddahaRuntimeEnv {
   VITE_SUPABASE_URL?: string;
   VITE_SUPABASE_ANON_KEY?: string;
-  VITE_SPACE_LOUNGE_WORKER_URL?: string;
 }
 
 declare global {
