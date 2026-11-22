@@ -71,3 +71,10 @@
 تمت إزالة routes وimports وبطاقة الصفحة الرئيسية الخاصة بـ«استراحة الفضاء»؛ ملفاتها القديمة غير المستوردة لم تعد جزءًا من تجربة التطبيق أو مساراته العامة. بوابات هذه الدفعة: typecheck وlint وVitest `32/32` وبوابات الإنتاج `57/57` واختبارات regression `14/14` وcontent-release وcontract inventory وproduction lock ناجحة.
 
 لم يتم بعد تطبيق migrations أو نشر Edge Functions على Supabase في هذه اللحظة، ولم يتم إثبات نشر Railway؛ يلزم تنفيذ ذلك بعد commit من خلال صلاحيات الخدمة الفعلية والتحقق من `/ready` و`build-info.json`. القرار يبقى `NO-GO` حتى ظهور الأدلة الحية.
+
+
+## تحقق النشر الخارجي بعد R2 — 22 نوفمبر 2026
+
+تم رفع commit `4b190bf660c6809890cfbc5f89248fafa29962f6` إلى `origin/main`، وتطابق `HEAD == origin/main`. تم تثبيت Supabase CLI `3.2.0` ومحاولة ربط المشروع `jwhrbadnirwjyinplbmn`، لكن أداة Supabase أعادت صراحة `Invalid access token`؛ لذلك لم يُنفذ `db push` ولم تُنشر Edge Functions.
+
+تم فحص عنوان Railway السابق `https://live-game-show-production-8e73.up.railway.app` بعد الرفع، وكانت `/`, `/ready`, و`/build-info.json` جميعها تعيد HTTP 404 مع `Application not found`. هذا لا يثبت نشرًا أو تشغيلًا؛ يلزم ربط خدمة Railway الصحيحة أو تحديث العنوان/الصلاحيات من لوحة Railway، ثم Deploy من commit معروف والتحقق من البصمة.
