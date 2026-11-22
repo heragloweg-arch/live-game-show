@@ -93,11 +93,11 @@
 - الوظائف المحمية `daily`, `match`, `subscription`, `tournament`, `voice`, `room`, `answer`, `matchmaking`, `economy`, `account`, `team`, `couple`, `creator`, `safety`, `metrics`, و`analytics` أعادت HTTP 401 دون JWT.
 - وظيفة `overlay` أعادت 404 لحامل غير صالح، وهو مسار رابط موقّع وليس endpoint جلسة عادي.
 - Railway `https://live-game-show-production-31045377.up.railway.app/ready`: HTTP 200، `status=ready`، و`runtimeConfig=true`.
-- Railway `/build-info.json`: HTTP 200، وبصمة `gitCommit=c3e7543ef90aeb225473db4ad6c28d03744cb354` مطابقة للـcommit المنشور وقت التحقق.
+- Railway `/build-info.json`: HTTP 200، وبصمة `gitCommit=5d45f04c49b30a1b6189e63fbbe56bcacdd9d674` مطابقة للـmain النهائي وقت التحقق.
 - `env-config.js` يحتوي أسماء مفاتيح Supabase العامة، ولا يحتوي النص `service_role`. لا يمكن من هذا الفحص إثبات تدوير Service Role Key السابق؛ يلزم إثبات من لوحة Supabase/سجل الأسرار.
 
 تم حذف بقايا الساحة الفضائية المعزولة من المصدر (الشاشات، المشهد ثلاثي الأبعاد، الخدمة، الأنواع، واختبارات المشهد) وتنظيف سياسة الخصوصية وتعريفات runtime. لا يوجد لها route في التطبيق أو مرجع مصدر متبقٍ.
 
 تم التحقق أن شاشات المضيف والغرفة وLiveKit lazy routes، ولا تدخل bundle المسار الأول Home→Play. يبقى chunk `livekitClient` كبيرًا عند تحميل المسار المختص، وهو تحذير أداء منفصل وليس فشلًا في المسار الأول.
 
-آخر commit توثيقي في `main` هو `5dafac70eb9a7e2f76dd652161c8abbd638f1106`. تم رفعه إلى GitHub وتطابق `HEAD == origin/main`، لكن بصمة Railway تخص آخر commit برمجي منشور `c3e7543e` لأن commit التوثيق لا يغيّر التطبيق.
+آخر commit في `main` هو `5d45f04c49b30a1b6189e63fbbe56bcacdd9d674`. تم رفعه إلى GitHub، وتطابق `HEAD == origin/main`، كما تطابقت معه بصمة Railway بعد المزامنة.
