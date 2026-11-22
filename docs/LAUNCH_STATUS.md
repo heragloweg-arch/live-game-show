@@ -51,3 +51,12 @@
 - البوابات بعد الإصلاح: `node --test scripts/security-regression.test.mjs` = 11/11، `npm run typecheck` = PASS، `npm run lint` = PASS، `npm test -- --run` = 32/32، `npm run test:production-gates` = 54/54، `npm run verify:content-release` = PASS، `npm run verify:contracts` = PASS، `npm run build` = PASS، و`node scripts/verify-production.mjs` = PASS.
 - artifact المحلي يحمل commit السابق `b260755914631ff777cdfd4e28c8149e3a813c5b` إلى حين تسجيل commit هذه الدفعة.
 - لا يثبت هذا الإصلاح نشر Supabase أو Railway أو E2E حيًا؛ قرار الإطلاق يبقى `NO-GO` حتى توفير دليل Staging/Railway/E2E وAAB/Google Play/AdMob/LiveKit/TikTok.
+
+
+## دفعة R1.3b — حماية دعوات الفريق والثنائي — 22 نوفمبر 2026
+
+تم استبدال توليد رموز `team` و`couple` من العشوائية غير التشفيرية إلى `crypto.getRandomValues()` مع rejection sampling لتجنب انحياز modulo. بقيت العشوائية المستخدمة لاختيار وترتيب الأسئلة منفصلة لأنها ليست بيانات اعتماد قابلة للمشاركة.
+
+قبل تسجيل هذه الدفعة: اختبار الأمان `12/12`، بوابات الإنتاج `55/55`، Vitest `32/32`، typecheck وlint وcontent-release وcontract inventory ناجحة. لم يتم تشغيل Deno هنا، لذلك لا أدعي نجاح فحص Edge Functions عبر Deno؛ يلزم تشغيله في CI أو بيئة Supabase عند توفره.
+
+الحكم الخارجي لا يتغير: `NO-GO` للنشر العام حتى إثبات نشر Supabase/Railway وE2E الحي وAAB/Google Play وAdMob وLiveKit وTikTok.

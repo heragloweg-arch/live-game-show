@@ -25,8 +25,16 @@ function json(data: unknown, status = 200) {
 
 function code6() {
   const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const limit = Math.floor(0x1_0000_0000 / c.length) * c.length;
   let s = '';
-  for (let i = 0; i < 6; i++) s += c[Math.floor(Math.random() * c.length)];
+  while (s.length < 6) {
+    const values = new Uint32Array(6 - s.length);
+    crypto.getRandomValues(values);
+    for (const value of values) {
+      if (value < limit) s += c[value % c.length];
+      if (s.length === 6) break;
+    }
+  }
   return s;
 }
 

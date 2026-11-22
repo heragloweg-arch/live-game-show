@@ -15,6 +15,8 @@ const retentionMigration = readFileSync('supabase/migrations/20261027000001_rete
 const soloProjection = readFileSync('src/services/game/soloJourneyProgress.ts', 'utf8');
 const soloCoupleMigration = readFileSync('supabase/migrations/20261027132337_atomic_solo_couple_match_create.sql', 'utf8');
 const subscription = readFileSync('supabase/functions/subscription/index.ts', 'utf8');
+const team = readFileSync('supabase/functions/team/index.ts', 'utf8');
+const couple = readFileSync('supabase/functions/couple/index.ts', 'utf8');
 
 
 test('Daily refuses non-atomic completion fallback', () => {
@@ -97,4 +99,12 @@ test('Subscription status uses a public projection and never returns receipt sec
 test('Match invitation tokens use cryptographic randomness', () => {
   assert.match(match, /function randomToken\(\)[\s\S]{0,180}crypto\.randomUUID\(\)/);
   assert.doesNotMatch(match.match(/function randomToken\(\)[\s\S]*?\n\}/)?.[0] ?? '', /Math\.random/);
+});
+
+test('Team and couple invitation codes use cryptographic randomness', () => {
+  for (const source of [team, couple]) {
+    const generator = source.match(/function code6\(\)[\s\S]*?\n\}/)?.[0] ?? '';
+    assert.match(generator, /crypto\.getRandomValues/);
+    assert.doesNotMatch(generator, /Math\.random/);
+  }
 });
