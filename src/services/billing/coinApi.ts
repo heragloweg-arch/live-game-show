@@ -25,8 +25,10 @@ export interface CoinPack {
   title: string;
   coins: number;
   price_micros: number;
+  old_price_micros?: number | null;
   currency: string;
   google_product_id: string;
+  localized_price?: string;
 }
 
 export async function fetchCoinCatalog(): Promise<{ catalog: CoinPack[] }> {

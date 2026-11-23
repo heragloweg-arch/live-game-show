@@ -15,8 +15,7 @@ function readableAuthError(error: unknown) {
 
 export function AuthScreen() {
   const navigate = useNavigate();
-  const { signInWithPassword, signUpWithPassword, signInWithGoogle } = useAuthStore();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const { signInOrCreateWithPassword, signInWithGoogle } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -33,15 +32,10 @@ export function AuthScreen() {
     try {
       if (!email.trim() || !email.includes('@')) throw new Error('اكتب بريداً إلكترونياً صحيحاً.');
       if (password.length < 6) throw new Error('كلمة المرور يجب ألا تقل عن 6 أحرف.');
-      if (mode === 'signup') {
-        const result = await signUpWithPassword(email, password, displayName);
-        if (result.needsEmailConfirmation) {
-          setMessage('تم إنشاء الحساب. افتح رسالة التأكيد في بريدك ثم ارجع لتسجيل الدخول.');
-          setMode('signin');
-          return;
-        }
-      } else {
-        await signInWithPassword(email, password);
+      const result = await signInOrCreateWithPassword(email, password, displayName);
+      if (result.needsEmailConfirmation) {
+        setMessage('هذا أول دخول بهذا البريد. افتح رسالة التأكيد في بريدك ثم ارجع لإكمال الدخول.');
+        return;
       }
       navigate('/home', { replace: true });
     } catch (err) {
@@ -73,20 +67,16 @@ export function AuthScreen() {
         </div>
         <div className="auth-heading">
           <span className="auth-kicker"><Sparkles size={14} /> حسابك يحفظ رحلتك</span>
-          <h1>{mode === 'signin' ? 'ارجع للمنافسة' : 'أنشئ حسابك في قدها'}</h1>
-          <p>{mode === 'signin' ? 'احفظ تقدمك وسلسلتك ونتائجك على كل أجهزتك.' : 'ابدأ مجاناً، واحفظ مستواك ومبارياتك ومكافآتك.'}</p>
-        </div>
-        <div className="auth-tabs" role="tablist">
-          <button type="button" className={mode === 'signin' ? 'is-active' : ''} onClick={() => { setMode('signin'); setError(''); }}>تسجيل الدخول</button>
-          <button type="button" className={mode === 'signup' ? 'is-active' : ''} onClick={() => { setMode('signup'); setError(''); }}>حساب جديد</button>
+          <h1>ادخل إلى قدها</h1>
+          <p>اكتب بريدك وكلمة المرور؛ سنفتح حسابك إن كان موجودًا أو ننشئه لك أول مرة.</p>
         </div>
         <form onSubmit={submit} className="auth-form">
-          {mode === 'signup' && <label><span>اسم العرض</span><div className="auth-input"><UserRound size={18} /><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="اسمك في المنافسة" maxLength={32} /></div></label>}
+          <label><span>اسم العرض <small>(اختياري للحساب الجديد)</small></span><div className="auth-input"><UserRound size={18} /><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="اسمك في المنافسة" maxLength={32} autoComplete="nickname" /></div></label>
           <label><span>البريد الإلكتروني</span><div className="auth-input"><Mail size={18} /><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" dir="ltr" required /></div></label>
-          <label><span>كلمة المرور</span><div className="auth-input"><LockKeyhole size={18} /><input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 أحرف على الأقل" autoComplete={mode === 'signin' ? 'current-password' : 'new-password'} dir="ltr" required /><button type="button" className="auth-reveal" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
+          <label><span>كلمة المرور</span><div className="auth-input"><LockKeyhole size={18} /><input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 أحرف على الأقل" autoComplete="current-password" dir="ltr" required /><button type="button" className="auth-reveal" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
           {error && <p className="auth-alert auth-alert-error" role="alert">{error}</p>}
           {message && <p className="auth-alert auth-alert-success" role="status">{message}</p>}
-          <button className="btn-primary auth-submit" disabled={busy}>{busy ? 'جاري التحضير...' : mode === 'signin' ? 'دخول آمن' : 'إنشاء الحساب'}</button>
+          <button className="btn-primary auth-submit" disabled={busy}>{busy ? 'جاري التحضير...' : 'دخول أو إنشاء حساب'}</button>
         </form>
         <div className="auth-divider"><span>أو</span></div>
         <button type="button" className="btn-secondary auth-google" onClick={() => void google()} disabled={busy}><Chrome size={18} /> المتابعة بحساب Google</button>

@@ -62,12 +62,11 @@ export async function initBilling(): Promise<void> {
   }
 }
 
-export async function getNativeProducts() {
+export async function getNativeProducts(productIdentifiers = Object.values(PRODUCT_BY_PLAN)) {
   const NP = await loadNativePurchases();
   if (!NP?.getProducts) return [];
-  const ids = Object.values(PRODUCT_BY_PLAN);
   try {
-    const res = await NP.getProducts({ productIdentifiers: ids });
+    const res = await NP.getProducts({ productIdentifiers });
     return res?.products ?? res ?? [];
   } catch {
     return [];

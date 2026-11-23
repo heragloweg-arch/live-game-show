@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Coins, Crown, Flame, Lock, Sparkles } from 'lucide-react';
 import { buyCosmetic, equipCosmetic, getCosmetics, type CosmeticItem } from '../../services/cosmetics/shopApi';
 import { fetchCoinCatalog, type CoinPack } from '../../services/billing/coinApi';
-import { purchaseCoinPack } from '../../services/billing/playBilling';
+import { getNativeProducts, purchaseCoinPack } from '../../services/billing/playBilling';
 import { formatPrice } from '../../services/billing/subscriptionApi';
 import { track } from '../../services/analytics/events';
 import { cn } from '../../utils/cn';
@@ -27,7 +27,16 @@ export function ShopScreen() {
       const result = await getCosmetics();
       setItems(result.items); setCoins(result.coins);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'تعذر تحميل المتجر'); }
-    void fetchCoinCatalog().then((catalog) => setCoinPacks(catalog.catalog)).catch(() => setCoinPacks([]));
+    void fetchCoinCatalog().then(async (catalog) => {
+      const products = await getNativeProducts(catalog.catalog.map((pack) => pack.google_product_id));
+      const localized = new Map<string, string>();
+      products.forEach((product: { productIdentifier?: string; productId?: string; priceString?: string; localizedPrice?: string; localized_price?: string }) => {
+        const id = product.productIdentifier || product.productId;
+        const price = product.priceString || product.localizedPrice || product.localized_price;
+        if (id && price) localized.set(id, price);
+      });
+      setCoinPacks(catalog.catalog.map((pack) => ({ ...pack, localized_price: localized.get(pack.google_product_id) })));
+    }).catch(() => setCoinPacks([]));
   };
   useEffect(() => { void load(); }, []);
   const visible = useMemo(() => filter === 'all' ? items : filter === 'owned' ? items.filter((x) => x.owned) : filter === 'equipped' ? items.filter((x) => x.equipped) : items.filter((x) => x.kind === filter), [filter, items]);
@@ -79,7 +88,7 @@ export function ShopScreen() {
     {coinPacks.length > 0 && <section className="mb-5 rounded-3xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
       <div className="mb-3 flex items-center justify-between"><div><p className="eyebrow">Google Play</p><h2 className="font-display text-xl font-black">اشحن رصيد الاستضافة</h2></div><Coins className="h-5 w-5 text-amber-300" /></div>
       <p className="mb-4 text-xs leading-5 text-white/45">الكوين للاستخدامات التجميلية واستضافة الغرف فقط. كل عملية تُتحقق خادميًا وتُسجل مرة واحدة.</p>
-      <div className="grid gap-2 sm:grid-cols-3">{coinPacks.map((pack) => <article key={pack.pack_id} className="rounded-2xl border border-white/10 bg-black/10 p-3"><p className="text-sm font-bold text-white/80">{pack.title}</p><p className="mt-1 font-display text-2xl font-black text-amber-200">{pack.coins.toLocaleString('ar')}</p><p className="text-[10px] text-white/35">كوين</p><button type="button" onClick={() => void buyCoins(pack)} disabled={coinBusy === pack.pack_id} className="btn-gold mt-3 w-full text-xs">{coinBusy === pack.pack_id ? 'جارٍ التحقق...' : formatPrice(pack.price_micros, pack.currency)}</button></article>)}</div>
+      <div className="grid gap-2 sm:grid-cols-3">{coinPacks.map((pack) => <article key={pack.pack_id} className="rounded-2xl border border-white/10 bg-black/10 p-3"><p className="text-sm font-bold text-white/80">{pack.title}</p><p className="mt-1 font-display text-2xl font-black text-amber-200">{pack.coins.toLocaleString('ar')}</p><p className="text-[10px] text-white/35">كوين</p><div className="mt-2 flex items-baseline gap-2">{pack.old_price_micros ? <del className="text-xs text-white/35">{formatPrice(pack.old_price_micros, pack.currency)}</del> : null}<strong className="text-sm text-amber-100">{pack.localized_price || formatPrice(pack.price_micros, pack.currency)}</strong></div><p className="mt-1 text-[10px] text-white/35">السعر المحلي يظهر من Google Play على أندرويد؛ الويب يعرض USD.</p><button type="button" onClick={() => void buyCoins(pack)} disabled={coinBusy === pack.pack_id} className="btn-gold mt-3 w-full text-xs">{coinBusy === pack.pack_id ? 'جارٍ التحقق...' : 'شراء الكوين'}</button></article>)}</div>
     </section>}
     <div className="mb-5 flex gap-2 overflow-x-auto pb-1">{(['all', 'owned', 'equipped', 'frame', 'title', 'emote'] as const).map((key) => <button key={key} type="button" onClick={() => setFilter(key)} className={cn('chip whitespace-nowrap', filter === key && 'border-violet-300/40 bg-violet-500/20 text-white')}>{key === 'all' ? 'الكل' : key === 'owned' ? 'مملوك' : key === 'equipped' ? 'مجهز' : kindLabel[key]}</button>)}</div>
     {message && <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">{message}</div>}

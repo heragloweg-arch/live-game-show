@@ -11,6 +11,7 @@ interface AuthState {
   bootstrap: () => Promise<void>;
   signInAnonymously: () => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
+  signInOrCreateWithPassword: (email: string, password: string, displayName?: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signUpWithPassword: (email: string, password: string, displayName?: string) => Promise<{ needsEmailConfirmation: boolean }>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -122,6 +123,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         displayName: data.user.user_metadata?.display_name,
       });
       set({ user: withAccountMeta(profile, data.user), isAnonymousSession: false, isAuthenticated: true, sessionLoading: false });
+    }
+  },
+
+  signInOrCreateWithPassword: async (email, password, displayName) => {
+    try {
+      await get().signInWithPassword(email, password);
+      return { needsEmailConfirmation: false };
+    } catch (signInError) {
+      const message = signInError instanceof Error ? signInError.message : String(signInError);
+      if (!/invalid login credentials|invalid_credentials/i.test(message)) throw signInError;
+      try {
+        return await get().signUpWithPassword(email, password, displayName);
+      } catch (signUpError) {
+        if (/already registered|user already exists|email_exists/i.test(signUpError instanceof Error ? signUpError.message : String(signUpError))) {
+          throw signInError;
+        }
+        throw signUpError;
+      }
     }
   },
 

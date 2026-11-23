@@ -64,7 +64,7 @@ serveWithCors(async (req) => {
     if (action === 'coin_catalog') {
       const { data, error } = await supabase
         .from('coin_catalog')
-        .select('pack_id, title, coins, price_micros, currency, google_product_id')
+        .select('pack_id, title, coins, price_micros, old_price_micros, currency, google_product_id')
         .eq('active', true)
         .order('price_micros');
       if (error) return json({ error: error.message }, 500);
