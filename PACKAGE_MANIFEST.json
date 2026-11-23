@@ -2,34 +2,29 @@
   "product": "Qaddaha",
   "repository": "https://github.com/heragloweg-arch/live-game-show.git",
   "branch": "main",
-  "commit": "a4f9c52b3cbd16f1e6b27bd428efe8b18c738b50",
-  "generatedAt": "2026-10-29",
-  "trackedFileCount": 424,
-  "latestMigration": "supabase/migrations/20261027000001_retention_rematch_latency.sql",
-  "productionGates": "50/50 PASS locally",
+  "commit": "d395dcc582925cc43609bd31f17f360c3b9e46b7",
+  "generatedAt": "2026-11-23",
+  "trackedFileCount": 486,
+  "latestMigration": "supabase/migrations/20261123000001_coin_catalog_pricing.sql",
+  "productionGates": "57/57 PASS locally; typecheck, lint, Vitest, build, production verification, and git diff --check PASS",
   "contentGate": "968 audited rows; no bulk activation; service-role approval required",
-  "e2eGate": "10/10 BLOCKED_EXTERNAL; no false PASS",
+  "e2eGate": "BLOCKED_EXTERNAL; no field PASS claimed",
   "npmAudit": "0 vulnerabilities",
-  "supabaseStaging": {
+  "supabaseProduction": {
     "projectRef": "jwhrbadnirwjyinplbmn",
-    "status": "ACTIVE_HEALTHY",
-    "migration": "20261027000001_retention_rematch_latency",
-    "functions": {
-      "daily": {
-        "status": "ACTIVE",
-        "version": 20
-      },
-      "metrics": {
-        "status": "ACTIVE",
-        "version": 14
-      },
-      "match": {
-        "status": "ACTIVE",
-        "version": 24
-      }
+    "migrationApplied": "20261123000001_coin_catalog_pricing",
+    "subscription": {
+      "status": "ACTIVE",
+      "version": 22,
+      "updatedAtUtc": "2026-11-23 02:37:27"
     }
   },
-  "releaseDecision": "NO-GO until HIGH concurrency gaps and external evidence are closed",
+  "railway": {
+    "url": "https://live-game-show-production-31045377.up.railway.app/",
+    "ready": "HTTP 200",
+    "buildInfo": "d395dcc582925cc43609bd31f17f360c3b9e46b7"
+  },
+  "releaseDecision": "SOFT_LAUNCH_CANDIDATE_ONLY; NO-GO for public/store launch until external E2E, AAB/Google Play, AdMob, LiveKit, TikTok, and key-rotation evidence are closed",
   "authoritativeDocs": [
     "docs/LAUNCH_STATUS.md",
     "docs/COMPREHENSIVE_GAP_AUDIT_2026-10-27_AR.md",

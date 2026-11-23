@@ -101,3 +101,15 @@
 تم التحقق أن شاشات المضيف والغرفة وLiveKit lazy routes، ولا تدخل bundle المسار الأول Home→Play. يبقى chunk `livekitClient` كبيرًا عند تحميل المسار المختص، وهو تحذير أداء منفصل وليس فشلًا في المسار الأول.
 
 آخر commit في `main` هو `5d45f04c49b30a1b6189e63fbbe56bcacdd9d674`. تم رفعه إلى GitHub، وتطابق `HEAD == origin/main`، كما تطابقت معه بصمة Railway بعد المزامنة.
+
+
+## دفعة R2.1 — المصادقة الموحدة وتسعير الكوين والتحقق الخارجي — 23 نوفمبر 2026
+
+- commit الدفعة: `d395dcc582925cc43609bd31f17f360c3b9e46b7` على `main`، وتم رفعه إلى `origin/main` مع تطابق HEAD والشجرة النظيفة وقت الرفع.
+- تم توحيد شاشة البريد في نموذج واحد: يحاول المسار تسجيل الدخول، وإذا لم يكن البريد موجودًا ينشئ الحساب بكلمة المرور نفسها. بقي Google OAuth مسارًا مستقلًا عبر Supabase OAuth دون تغيير في الأسرار أو تجاوز التحقق.
+- تم توسيع كتالوج الكوين خادميًا عبر migration `20261123000001_coin_catalog_pricing.sql` ليبدأ من 500 كوين ويصل إلى 100,000، مع `old_price_micros` للسعر السابق. السعر المحلي المعروض على Android مصدره Google Play عند توفره، والويب يستخدم USD كقيمة fallback؛ التحقق والخصم خادميان.
+- طبقت migration على Supabase Production للمشروع `jwhrbadnirwjyinplbmn` بنجاح. أعيد نشر `subscription` بنجاح، وأثبت `supabase functions list` حالته `ACTIVE` بالإصدار `22` بتاريخ `2026-11-23 02:37:27 UTC`.
+- Railway الحالي `https://live-game-show-production-31045377.up.railway.app/`: `/ready` أعاد HTTP 200، و`/build-info.json` أعاد `gitCommit=d395dcc582925cc43609bd31f17f360c3b9e46b7` مطابقًا لـ`main`.
+- البوابات المحلية بعد الإصلاح: `typecheck`, `lint`, Vitest, `test:production-gates`, `build`, `verify-production`, و`git diff --check` ناجحة. تحذير chunk `livekitClient` الأكبر من 500KB ما زال محصورًا في المسار المختص وليس المسار الأول.
+
+الحكم: التطبيق **Soft Launch Candidate برمجيًا** فقط، وليس Store Ready أو Global Launch. ما يزال E2E الميداني، AAB/Google Play Billing، AdMob الإنتاجي، LiveKit الحقيقي، TikTok Kit، وتدوير Service Role Key بحاجة إلى أدلة خارجية مباشرة. لا يُعلن PASS لهذه البنود.
