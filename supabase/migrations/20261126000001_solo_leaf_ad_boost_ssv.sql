@@ -133,11 +133,11 @@ BEGIN
       SET ads_verified = LEAST(v_verified, 2)
       WHERE boost_group_id = v_pending.boost_group_id AND ads_verified < LEAST(v_verified, 2);
     IF v_verified >= 2 THEN
-      UPDATE public.solo_leaf_ad_boosts SET bonus_awarded = 100, completed_at = COALESCE(completed_at, now())
+      UPDATE public.solo_leaf_ad_boosts SET bonus_awarded = 50, completed_at = COALESCE(completed_at, now())
         WHERE boost_group_id = v_pending.boost_group_id AND bonus_awarded = 0;
       IF FOUND THEN
-        v_balance := public.credit_coins(v_pending.user_id, 100, 'solo_leaf_ad_boost', v_pending.boost_group_id::text);
-        v_bonus := 100;
+        v_balance := public.credit_coins(v_pending.user_id, 50, 'solo_leaf_ad_boost', v_pending.boost_group_id::text);
+        v_bonus := 50;
       END IF;
     END IF;
   END IF;
