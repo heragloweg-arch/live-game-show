@@ -22,6 +22,13 @@ export type AdPlacement =
   | 'between_rounds';
 
 export type AdResult = 'shown' | 'skipped' | 'disabled' | 'capped' | 'failed' | 'rewarded' | 'reward_pending';
+export interface RewardContext {
+  boostGroupId?: string;
+  boostSlot?: 1 | 2;
+  matchId?: string;
+  journeyBranch?: number;
+  journeyLeaf?: number;
+}
 
 const STORAGE_PREFIX = 'qaddaha_ad_';
 
@@ -128,7 +135,7 @@ function unitId(placement: AdPlacement): string | undefined {
  */
 export async function showAd(
   placement: AdPlacement,
-  opts?: { inRound?: boolean }
+  opts?: { inRound?: boolean; rewardContext?: RewardContext }
 ): Promise<AdResult> {
   if (!adsGloballyEnabled()) return 'disabled';
   if (!canShowAd(placement, opts)) {
@@ -153,7 +160,7 @@ export async function showAd(
       }
 
       if (placement === 'rewarded_extra_coins') {
-        const pending = await prepareAdRewardOnServer(placement);
+        const pending = await prepareAdRewardOnServer(placement, opts?.rewardContext);
         if (!pending) return 'failed';
         await AdMob.prepareRewardVideoAd({
           adId: id,
@@ -220,7 +227,7 @@ export interface PendingAdReward {
   requestId: string;
   userId: string;
 }
-export async function prepareAdRewardOnServer(placement: AdPlacement): Promise<PendingAdReward | null> {
+export async function prepareAdRewardOnServer(placement: AdPlacement, context?: RewardContext): Promise<PendingAdReward | null> {
   try {
     if (placement !== 'rewarded_extra_coins' || typeof crypto?.randomUUID !== 'function') return null;
     const { supabase } = await import('../supabase/client');
@@ -234,7 +241,7 @@ export async function prepareAdRewardOnServer(placement: AdPlacement): Promise<P
         Authorization: `Bearer ${session.access_token}`,
         apikey: getSupabaseAnonKey(),
       },
-      body: JSON.stringify({ action: 'ad_reward_prepare', placement, requestId }),
+      body: JSON.stringify({ action: 'ad_reward_prepare', placement, requestId, ...context }),
     });
     if (!response.ok) return null;
     const result = await response.json() as { requestId?: string; userId?: string; status?: string };

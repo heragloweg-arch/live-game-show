@@ -52,8 +52,8 @@ export function DifficultyScreen() {
       <header className="solo-tree-header">
         <Link to="/play" className="btn-ghost p-2" aria-label="العودة"><ArrowRight className="h-5 w-5" /></Link>
         <div className="flex-1">
-          <p className="eyebrow">رحلة Solo · لاعب واحد</p>
-          <h1 className="font-display text-2xl font-black text-gradient">شجرة المستويات</h1>
+          <p className="eyebrow">شجرة التحدي · لاعب واحد</p>
+          <h1 className="font-display text-2xl font-black text-gradient">شجرة التحدي</h1>
           <p className="text-xs text-white/55">أكمل كل ورقة وأسئلتها لفتح الغصن التالي. لا يوجد منافس أمامك.</p>
         </div>
         <div className="tree-progress-badge"><TreePine className="h-4 w-4" /><span>{completedCount}/48</span></div>

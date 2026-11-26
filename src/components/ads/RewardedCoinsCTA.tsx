@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { PlayCircle, Loader2, Sparkles, Zap } from 'lucide-react';
-import { showAd } from '../../services/ads/adMob';
+import { showAd, type RewardContext } from '../../services/ads/adMob';
 import { shouldShowAds } from '../../services/billing/entitlements';
 import { cn } from '../../utils/cn';
 
 type Props = {
   perfect?: boolean;
+  rewardContext?: RewardContext;
+  onComplete?: () => void;
+  title?: string;
 };
 
-export function RewardedCoinsCTA({ perfect = false }: Props) {
+export function RewardedCoinsCTA({ perfect = false, rewardContext, onComplete, title = 'ضاعف مكافأتك' }: Props) {
   const [busy, setBusy] = useState(false);
   const [adsDone, setAdsDone] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
@@ -21,9 +24,12 @@ export function RewardedCoinsCTA({ perfect = false }: Props) {
     setMessage(null);
     try {
       let watched = adsDone;
+      const boostGroupId = rewardContext && typeof crypto?.randomUUID === 'function'
+        ? (rewardContext.boostGroupId ?? crypto.randomUUID())
+        : undefined;
       while (watched < 2) {
         setMessage(watched === 0 ? 'الإعلان 1 من 2…' : 'الإعلان 2 من 2…');
-        const result = await showAd('rewarded_extra_coins');
+        const result = await showAd('rewarded_extra_coins', { rewardContext: rewardContext ? { ...rewardContext, boostGroupId, boostSlot: (watched + 1) as 1 | 2 } : undefined });
         if (result !== 'rewarded' && result !== 'reward_pending') {
           setMessage(
             result === 'capped'
@@ -42,6 +48,7 @@ export function RewardedCoinsCTA({ perfect = false }: Props) {
       setMessage(perfect
         ? 'تم إرسال الإعلانين للتحقق الآمن — ستضاف المكافأة بعد وصول AdMob SSV'
         : 'تم إرسال الإعلانين للتحقق الآمن — ستضاف المكافأة بعد وصول AdMob SSV');
+      onComplete?.();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'تعذر إكمال المكافأة');
     } finally {
@@ -53,7 +60,7 @@ export function RewardedCoinsCTA({ perfect = false }: Props) {
     <div className="reward-boost-card mt-5 overflow-hidden rounded-2xl border border-amber-300/40 bg-gradient-to-br from-amber-500/25 via-orange-500/15 to-fuchsia-600/20 p-4 text-center shadow-[0_0_40px_rgba(251,191,36,0.25)]">
       <div className="mb-2 flex items-center justify-center gap-2 text-amber-100">
         <Sparkles className="h-5 w-5 animate-pulse text-amber-300" />
-        <span className="font-display text-sm font-black tracking-wide">ضاعف مكافأتك {multLabel}</span>
+        <span className="font-display text-sm font-black tracking-wide">{title} {multLabel}</span>
         <Zap className="h-5 w-5 text-yellow-300" />
       </div>
       <p className="mb-3 text-[11px] leading-relaxed text-white/70">

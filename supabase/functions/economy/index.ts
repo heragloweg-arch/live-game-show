@@ -167,16 +167,29 @@ serveWithCors(async (req) => {
     if (action === 'ad_reward_prepare') {
       const requestId = String(body.requestId || '');
       const placement = String(body.placement || 'rewarded_extra_coins');
+      const boostGroupId = body.boostGroupId ? String(body.boostGroupId) : null;
+      const boostSlot = body.boostSlot == null ? null : Number(body.boostSlot);
+      const matchId = body.matchId ? String(body.matchId) : null;
+      const journeyBranch = body.journeyBranch == null ? null : Number(body.journeyBranch);
+      const journeyLeaf = body.journeyLeaf == null ? null : Number(body.journeyLeaf);
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
         return json({ error: 'A valid reward request ID is required' }, 400);
       }
       if (placement !== 'rewarded_extra_coins') return json({ error: 'Unsupported ad reward placement' }, 400);
-      const { data, error } = await supabase.rpc('prepare_ad_reward_ssv_atomic', {
+      const rpcArgs: Record<string, unknown> = {
         p_user_id: user.id,
         p_request_id: requestId,
         p_placement: placement,
         p_daily_cap: 12,
+      };
+      if (boostGroupId) Object.assign(rpcArgs, {
+        p_boost_group_id: boostGroupId,
+        p_boost_slot: boostSlot,
+        p_match_id: matchId,
+        p_journey_branch: journeyBranch,
+        p_journey_leaf: journeyLeaf,
       });
+      const { data, error } = await supabase.rpc('prepare_ad_reward_ssv_atomic', rpcArgs);
       if (error) {
         const capped = /daily ad reward limit/i.test(error.message);
         return json({ error: capped ? 'Daily ad reward limit reached' : 'Unable to prepare verified ad reward', code: capped ? 'CAPPED' : 'PREPARE_FAILED' }, capped ? 429 : 400);

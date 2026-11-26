@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -33,8 +33,11 @@ async function shareMatchResult(text: string) {
 
 export function MatchScreen() {
   const { matchId } = useParams();
+  const navigate = useNavigate();
   const [search] = useSearchParams();
   const difficulty = (search.get('diff') as Difficulty) || 'normal';
+  const journeyBranch = Number(search.get('branch'));
+  const journeyLeaf = Number(search.get('leaf'));
   const server = useServerMatch();
   const match = server.match;
   const latestMatchRef = useRef(match);
@@ -420,6 +423,8 @@ export function MatchScreen() {
                 leafCorrect={match.mode === 'solo' ? displayedSoloCorrect : undefined}
                 leafQuestions={match.mode === 'solo' ? (match.soloLeafQuestions ?? 3) : undefined}
                 leafUnlocked={match.mode === 'solo' ? displayedSoloCorrect >= (match.soloRequiredCorrect ?? 2) : undefined}
+                leafBoostContext={match.mode === 'solo' && Number.isInteger(journeyBranch) && Number.isInteger(journeyLeaf) ? { matchId: match.matchId ?? match.id ?? '', journeyBranch, journeyLeaf } : undefined}
+                onLeafBoostComplete={() => { active.reset(); navigate('/play/difficulty', { replace: true }); }}
                 onReset={() => active.reset()}
               />
             </motion.div>
