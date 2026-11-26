@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getSoloJourney } from './soloJourneyProgress';
 
-describe('server-owned solo journey tree projection', () => {
+describe('server-owned challenge tree tree projection', () => {
   it('opens only the first leaf for a new player', () => {
     const journey = getSoloJourney();
     expect(journey.leaves[0]).toMatchObject({ branch: 1, leaf: 1, unlocked: true, completed: false });

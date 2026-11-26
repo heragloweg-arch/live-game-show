@@ -225,5 +225,5 @@ GRANT EXECUTE ON FUNCTION public.start_tournament_team_match(UUID, UUID) TO serv
 
 -- Team-league seed: max_players means maximum number of registered teams.
 INSERT INTO public.tournaments (slug, title, description, status, max_players, entry_coins, prize_pool, rounds_total, difficulty, format, competition_mode, starts_at, ends_at)
-VALUES ('teams-s1', 'دوري فرق قدها — الموسم الأول', 'دوري كرة قدم: كل فريق يواجه كل فريق، 3 نقاط للفوز ونقطة للتعادل، والكأس للفريق الأعلى.', 'registration', 8, 25, 5000, 1, 'normal', 'round_robin', 'team_league', now(), now() + interval '14 days')
+VALUES ('teams-s1', 'دوري فرق قدها — الموسم الأول', 'دوري فرق قدها: كل فريق يواجه كل فريق، 3 نقاط للفوز ونقطة للتعادل، ومكافأة 3000 كوين لكل فرد في الفريق الفائز.', 'registration', 8, 25, 5000, 1, 'normal', 'round_robin', 'team_league', now(), now() + interval '14 days')
 ON CONFLICT (slug) DO UPDATE SET competition_mode = 'team_league', format = 'round_robin', max_players = 8;

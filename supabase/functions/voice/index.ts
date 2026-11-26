@@ -184,8 +184,8 @@ serveWithCors(async (req) => {
       return json({
         trialAvailable: !hostProfile?.host_trial_used_at,
         trialMinutes: 30,
-        coinCost: 50,
-        intervalMinutes: 30,
+        coinCost: 2000,
+        intervalMinutes: 60,
         coins: Number(hostProfile?.coins ?? 0),
         hostSubscription: hasHostSubscription,
         subscriptionExpiresAt: hostSubscription?.expires_at ?? hostProfile?.subscription_expires_at ?? null,
@@ -205,8 +205,8 @@ serveWithCors(async (req) => {
         p_title: title,
         p_social_provider: socialProvider,
         p_social_account_id: socialAccountId,
-        p_coin_cost: 50,
-        p_interval_seconds: 1800,
+        p_coin_cost: 2000,
+        p_interval_seconds: 3600,
       });
       if (error) {
         const message = error.message ?? '';
@@ -225,8 +225,8 @@ serveWithCors(async (req) => {
         hostId: String(room.host_id),
         accessMode: String(room.access_mode),
         nextChargeAt: (room.next_charge_at as string | null) ?? null,
-        coinCost: Number(room.coin_cost ?? 50),
-        intervalSeconds: Number(room.interval_seconds ?? 1800),
+        coinCost: Number(room.coin_cost ?? 2000),
+        intervalSeconds: Number(room.interval_seconds ?? 3600),
         socialProvider: (room.social_provider as string | null) ?? null,
         socialAccountId: (room.social_account_id as string | null) ?? null,
         coins: Number(room.coins ?? 0),

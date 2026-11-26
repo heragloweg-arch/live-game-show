@@ -1,4 +1,4 @@
--- Server-authoritative Solo journey progress.
+-- Server-authoritative challenge tree progress.
 -- The client may cache progress for offline presentation, but completion is accepted here only once.
 CREATE TABLE IF NOT EXISTS public.solo_journey_progress (
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,

@@ -302,7 +302,7 @@ export function HostScreen() {
                   <div className="flex items-center gap-2">
                     {hostStatus.hostSubscription ? <Crown className="h-4 w-4 text-amber-300" /> : <Coins className="h-4 w-4 text-amber-300" />}
                     <span className="font-semibold text-white/80">
-                      {hostStatus.hostSubscription ? 'مضيف برو: بدون خصم دوري' : hostStatus.trialAvailable ? 'تجربة مجانية: 30 دقيقة لمرة واحدة' : `الاستضافة: ${hostStatus.coinCost} كوين كل ${hostStatus.intervalMinutes} دقيقة`}
+                      {hostStatus.hostSubscription ? 'مضيف برو: بدون خصم دوري' : hostStatus.trialAvailable ? 'تجربة مجانية: 30 دقيقة لمرة واحدة' : `الاستضافة: ${hostStatus.coinCost} كوين لكل ساعة بث`}
                     </span>
                   </div>
                   <p className="text-white/45">الرصيد الحالي: {hostStatus.coins} كوين. الخصم يتم ذريًا على الخادم، وتتوقف الغرفة تلقائيًا عند انتهاء المدة أو الرصيد.</p>
@@ -356,7 +356,7 @@ export function HostScreen() {
                 {joinQrDataUrl && <div className="mt-4 flex items-center gap-3 rounded-xl bg-white p-3"><img src={joinQrDataUrl} alt={`QR للانضمام إلى غرفة ${room.code}`} className="h-28 w-28 rounded-lg" /><div className="text-right text-xs text-surface-900"><strong className="block">امسح للانضمام</strong><span className="mt-1 block text-surface-900/60">يفتح شاشة الغرفة ويملأ الكود تلقائيًا.</span></div></div>}
                 <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                   <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/55">
-                    {room.accessMode === 'trial' ? 'تجربة مجانية · 30 دقيقة' : room.accessMode === 'subscription' ? 'مضيف برو · بدون خصم' : `${room.coinCost ?? 50} كوين / 30 دقيقة`}
+                    {room.accessMode === 'trial' ? 'تجربة مجانية · 30 دقيقة' : room.accessMode === 'subscription' ? 'مضيف برو · بدون خصم' : `${room.coinCost ?? 2000} كوين / ساعة`}
                   </span>
                   {room.nextChargeAt && <span className="rounded-full border border-amber-300/15 bg-amber-300/5 px-2.5 py-1 text-amber-100/70">المراجعة التالية {new Date(room.nextChargeAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}</span>}
                   {room.socialProvider === 'tiktok' && <span className="rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-2.5 py-1 text-fuchsia-100">TikTok مربوط</span>}

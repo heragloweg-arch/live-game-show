@@ -121,7 +121,7 @@ export function TournamentDetailScreen() {
           <Trophy className="h-6 w-6 text-gold-400" />
           <span className="text-sm text-white/50">{t?.status}</span>
         </div>
-        <p className="mb-4 text-sm text-white/60">{t?.description}</p>
+        <p className="mb-4 text-sm text-white/60">{teamLeague ? 'دوري فرق قدها — مكافأة 3000 كوين لكل فرد في الفريق الفائز.' : t?.description}</p>
         <div className="grid grid-cols-3 gap-2 text-center text-xs">
           <div className="rounded-xl bg-white/5 py-2">
             <p className="text-white/40">دخول</p>

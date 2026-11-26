@@ -6,7 +6,6 @@ import {
   BarChart3,
   Coins,
   Flame,
-  Gamepad2,
   Home,
   Medal,
   Play,
@@ -15,7 +14,6 @@ import {
   Swords,
   Trophy,
   User,
-  Users,
   Volume2,
   VolumeX,
   Zap,
@@ -27,7 +25,6 @@ import { ScreenShell } from '../../components/layout/ScreenShell';
 import { loadActiveMatch } from '../../services/realtime/reconnect';
 import { cn } from '../../utils/cn';
 import { isSoundEnabled, playSound, setSoundEnabled } from '../../utils/sound';
-import { getFeatureHealth, type FeatureHealth } from '../../services/api/featureHealthApi';
 import { getWeeklyJourney, type WeeklyJourneyDay } from '../../services/daily/weeklyJourneyApi';
 import { BottomAdBanner } from '../../components/ads/BottomAdBanner';
 
@@ -46,13 +43,11 @@ export function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const { wallet, loadWallet, setWallet } = useWalletStore();
   const [soundEnabled, setSoundEnabledState] = useState(true);
-  const [featureHealth, setFeatureHealth] = useState<Record<string, FeatureHealth>>({});
   const [weeklyJourney, setWeeklyJourney] = useState<WeeklyJourneyDay[]>([]);
 
   useEffect(() => {
     loadWallet();
     setSoundEnabledState(isSoundEnabled());
-    void getFeatureHealth().then(setFeatureHealth);
     void getWeeklyJourney().then((journey) => setWeeklyJourney(journey.days)).catch(() => setWeeklyJourney([]));
   }, [loadWallet]);
 
@@ -153,7 +148,7 @@ export function HomeScreen() {
         <motion.section variants={item} className="level-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="eyebrow">رحلة البطل</p>
+              <p className="eyebrow">شجرة التحدي</p>
               <div className="mt-1 flex items-baseline gap-2">
                 <strong className="font-display text-2xl font-black text-white">المستوى {level}</strong>
                 <span className="text-xs text-white/40">نجم صاعد</span>
@@ -186,16 +181,15 @@ export function HomeScreen() {
           </Link>
         </motion.section>
 
-        <motion.section variants={item}>
-          <div className="mb-3 flex items-end justify-between"><h2 className="section-title">اختر طريقتك</h2><span className="text-xs text-white/35">جاهز للعب</span></div>
-          <div className="grid grid-cols-2 gap-3">
-            <ModeCard health={featureHealth.one_v_one} to="/play" icon={<Swords />} title="مواجهة" subtitle="لاعب ضد لاعب" tone="violet" />
-            <ModeCard health={featureHealth.host} to="/room/join" icon={<Users />} title="غرفة" subtitle="مع الأصدقاء" tone="cyan" />
-            <ModeCard health={featureHealth.tournament} to="/tournament" icon={<Trophy />} title="بطولة" subtitle="نافس على اللقب" tone="gold" />
-            <ModeCard health={featureHealth.team} to="/team" icon={<Gamepad2 />} title="فريق" subtitle="معركة جماعية" tone="pink" />
+        <motion.section variants={item} className="card flex items-center gap-4 p-4">
+          <div className="level-badge"><Play className="h-5 w-5" /></div>
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">كل ساحات اللعب في مكان واحد</p>
+            <h2 className="section-title mt-1">مركز اللعب</h2>
+            <p className="mt-1 text-xs leading-5 text-white/45">المواجهات والغرف والفرق والبطولات مرتبة داخل ساحة المنافسة.</p>
           </div>
+          <Link to="/play" className="btn-primary shrink-0 px-3 py-2 text-xs">استكشف</Link>
         </motion.section>
-
         <motion.section variants={item} className="quick-row">
           <Link to="/leaderboard" className="quick-item"><Trophy /><span>المتصدرون</span><ArrowLeft /></Link>
           <Link to="/metrics" className="quick-item"><BarChart3 /><span>إحصائياتي</span><ArrowLeft /></Link>
@@ -218,11 +212,6 @@ export function HomeScreen() {
       <BottomAdBanner />
     </ScreenShell>
   );
-}
-
-function ModeCard({ to, icon, title, subtitle, tone, health }: { to: string; icon: React.ReactNode; title: string; subtitle: string; tone: 'violet' | 'cyan' | 'gold' | 'pink'; health?: FeatureHealth }) {
-  if (health?.status === 'disabled' || health?.status === 'maintenance') return null;
-  return <Link to={to} className={cn('mode-card', `mode-${tone}`)}><div className="mode-icon">{icon}</div><div><h3>{title} {health?.status === 'beta' && <span className="ml-1 rounded-full border border-amber-300/30 px-1.5 py-0.5 text-[9px] text-amber-200">Beta</span>}</h3><p>{health?.status === 'beta' && health.message ? health.message : subtitle}</p></div><ArrowLeft className="mode-arrow" /></Link>;
 }
 
 function NavItem({ to, icon, label, active = false }: { to: string; icon: React.ReactNode; label: string; active?: boolean }) {

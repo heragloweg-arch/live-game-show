@@ -62,7 +62,7 @@ export function DifficultyScreen() {
       {error && <div className="tree-error" role="alert">{error}</div>}
 
       <section className="tree-journey-section" aria-label="رحلة شجرة التحدي">
-        <div className="tree-section-heading"><div><p className="eyebrow">رحلة طويلة المدى</p><h2>كل ورقة إنجاز مستقل</h2></div><span>6 أغصان · 48 ورقة</span></div>
+        <div className="tree-section-heading"><div><p className="eyebrow">تقدم شجرة التحدي</p><h2>كل ورقة إنجاز مستقل</h2></div><span>6 أغصان · 48 ورقة</span></div>
         <p className="tree-section-copy">ثلاثة أسئلة متنوعة في كل ورقة. أجب عن الأسئلة المطلوبة كاملة لفتح الورقة التالية والحصول على مكافأتك الخادمية.</p>
         <div className="tree-stage">
           <div className="tree-canopy" aria-hidden="true"><span /><span /><span /><span /></div>

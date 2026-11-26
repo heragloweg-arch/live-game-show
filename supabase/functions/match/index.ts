@@ -554,7 +554,7 @@ async function finishMatch(supabase: any, matchId: string, userId: string | null
         p_leaf_number: leaf,
         p_match_id: matchId,
       });
-      if (progressError) console.error('[finish] solo journey progress', progressError);
+      if (progressError) console.error('[finish] challenge tree progress', progressError);
       journeyProgress = Array.isArray(progress) ? progress[0] ?? null : progress;
     }
   }
