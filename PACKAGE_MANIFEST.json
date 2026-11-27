@@ -2,13 +2,13 @@
   "product": "Qaddaha",
   "repository": "https://github.com/heragloweg-arch/live-game-show.git",
   "branch": "main",
-  "commit": "38b22432430ee42cc7ab17470b0013d5046f4239",
+  "commit": "7b5650bbedcad104507e5770a4369956759cc082",
   "version": "1.0.0",
-  "generatedAt": "2026-11-27T02:32:31.387Z",
+  "generatedAt": "2026-11-27T02:55:18.927Z",
   "buildInfo": {
     "path": "dist/build-info.json",
-    "gitCommit": "38b22432430ee42cc7ab17470b0013d5046f4239",
-    "contentFingerprint": "84bc32a21d3d5d98c289d1586204fef0e9b3bd7c"
+    "gitCommit": "7b5650bbedcad104507e5770a4369956759cc082",
+    "contentFingerprint": "1fb4187de45ca008887a8422ad9dd5ed3aa23805"
   },
   "sourceOfTruth": "repository source + dist/build-info.json",
   "releaseDecision": "NO-GO until external E2E, signed AAB/Google Play Billing, AdMob SSV, LiveKit, and production key-rotation evidence are closed"
