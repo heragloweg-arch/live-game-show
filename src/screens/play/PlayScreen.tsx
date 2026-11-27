@@ -1,57 +1,36 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CalendarDays, Crown, Leaf, Sparkles, Swords, Users, Zap } from 'lucide-react';
+import { ArrowRight, CalendarDays, Leaf, Swords, Sparkles } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { GAME_FORMATS, type GameFormatDefinition } from '../../services/game/gameFormats';
-import { track } from '../../services/analytics/events';
 
 const modes = [
-  { icon: Swords, title: 'مباراة سريعة', description: 'خصم حقيقي الآن', tone: 'violet', primary: true, action: '/play/matchmaking?diff=normal' },
+  { icon: Leaf, title: 'شجرة التحدي', description: '48 ورقة ثابتة بصعوبة متدرجة', tone: 'cyan', primary: true, action: '/play/difficulty' },
   { icon: CalendarDays, title: 'التحدي اليومي', description: '3 محطات ومكافأة اليوم', tone: 'gold', action: '/daily' },
-  { icon: Leaf, title: 'شجرة التحدي', description: 'شجرة مراحل بأسئلة متجددة', tone: 'cyan', action: '/play/difficulty' },
-  { icon: Users, title: 'غرفة الأصدقاء', description: 'كود أو رابط دعوة', tone: 'cyan', action: '/room/join' },
-  { icon: Users, title: 'معركة الفرق', description: 'تنافسوا كمجموعة', tone: 'pink', action: '/team' },
-  { icon: Crown, title: 'استضف تحدياً', description: 'أدر الجولة مباشرة', tone: 'gold', action: '/host' },
+  { icon: Swords, title: 'مباراة سريعة', description: 'مواجهة أساسية قابلة للعب', tone: 'violet', action: '/play/matchmaking?diff=normal' },
 ] as const;
-
-const formatIcons = { spark: Sparkles, bolt: Zap, letters: Leaf, brain: Crown, quote: CalendarDays } as const;
 
 export function PlayScreen() {
   const navigate = useNavigate();
-  const openFormat = (format: GameFormatDefinition) => {
-    track('game_format_selected', { format: format.id, source: 'play_screen' });
-    navigate(`/play/difficulty?format=${format.id}`);
-  };
 
   return (
     <main className="play-page" dir="rtl">
       <header className="play-header">
         <Link to="/home" className="btn-ghost play-back" aria-label="العودة للرئيسية"><ArrowRight size={20} /></Link>
-        <div><span className="eyebrow">ساحة المنافسة</span><h1>اختر تحديك</h1></div>
+        <div><span className="eyebrow">ساحة قدها</span><h1>اختر تحديك</h1></div>
         <span className="play-status"><span /> جاهز</span>
       </header>
       <section className="play-hero">
-        <div className="play-hero-content"><span className="auth-kicker"><Zap size={14} /> كل إجابة تقرّبك من القمة</span><h2>العب بطريقتك،<br /><strong>وأثبت أنك قدّها.</strong></h2><p>اختر إيقاع الجولة أو ادخل مواجهة حقيقية. كل المحتوى يمر من بوابة قدها الخادمية.</p></div>
+        <div className="play-hero-content"><span className="auth-kicker"><Sparkles size={14} /> كل إجابة تقرّبك من القمة</span><h2>العب بوضوح،<br /><strong>وأثبت أنك قدّها.</strong></h2><p>ثلاث تجارب أساسية، ومحتوى موثوق يختاره الخادم فقط عندما يكون قابلًا للعب.</p></div>
         <div className="play-hero-orbit" aria-hidden="true" />
       </section>
 
       <section className="play-section">
-        <div className="play-section-heading"><div><span className="eyebrow">هوية الجولة</span><h2>العب على مزاجك</h2></div><span className="play-count">5 قوالب</span></div>
-        <div className="format-rail" aria-label="قوالب اللعب">
-          {GAME_FORMATS.map((format) => {
-            const Icon = formatIcons[format.icon];
-            return <motion.button key={format.id} type="button" whileTap={{ scale: .97 }} onClick={() => openFormat(format)} className={cn('format-card', `format-${format.tone}`, format.id === 'mixed' && 'format-card-featured')}>
-              <span className="format-card-icon"><Icon size={19} /></span>
-              <span className="format-card-copy"><strong>{format.shortTitle}</strong><small>{format.description}</small></span>
-              <ArrowRight className="format-card-arrow" size={15} />
-            </motion.button>;
-          })}
+        <div className="play-section-heading"><div><span className="eyebrow">مساراتك الأساسية</span><h2>ابدأ من هنا</h2></div><span className="play-count">3 تجارب</span></div>
+        <div className="play-mode-grid play-mode-grid-featured">
+          {modes.map((mode) => <ModeCard key={mode.title} {...mode} onClick={() => navigate(mode.action)} />)}
         </div>
-        <p className="play-note"><Sparkles size={14} /> القالب يحدد نوع الأسئلة من البنك المعتمد فقط — لا إجابات مدفوعة ولا أفضلية شراء.</p>
+        <p className="play-note"><Sparkles size={14} /> لا توجد قوالب مزج أو سرعة أو كلمات منفصلة؛ كل سؤال يعرض إجابة ثابتة وتلميح عدد الحروف.</p>
       </section>
-
-      <section className="play-section"><div className="play-section-heading"><div><span className="eyebrow">الاختيار الموصى به</span><h2>ابدأ الآن</h2></div><span className="play-count">{modes.length} ساحات</span></div><div className="play-mode-grid">{modes.slice(0, 2).map((mode) => <ModeCard key={mode.title} {...mode} onClick={() => navigate(mode.action)} />)}</div></section>
-      <section className="play-section"><div className="play-section-heading"><div><span className="eyebrow">اكتشف أكثر</span><h2>ساحات أخرى</h2></div></div><div className="play-mode-grid">{modes.slice(2).map((mode) => <ModeCard key={mode.title} {...mode} onClick={() => navigate(mode.action)} />)}</div></section>
       <Link to="/home" className="play-home-link">العودة إلى لوحة التحكم <ArrowRight size={15} /></Link>
     </main>
   );

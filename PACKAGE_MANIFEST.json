@@ -2,34 +2,14 @@
   "product": "Qaddaha",
   "repository": "https://github.com/heragloweg-arch/live-game-show.git",
   "branch": "main",
-  "commit": "ceac006e81cd22c1616cfbe14dfb95a6eeef5eab",
-  "generatedAt": "2026-11-23",
-  "trackedFileCount": 486,
-  "latestMigration": "supabase/migrations/20261123000001_coin_catalog_pricing.sql",
-  "productionGates": "57/57 PASS locally; typecheck, lint, Vitest, build, production verification, and git diff --check PASS",
-  "contentGate": "968 audited rows; no bulk activation; service-role approval required",
-  "e2eGate": "BLOCKED_EXTERNAL; no field PASS claimed",
-  "npmAudit": "0 vulnerabilities",
-  "supabaseProduction": {
-    "projectRef": "jwhrbadnirwjyinplbmn",
-    "migrationApplied": "20261123000001_coin_catalog_pricing",
-    "subscription": {
-      "status": "ACTIVE",
-      "version": 22,
-      "updatedAtUtc": "2026-11-23 02:37:27"
-    }
+  "commit": "0ba463cb15a99ac040fc05bbd0943b00162d4446",
+  "version": "1.0.0",
+  "generatedAt": "2026-11-27T02:31:08.066Z",
+  "buildInfo": {
+    "path": "dist/build-info.json",
+    "gitCommit": "0ba463cb15a99ac040fc05bbd0943b00162d4446",
+    "contentFingerprint": "0b8c4ceb73dc2b29fbd386971e0bd8c6ce2e2821"
   },
-  "railway": {
-    "url": "https://live-game-show-production-31045377.up.railway.app/",
-    "ready": "HTTP 200",
-    "buildInfo": "ceac006e81cd22c1616cfbe14dfb95a6eeef5eab"
-  },
-  "releaseDecision": "SOFT_LAUNCH_CANDIDATE_ONLY; NO-GO for public/store launch until external E2E, AAB/Google Play, AdMob, LiveKit, TikTok, and key-rotation evidence are closed",
-  "authoritativeDocs": [
-    "docs/LAUNCH_STATUS.md",
-    "docs/COMPREHENSIVE_GAP_AUDIT_2026-10-27_AR.md",
-    "docs/OWNER_MATRIX_2026-10-27_AR.md",
-    "docs/SUPABASE_STAGING_EXECUTION_2026-10-27_AR.md",
-    "docs/SOLO_UI_AND_LEAF_CONTRACT_2026-10-29_AR.md"
-  ]
+  "sourceOfTruth": "repository source + dist/build-info.json",
+  "releaseDecision": "NO-GO until external E2E, signed AAB/Google Play Billing, AdMob SSV, LiveKit, and production key-rotation evidence are closed"
 }

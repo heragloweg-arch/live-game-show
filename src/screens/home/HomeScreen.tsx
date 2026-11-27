@@ -206,7 +206,7 @@ export function HomeScreen() {
         <NavItem to="/home" icon={<Home />} label="الرئيسية" active />
         <NavItem to="/leaderboard" icon={<Medal />} label="الترتيب" />
         <Link to="/play" className="play-nav-button" aria-label="ابدأ اللعب"><Swords className="h-6 w-6" /></Link>
-        <NavItem to="/tournament" icon={<Trophy />} label="البطولات" />
+        <NavItem to="/daily" icon={<Flame />} label="اليومي" />
         <NavItem to="/profile" icon={<User />} label="حسابي" />
       </nav>
       <BottomAdBanner />

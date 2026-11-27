@@ -17,6 +17,7 @@ import { fetchSubscriptionStatus } from '../../services/billing/subscriptionApi'
 import { fetchHostStatus, type HostStatus } from '../../services/livekit/voiceApi';
 import { disconnectTikTok, getTikTokStatus, startTikTokLink, type TikTokStatus } from '../../services/api/tiktokApi';
 import { deleteAccount } from '../../services/api/accountApi';
+import { isFeatureEnabled } from '../../config/softLaunch';
 
 export function ProfileScreen() {
   const navigate = useNavigate();
@@ -262,7 +263,7 @@ export function ProfileScreen() {
           <div className="rounded-xl bg-white/5 p-3"><span className="block text-white/35">تجربة المضيف</span><strong className="mt-1 block text-white/80">{hostStatus?.trialAvailable ? 'متاحة · 30 دقيقة' : 'استُخدمت'}</strong></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/host" className="btn-secondary flex-1 gap-2 text-xs"><Crown className="h-4 w-4" />لوحة المضيف</Link>
+          {isFeatureEnabled('hostShow') && <Link to="/host" className="btn-secondary flex-1 gap-2 text-xs"><Crown className="h-4 w-4" />لوحة المضيف</Link>}
           <Link to="/subscription" className="btn-secondary flex-1 gap-2 text-xs"><Crown className="h-4 w-4" />الترقية</Link>
           <Link to="/shop" className="btn-secondary flex-1 gap-2 text-xs"><WalletCards className="h-4 w-4" />شراء كوين</Link>
         </div>

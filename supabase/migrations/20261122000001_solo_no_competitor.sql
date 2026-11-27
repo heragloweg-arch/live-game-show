@@ -1,3 +1,4 @@
+-- Solo journey has no opponent or AI participant.
 -- Challenge tree has no opponent or AI participant.
 -- The user advances by completing every question in each unlocked leaf.
 BEGIN;

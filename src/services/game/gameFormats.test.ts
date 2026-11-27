@@ -3,19 +3,13 @@ import { GAME_FORMATS, formatById, isGameFormat, parseGameFormat } from './gameF
 
 describe('game formats', () => {
   it('exposes only production-supported formats', () => {
-    expect(GAME_FORMATS.map((format) => format.id)).toEqual([
-      'mixed',
-      'speed',
-      'letters',
-      'knowledge',
-      'words',
-    ]);
+    expect(GAME_FORMATS.map((format) => format.id)).toEqual(['mixed']);
   });
 
   it('normalizes unknown deep links to the safe mixed format', () => {
     expect(parseGameFormat('not-a-format')).toBe('mixed');
     expect(parseGameFormat(null)).toBe('mixed');
-    expect(isGameFormat('letters')).toBe(true);
+    expect(isGameFormat('letters')).toBe(false);
     expect(isGameFormat('roulette')).toBe(false);
   });
 

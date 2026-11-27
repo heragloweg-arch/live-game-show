@@ -127,7 +127,7 @@ function soloDifficultyPlan(branch?: number, leaf?: number): Difficulty[] | unde
   const stageIndex = ((branch - 1) * 8) + leaf;
   const baseTier = stageIndex <= 16 ? 0 : stageIndex <= 40 ? 1 : 2;
   const tiers: Difficulty[] = ['easy', 'normal', 'hard'];
-  return [0, 1, 2, 3, 4].map((round) => tiers[Math.min(2, baseTier + Math.floor(round / 2))]);
+  return [0, 1, 2].map((round) => tiers[Math.min(2, baseTier + Math.floor(round / 2))]);
 }
 
 async function pickChallenges(supabase: any, count: number, difficulty?: string, difficultyPlan?: Difficulty[]) {

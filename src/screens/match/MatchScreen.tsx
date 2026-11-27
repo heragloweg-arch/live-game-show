@@ -188,7 +188,7 @@ export function MatchScreen() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6">
         <p className="text-red-400">{active.error ?? 'حدث خطأ'}</p>
-        <Link to="/home" className="btn-primary">العودة</Link>
+        <Link to="/play/difficulty" className="btn-primary">العودة إلى شجرة التحدي</Link>
       </div>
     );
   }
@@ -197,7 +197,7 @@ export function MatchScreen() {
   return (
     <div className="flex min-h-screen flex-col bg-surface-900">
       <header className="flex items-center justify-between border-b border-white/5 px-4 py-3">
-        <Link to="/home" className="btn-ghost p-2" onClick={() => active.reset()}>
+        <Link to={match?.mode === 'solo' ? '/play/difficulty' : '/play'} className="btn-ghost p-2" onClick={() => active.reset()}>
           <ArrowRight className="h-5 w-5" />
         </Link>
         <div className="flex items-center gap-2 text-sm text-white/50">

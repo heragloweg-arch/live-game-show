@@ -7,7 +7,7 @@
   "packageManager": "npm@10.9.9",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/write-build-info.mjs",
+    "build": "vite build && node scripts/write-build-info.mjs && node scripts/write-package-manifest.mjs",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 50",
     "typecheck": "tsc --noEmit",
