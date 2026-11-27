@@ -2,12 +2,12 @@
   "product": "Qaddaha",
   "repository": "https://github.com/heragloweg-arch/live-game-show.git",
   "branch": "main",
-  "commit": "7b5650bbedcad104507e5770a4369956759cc082",
+  "commit": "ccc4764d7b8a2d815f7a0c92013c6cc542765633",
   "version": "1.0.0",
-  "generatedAt": "2026-11-27T02:55:18.927Z",
+  "generatedAt": "2026-11-27T02:56:01.503Z",
   "buildInfo": {
     "path": "dist/build-info.json",
-    "gitCommit": "7b5650bbedcad104507e5770a4369956759cc082",
+    "gitCommit": "ccc4764d7b8a2d815f7a0c92013c6cc542765633",
     "contentFingerprint": "1fb4187de45ca008887a8422ad9dd5ed3aa23805"
   },
   "sourceOfTruth": "repository source + dist/build-info.json",
