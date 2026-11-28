@@ -1,12 +1,18 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, CalendarDays, Leaf, Swords, Sparkles } from 'lucide-react';
+import { ArrowRight, DoorOpen, Leaf, Mic2, Sparkles, Swords, Trophy, Users } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const modes = [
   { icon: Leaf, title: 'شجرة التحدي', description: '48 ورقة ثابتة بصعوبة متدرجة', tone: 'cyan', primary: true, action: '/play/difficulty' },
-  { icon: CalendarDays, title: 'التحدي اليومي', description: '3 محطات ومكافأة اليوم', tone: 'gold', action: '/daily' },
   { icon: Swords, title: 'مباراة سريعة', description: 'مواجهة أساسية قابلة للعب', tone: 'violet', action: '/play/matchmaking?diff=normal' },
+] as const;
+
+const upcomingModes = [
+  { icon: Trophy, title: 'الدوريات', description: 'منافسة موسمية بمكافآت أكبر' },
+  { icon: DoorOpen, title: 'الغرف', description: 'ساحة خاصة للأصدقاء' },
+  { icon: Users, title: 'الأصدقاء', description: 'دعوات ومواجهات معارفك' },
+  { icon: Mic2, title: 'المضيف', description: 'قدّم عرضك أمام الجمهور' },
 ] as const;
 
 export function PlayScreen() {
@@ -29,7 +35,13 @@ export function PlayScreen() {
         <div className="play-mode-grid play-mode-grid-featured">
           {modes.map((mode) => <ModeCard key={mode.title} {...mode} onClick={() => navigate(mode.action)} />)}
         </div>
-        <p className="play-note"><Sparkles size={14} /> لا توجد قوالب مزج أو سرعة أو كلمات منفصلة؛ كل سؤال يعرض إجابة ثابتة وتلميح عدد الحروف.</p>
+        <p className="play-note"><Sparkles size={14} /> التحدي اليومي موجود في الرئيسية حتى تصل إليه مباشرة، وكل سؤال يعرض إجابة ثابتة وتلميح عدد الحروف.</p>
+      </section>
+      <section className="play-section play-upcoming" aria-labelledby="upcoming-heading">
+        <div className="play-section-heading"><div><span className="eyebrow">قريبًا في قدها</span><h2 id="upcoming-heading">ساحاتك القادمة</h2></div><span className="play-count">قيد الاختبار</span></div>
+        <div className="play-upcoming-grid">
+          {upcomingModes.map(({ icon: Icon, title, description }) => <div key={title} className="play-upcoming-card" aria-disabled="true"><span className="play-mode-icon"><Icon size={19} /></span><span><strong>{title}</strong><small>{description}</small></span><em>قريبًا</em></div>)}
+        </div>
       </section>
       <Link to="/home" className="play-home-link">العودة إلى لوحة التحكم <ArrowRight size={15} /></Link>
     </main>

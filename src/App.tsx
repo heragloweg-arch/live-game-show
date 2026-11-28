@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AppProviders } from './app/providers';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { useAuthStore } from './store/authStore';
 
 const SplashScreen = lazy(() => import('./screens/splash/SplashScreen').then((m) => ({ default: m.SplashScreen })));
 const AuthScreen = lazy(() => import('./screens/auth/AuthScreen').then((m) => ({ default: m.AuthScreen })));
@@ -41,6 +42,11 @@ function ProtectedLayout() {
   return <ProtectedRoute><Outlet /></ProtectedRoute>;
 }
 
+function OwnerMetricsRoute() {
+  const isOwner = useAuthStore((state) => Boolean(state.user?.isOwner));
+  return isOwner ? <MetricsScreen /> : <Navigate to="/subscription" replace />;
+}
+
 export default function App() {
   return (
     <AppProviders>
@@ -57,7 +63,7 @@ export default function App() {
                 <Route path="/home" element={<HomeScreen />} />
                 <Route path="/onboarding" element={<OnboardingScreen />} />
                 <Route path="/daily" element={<DailyChallengeScreen />} />
-                <Route path="/metrics" element={<MetricsScreen />} />
+                <Route path="/metrics" element={<OwnerMetricsRoute />} />
                 <Route path="/tournament" element={<TournamentListScreen />} />
                 <Route path="/tournament/:tournamentId" element={<TournamentDetailScreen />} />
                 <Route path="/subscription" element={<SubscriptionScreen />} />

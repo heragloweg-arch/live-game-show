@@ -24,6 +24,7 @@ interface PublicProfileRow {
 function mapRow(row: Record<string, unknown>): UserProfile {
   return {
     id: String(row.id),
+    isOwner: Boolean(row.is_owner ?? false),
     username: String(row.username ?? 'player'),
     displayName: String(row.display_name ?? 'لاعب قدها'),
     avatarUrl: (row.avatar_url as string | null) ?? null,

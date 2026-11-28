@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
-  BarChart3,
   Coins,
+  Crown,
   Flame,
   Home,
   Medal,
@@ -181,18 +181,20 @@ export function HomeScreen() {
           </Link>
         </motion.section>
 
-        <motion.section variants={item} className="card flex items-center gap-4 p-4">
+        <motion.div variants={item}>
+        <Link to="/play" aria-label="خليك قدها — افتح مركز اللعب" className="card group flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:border-violet-300/30">
           <div className="level-badge"><Play className="h-5 w-5" /></div>
           <div className="min-w-0 flex-1">
             <p className="eyebrow">كل ساحات اللعب في مكان واحد</p>
-            <h2 className="section-title mt-1">مركز اللعب</h2>
-            <p className="mt-1 text-xs leading-5 text-white/45">المواجهات والغرف والفرق والبطولات مرتبة داخل ساحة المنافسة.</p>
+            <h2 className="section-title mt-1">خليك قدها</h2>
+            <p className="mt-1 text-xs leading-5 text-white/45">افتح ساحة المنافسة واختر طريقك بثقة.</p>
           </div>
-          <Link to="/play" className="btn-primary shrink-0 px-3 py-2 text-xs">استكشف</Link>
-        </motion.section>
+          <span className="btn-primary shrink-0 px-3 py-2 text-xs transition group-hover:brightness-110">خليك قدها <ArrowLeft className="h-3.5 w-3.5" /></span>
+        </Link>
+        </motion.div>
         <motion.section variants={item} className="quick-row">
           <Link to="/leaderboard" className="quick-item"><Trophy /><span>المتصدرون</span><ArrowLeft /></Link>
-          <Link to="/metrics" className="quick-item"><BarChart3 /><span>إحصائياتي</span><ArrowLeft /></Link>
+          {user?.isOwner ? <Link to="/metrics" className="quick-item"><Crown /><span>لوحة المالك</span><ArrowLeft /></Link> : <Link to="/subscription" className="quick-item"><Crown /><span>الترقية</span><ArrowLeft /></Link>}
           <Link to="/shop" className="quick-item"><ShoppingBag /><span>المتجر</span><ArrowLeft /></Link>
         </motion.section>
         <motion.section variants={item} className="card p-4">

@@ -51,6 +51,7 @@ export interface UserProfile {
   id: string;
   email?: string | null;
   authProvider?: string | null;
+  isOwner?: boolean;
   username: string;
   displayName: string;
   avatarUrl: string | null;
