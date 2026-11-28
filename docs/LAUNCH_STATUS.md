@@ -1,62 +1,43 @@
 # حالة إطلاق قدها — LIVE
 
-> آخر تحديث: 2026-11-28. هذا الملف يصف الحالة الحالية فقط؛ لا يُعد دليلًا على نجاح ميداني لم يُختبر أو على جاهزية المتجر.
+> آخر تحديث: 2026-11-28. هذا الملف يصف ما تم إثباته فقط؛ لا يُعد إعلانًا عن Store Ready أو Global Launch Ready.
 
 ## المصدر والـartifact
 
-- **المصدر:** آخر commit منشور بعد هذه الدفعة سيُثبت في Git بعد اجتياز build النهائي، دون force-push.
-- **آخر build متحقق سابقًا:** يحمل `gitCommit=ccc4764d7b8a2d815f7a0c92013c6cc542765633`، وسيُعاد توليد manifest بعد commit الواجهة الحالي.
-- **Railway:** المستخدم أفاد أن النشر يعمل بالبصمة الجديدة. هذا توثيق مصدره المستخدم (`USER_REPORTED`) وليس artifact أو log مستخرجًا من البيئة في هذه الدفعة.
-- **Build contract:** `npm run build` يولّد `dist/build-info.json` ثم `PACKAGE_MANIFEST.json`. بوابة الإنتاج تمنع اختلاف commit أو تسريب `service_role`.
-- **LiveKit:** lazy loading محفوظ. تحذير chunk الكبير مقبول ولم يُخفَ عبر `chunkSizeWarningLimit`.
+- **المستودع:** `main`، آخر commit منشور: `f1533d54f6e05a0bcce689cf2deed258917e21a8` (`feat: unify challenge runtime contracts`).
+- **الرفع:** `origin/main` متزامن مع commit أعلاه، دون force-push.
+- **Build:** `npm run build` نجح، و`PACKAGE_MANIFEST.json` يُولد تلقائيًا من `dist/build-info.json`.
+- **Performance:** lazy loading لـLiveKit محفوظ. تحذير chunk الكبير ظاهر كما هو ولم يُخفَ عبر `chunkSizeWarningLimit`.
 
 ## Supabase Production
 
 - **Project ref:** `jwhrbadnirwjyinplbmn`.
-- **Database:** migration `20261127000001_owner_accounts.sql` طُبقت فعليًا عبر `npx supabase db push --linked --yes` — **PASS**. الحسابان `sir.market7@gmail.com` و`miss.market7@gmail.com` يُوسمان خادميًا عبر `profiles.is_owner` عند تطابق بريد `auth.users`، ولا يمكن للعميل تعديل العلامة.
-- **Edge Functions:** نشر غير تفاعلي باستخدام `--yes` اكتمل للوظائف العشرين، ثم تم التحقق عبر `supabase functions list --output=json`. جميعها `ACTIVE`:
+- **Database:** migration `20261128000001_unified_challenge_runtime_contract.sql` طُبقت فعليًا في Production بعد نجاح dry-run. تثبت 20 ثانية لكل سؤال، حد 10 جولات للغرف، و10 أسئلة غير مكررة لمسارات مباريات البطولة/الفرق، مع تقييد RPCs الحساسة إلى `service_role`.
+- **Content release:** أُطلقت أعلام الدول الرسمية المحددة فقط عندما يحتوي كل سؤال على إجابة صحيحة واحدة؛ لا يوجد bulk activation لبنك `needs_review`.
+- **Edge Functions المعدلة:** `room` و`match` و`answer` نُشرت بنجاح، وكلها `ACTIVE`.
 
-| الوظيفة | الإصدار | JWT |
-|---|---:|---|
-| account | 14 | لا |
-| admob-ssv | 18 | لا |
-| analytics | 8 | لا |
-| answer | 19 | نعم |
-| couple | 18 | نعم |
-| creator | 15 | لا |
-| daily | 38 | نعم |
-| economy | 22 | نعم |
-| google-play-rtdn | 19 | لا |
-| match | 47 | نعم |
-| matchmaking | 28 | نعم |
-| metrics | 31 | نعم |
-| overlay | 19 | لا |
-| room | 21 | نعم |
-| safety | 16 | نعم |
-| subscription | 24 | نعم |
-| team | 23 | لا |
-| tiktok | 15 | لا |
-| tournament | 25 | نعم |
-| voice | 22 | نعم |
+| الوظيفة | الحالة | الإصدار المثبت |
+|---|---|---:|
+| answer | ACTIVE | 21 |
+| match | ACTIVE | 49 |
+| room | ACTIVE | 23 |
 
-- **مصدر جدول الوظائف:** ناتج فعلي من `npx supabase functions list --remote=jwhrbadnirwjyinplbmn --output=json` في 2026-11-27. الحالة `ACTIVE` لكل وظيفة.
-- **RPC الحساسة:** بوابات المصدر تتحقق من بقاء ملكية النتائج والمكافآت والانتقال الذري خادمية؛ لا يُعد ذلك بديلًا عن اختبار أمني ميداني مستقل.
+- بقية الوظائف الموجودة في Production بقيت `ACTIVE` ولم تُعاد إعادة نشرها دون تغيير مصدر.
+- نشر الوظائف لا يثبت وحده دورة شراء أو إعلان أو اختبار أجهزة متعدد.
 
 ## بوابات الجودة
 
-- **PASS محلي:** TypeScript typecheck، ESLint، Vitest: `27/27`، production gates: `57/57`، contract inventory: `20` وظيفة و`42` RPC، content release: `968` صفًا مدققًا دون bulk activation، solo progression: `48` مرحلة × `3` أسئلة، production lock، و`git diff --check`.
-- **E2E خارجي:** المستخدم أفاد باختبار تسجيل الدخول وSolo وDaily والمواجهات على أجهزة فعلية (`USER_REPORTED`). لا توجد في هذه الدفعة logs أو screenshots أو IDs قابلة لإعادة التحقق؛ لذلك لا تُرفع هذه البنود إلى دليل مستقل.
-- **AAB / Google Play Billing / RTDN / Restore / AdMob SSV / LiveKit:** `NOT PROVEN` في هذه الدفعة لغياب artifact وجهاز/بيئة اختبار قابلة للتوثيق. نشر Functions وحده لا يثبت دورة الشراء أو الاستعادة أو SSV.
+- **PASS محلي:** TypeScript، ESLint، Vitest، production gates، contract inventory، content release، solo progression، production build، production lock، و`git diff --check`.
+- **E2E خارجي:** لا يُرفع إلى دليل مستقل في هذه الدفعة لعدم وجود logs أو screenshots أو IDs قابلة لإعادة التحقق داخل البيئة.
+- **AAB / Google Play Billing / Restore / RTDN / AdMob SSV / LiveKit:** `NOT PROVEN` ميدانيًا. وجود Functions الخاصة بها لا يثبت دورة التشغيل الكاملة.
 
 ## Soft Launch والواجهة
 
-- المسموح حاليًا: شجرة التحدي، Daily، الحساب، وقراءة المتجر.
-- البطولة، الفريق، الغرفة، المضيف، الثنائي، Creator، وميزات الإعلانات المكافِئة تبقى `OFF/Beta` حتى إغلاق اختبارات التشغيل والأمان المقابلة.
-- الواجهة تحافظ على الثيم الداكن والفاتح، safe areas، الهاتف والتابلت، والوضع الرأسي والأفقي. أُضيفت معالجة تخطيطية للوضع الأفقي القصير حتى لا يظهر التطبيق كصفحة طويلة على الأجهزة العريضة.
-- شجرة التحدي أعيد تصميمها بصريًا كمسار تقدّم سينمائي بعمود مركزي، أغصان، حالات فتح/إكمال/قفل، وتباين محسّن في الثيمين.
-- بطاقة `خليك قدها` أصبحت كاملة الضغط وتفتح ساحة اللعب. Daily لم يعد مكررًا داخلها، واستُبدل رابط إحصائيات المستخدم العادي بالترقية؛ لوحة المؤشرات المباشرة محمية للمالك.
-- الدوريات والغرف والأصدقاء والمضيف ظاهرة كمساحات `قريبًا` غير مفعلة؛ لم تُفتح لأن بوابات التشغيل الخاصة بها لم تُغلق بعد.
+- **مفعّل في الكود:** شجرة التحدي، Daily، الحساب، قراءة المتجر، المطابقة، البطولة، الفرق، الغرف، المضيف، الثنائي، وCreator.
+- **مغلق عمدًا:** `ads=false` و`billing=false` حتى تثبيت AdMob production IDs وSSV، Google Play products، service account، RTDN، AAB موقّع، وشراء/Restore فعلي.
+- المؤقت الموحد في الواجهة والخادم 20 ثانية، وتظهر حالة `timeout` بصيغة «فات الأوان»، وملخص المباراة يستخدم رسائل فوز/خسارة/تعادل واضحة.
+- الواجهة تحتفظ بالثيم الداكن والفاتح، safe areas، الهاتف والتابلت، والوضعين الرأسي والأفقي. لا يُعتبر ذلك بديلًا عن اختبار الأجهزة الحقيقية.
 
 ## قرار الإطلاق
 
-**NO-GO للإطلاق العام أو إعلان Store Ready.** الحالة الحالية **Soft Launch Candidate ضيق** بعد نجاح البوابات المحلية وتحقق Supabase ووظائفه. يلزم قبل الإطلاق العام إثبات AAB موقّع، Google Play Billing وRestore، RTDN، AdMob SSV، LiveKit، واختبارات ميدانية قابلة للتدقيق، مع إبقاء الأوضاع غير المختبرة مغلقة.
+**NO-GO للإطلاق العام أو إعلان Store Ready.** الحالة الحالية **Soft Launch Candidate تقني** بعد نجاح البوابات المحلية، تطبيق migration، ونشر الوظائف المعدلة. يلزم قبل الإطلاق العام إثبات AAB موقّع، Google Play Billing وRestore وRTDN، AdMob SSV، LiveKit، واختبارات تشغيل متعددة الأجهزة قابلة للتدقيق، ثم قياس cohort مثل D1/D7 وإكمال Daily وRematch وتحويل Plus.
