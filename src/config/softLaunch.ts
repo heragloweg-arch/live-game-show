@@ -9,17 +9,17 @@ export const SOFT_LAUNCH = {
   regions: ['sa', 'eg'] as SoftLaunchRegion[],
   /** Feature gates during soft launch */
   features: {
-    hostShow: false,
+    hostShow: true,
     dailyChallenge: true,
     matchmaking: true,
     // Rewarded ads stay off until production AdMob SSV evidence exists.
     ads: false,
     // The shop remains readable; purchase/restore is not a soft-launch CTA.
     billing: false,
-    tournaments: false,
-    couples: false,
-    teams: false,
-    creator: false,
+    tournaments: true,
+    couples: true,
+    teams: true,
+    creator: true,
   },
   /** Minimum quality gates before paid growth */
   qualityGates: {

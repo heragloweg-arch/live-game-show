@@ -140,7 +140,7 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
           subtype: activeRound.challenge?.subtype,
           prompt: activeRound.challenge?.prompt,
           difficulty: activeRound.challenge?.difficulty,
-          timeLimitMs: activeRound.challenge?.time_limit_ms ?? 15000,
+          timeLimitMs: activeRound.challenge?.time_limit_ms ?? 20000,
           letterPool: activeRound.challenge?.letter_pool,
           maxLength: activeRound.challenge?.max_length,
           imageUrl: activeRound.challenge?.image_url ?? null,
@@ -161,6 +161,11 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
     .maybeSingle();
 
   const roundNumber = (last?.round_number ?? 0) + 1;
+  const roundLimit = Number(room.round_limit ?? 10);
+  if (roundNumber > roundLimit) {
+    await supabase.from('rooms').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('id', roomId);
+    return json({ error: 'انتهت الجولة — الفريق الأعلى نقاطًا هو الفائز.', code: 'ROOM_COMPLETE', totalRounds: roundLimit }, 409);
+  }
   const previousSubtype = last?.challenge?.subtype ?? null;
   const { data: priorRounds } = await supabase
     .from('room_rounds')
@@ -188,7 +193,7 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
   if (!challenge) return json({ error: 'No playable challenges in bank' }, 500);
 
   const now = new Date();
-  const end = new Date(now.getTime() + (challenge.time_limit_ms ?? 15000));
+  const end = new Date(now.getTime() + (challenge.time_limit_ms ?? 20000));
 
   const { data: round, error } = await supabase
     .from('room_rounds')
@@ -238,7 +243,7 @@ async function startChallenge(supabase: any, userId: string, roomId: string) {
         subtype: challenge.subtype,
         prompt: challenge.prompt,
         difficulty: challenge.difficulty,
-        timeLimitMs: challenge.time_limit_ms,
+        timeLimitMs: challenge.time_limit_ms ?? 20000,
         letterPool: challenge.letter_pool,
         maxLength: challenge.max_length,
         imageUrl: challenge.image_url ?? null,
@@ -301,7 +306,7 @@ async function getState(supabase: any, userId: string, roomId: string) {
         subtype: round.challenge?.subtype,
         prompt: round.challenge?.prompt,
         difficulty: round.challenge?.difficulty,
-        timeLimitMs: round.challenge?.time_limit_ms ?? 15000,
+        timeLimitMs: round.challenge?.time_limit_ms ?? 20000,
         letterPool: round.challenge?.letter_pool,
         maxLength: round.challenge?.max_length,
         imageUrl: round.challenge?.image_url ?? null,

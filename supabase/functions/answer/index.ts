@@ -170,7 +170,7 @@ serveWithCors(async (req) => {
     const score = calculateScore({
       outcome: isCorrect ? 'correct' : 'wrong',
       responseTimeMs,
-      timeLimitMs: round.challenge?.time_limit_ms ?? 15000,
+      timeLimitMs: round.challenge?.time_limit_ms ?? 20000,
       difficulty: round.challenge?.difficulty ?? 'normal',
       challengeType: round.challenge?.type ?? 'knowledge',
       config: DEFAULT_SCORING,

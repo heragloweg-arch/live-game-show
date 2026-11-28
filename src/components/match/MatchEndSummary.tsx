@@ -24,7 +24,7 @@ export interface MatchEndSummaryProps {
 }
 
 export function MatchEndSummary({ mode, won, draw, playerScore, opponentScore, coinGain, xpGain, streak = 0, onShare, onRematch, onReset, leafCorrect, leafQuestions = 3, leafUnlocked, leafBoostContext, onLeafBoostComplete }: MatchEndSummaryProps) {
-  const title = mode === 'solo' && won && leafUnlocked ? 'بطل تحديات قدها!' : won ? 'فوز مستحق!' : draw ? 'تعادل قوي' : 'جولة ونتعلم منها';
+  const title = mode === 'solo' && won && leafUnlocked ? 'بطل تحديات قدها!' : won ? 'أنت الفائز!' : draw ? 'تعادل — لا فائز' : 'خسرت هذه الجولة';
   const tone = won ? 'text-amber-200' : draw ? 'text-cyan-200' : 'text-white/80';
   return <div className="w-full max-w-md space-y-3">
     <section className="card-glow p-7 text-center">

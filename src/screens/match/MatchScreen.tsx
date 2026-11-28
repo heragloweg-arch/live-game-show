@@ -328,7 +328,7 @@ export function MatchScreen() {
                         width:
                           Math.max(
                             0,
-                            (remaining / (match.round.challenge?.timeLimitMs ?? 15000)) * 100
+                          (remaining / (match.round.challenge?.timeLimitMs ?? 20000)) * 100
                           ) + '%',
                       }}
                     />
@@ -379,7 +379,7 @@ export function MatchScreen() {
                   >
                     {match.lastAnswerResult?.outcome === 'correct' && 'إجابة صحيحة! 🎉'}
                     {match.lastAnswerResult?.outcome === 'wrong' && 'إجابة خاطئة'}
-                    {match.lastAnswerResult?.outcome === 'timeout' && 'انتهى الوقت'}
+                    {match.lastAnswerResult?.outcome === 'timeout' && 'فات الأوان'}
                   </p>
                   {match.lastAnswerResult &&
                     match.lastAnswerResult.points + (match.lastAnswerResult.bonus ?? 0) > 0 && (

@@ -163,7 +163,7 @@ async function pickChallenges(supabase: any, count: number, difficulty?: string,
     previousSubtype = pick.subtype;
     challenges.push({
       ...pick,
-      timeLimitMs: pick.time_limit_ms,
+      timeLimitMs: pick.time_limit_ms ?? 20000,
     });
   }
   return challenges;
